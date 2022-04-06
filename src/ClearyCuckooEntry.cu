@@ -1,7 +1,11 @@
+#ifndef ENTRYINCLUDED
+#define ENTRYINCLUDED
 #include "TableEntry.h"
+#endif
+
 
 template <class ADD, class REM>
-class ClearyEntry : TableEntry<ADD, REM> {
+class ClearyCuckooEntry : TableEntry <ADD, REM> {
 
 private:
     uint64_t val;
@@ -9,6 +13,7 @@ private:
     std::pair<int, int> Hindex = std::pair<int, int>(57, 62);
     std::pair<int, int> Oindex = std::pair<int, int>(63, 64);
 
+    __host__ __device__
     void setBits(int start, int end, uint64_t ins) {
         uint64_t mask = ((((uint64_t)1) << end) - 1) ^ ((((uint64_t)1) << (start - 1)) - 1);
         val = val & ~mask;      //Remove all of the bits currently in the positions
@@ -17,6 +22,7 @@ private:
         val = val | ins;        //Place the new val
     }
 
+    __host__ __device__
     uint64_t getBits(int start, int end) {
         uint64_t res = val;
         uint64_t mask = ((((uint64_t)1) << end) - ((uint64_t)1)) ^ ((((uint64_t)1) << (start - 1)) - ((uint64_t)1));
@@ -25,6 +31,7 @@ private:
         return res;
     }
 
+    __host__ __device__
     int signed_to_unsigned(int n, int size) {
         int res = 0;
         if (n < 0) {
@@ -36,6 +43,7 @@ private:
         return res;
     }
 
+    __host__ __device__
     int unsigned_to_signed(unsigned n, int size)
     {
         uint64_t mask = ((((uint64_t)1) << size) - 1) ^ ((((uint64_t)1) << (1 - 1)) - 1);
@@ -47,41 +55,48 @@ private:
     }
 
 public:
-    ClearyEntry(ADD R, int H, bool O) {
+    ClearyCuckooEntry(ADD R, int H, bool O) {
         val = 0;
         setR(R);
         setH(H);
         setO(O);
     }
 
-    ClearyEntry() {
-        ClearyEntry(0, 0, false);
+    ClearyCuckooEntry() {
+        ClearyCuckooEntry(0, 0, false);
     }
 
+    __host__ __device__
     void setR(REM x) {
         setBits(Rindex.first, Rindex.second, x);
     }
 
+    __host__ __device__
     REM getR() {
         return (REM)getBits(Rindex.first, Rindex.second);
     }
 
+    __host__ __device__
     void setH(int x) {
         setBits(Hindex.first, Hindex.second, x);
     }
 
+    __host__ __device__
     int getH() {
-        return (int) getBits(Hindex.first, Hindex.second, x);
+        return (int) getBits(Hindex.first, Hindex.second);
     }
 
+    __host__ __device__
     void setO(bool x) {
         setBits(Oindex.first, Oindex.second, x);
     }
 
+    __host__ __device__
     bool getO() {
         return (bool)getBits(Oindex.first, Oindex.second);
     }
 
+    __host__ __device__
     void print() {
         std::cout << std::bitset<64>(val) << "\n";
     }

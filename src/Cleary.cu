@@ -14,7 +14,7 @@
 
 #ifndef HASHINCLUDED
 #define HASHINCLUDED
-#include "Hash.cpp"
+#include "hashfunctions.cu"
 #endif
 
 #include "ClearyEntry.cu"
@@ -174,7 +174,8 @@ class Cleary : public HashTable{
             delete [] T;
         }
 
-        bool insert(keytype k){
+        __device__
+        bool Cleary::insert(keytype k){
             //If the key is already inserted don't do anything
             if (lookup(k)) {
                 return false;
@@ -369,7 +370,8 @@ class Cleary : public HashTable{
             return true;
         };
 
-        bool lookup(uint64_t k){
+        __device__
+        bool Cleary::lookup(uint64_t k){
             //Hash Key
             keyTuple js = splitKey( RHASH(h1, k) );
             addtype j = js.first;
@@ -389,17 +391,21 @@ class Cleary : public HashTable{
             }
         };
 
-        void clear(){
+        __device__
+        void Cleary::clear(){
             for(int i=0; i<tablesize; i++){
                 T[i] = ClearyEntry<addtype, remtype>();
             }
         }
 
-        int getSize(){
+        __device__
+        int Cleary::getSize(){
             return size;
         }
 
-        void print(){
+        __device__
+        void Cleary::print(){
+            /*
             const char separator = ' ';
             std::cout << "-----------------------------------\n";
             std::cout << "|" << std::setw(6) << std::setfill(separator) << "i" << "|";
@@ -420,9 +426,11 @@ class Cleary : public HashTable{
                 }
             }
             std::cout << "-----------------------------------\n";
+            */
         }
 
         //No rehash
-        bool rehash(){return true;}
+        __device__
+        bool Cleary::rehash(){return true;}
 
 };

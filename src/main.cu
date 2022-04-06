@@ -11,7 +11,7 @@
 
 #ifndef HASHINCLUDED
 #define HASHINCLUDED
-#include "Hash.cpp"
+#include "hashfunctions.cu"
 #endif
 
 #include "ClearyCuckoo.cu"
@@ -70,25 +70,28 @@ uint64_t* generateTestSet(int size) {
  */
 
 
+//TODO Need to make this abstract
 __global__
-void fillTable(int n, uint64_t* vals)
+void fillTable(int n, uint64_t* vals, ClearyCuckoo* H)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index; i < n; i += stride) {
         printf("Value %i is %" PRIu64 "\n", i, vals[i]);
+        H->insert(vals[i]);
     }
 }
 
 
 void Test(int N) {
-	//Read File
+	//Create List of Values
 	uint64_t* vals;
-
     vals = generateTestSet(N);
 
 	//Create Table 1
-	fillTable << <1, 256 >> > (N, vals);
+    ClearyCuckoo cc = ClearyCuckoo(8, 4);
+	fillTable << <1, 256 >> > (N, vals, &cc);
+    cc.print();
 
 	//Create Table 2
 
@@ -98,7 +101,7 @@ void Test(int N) {
 int main(void)
 {
     printf("Starting\n");
-	Test(512);
+	Test(10);
 	//Benchmark();
 
     return 0;

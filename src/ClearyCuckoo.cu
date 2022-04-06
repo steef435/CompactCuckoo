@@ -4,6 +4,7 @@
 #include <math.h>
 #include <iterator>
 #include <set>
+#include <inttypes.h>
 
 #ifndef HASHTABLE
 #define HASHTABLE
@@ -12,8 +13,10 @@
 
 #ifndef HASHINCLUDED
 #define HASHINCLUDED
-#include "Hash.cpp"
+#include "hashfunctions.cu"
 #endif
+
+#include "ClearyCuckooEntry.cu"
 
 class ClearyCuckoo : public HashTable{
     //Allows for easy changing of the types
@@ -35,59 +38,89 @@ class ClearyCuckoo : public HashTable{
         int tablesize;
         
         //Hash tables
-        remtype *t;
-        bool *O;
-        //Backup Vars
-        remtype *t_backup;
-        bool *O_backup;
-        int h1_backup, h2_backup;
-        std::set<addtype>* delta = new std::set<addtype>();
+        ClearyCuckooEntry<addtype, remtype>* T;
 
         int hashcounter = 0;
 
         //Hash function ID
-        int h1, h2;
+        int hn;
+        int* hashlist;
 
-        keyTuple splitKey(keytype key, int hash){
+        __device__
+        keyTuple splitKey(keytype key){
             hashtype mask = ((hashtype) 1 << AS) - 1;
             addtype add = key & mask;
             remtype rem = key >> AS ;
-            return std::make_pair(add,labelKey(rem, hash));
+            return std::make_pair(add,rem);
         }
 
-        uint64_t reformKey(keyTuple split){
-            remtype rem = split.second;
-            hashtype reform = unlabelKey(rem);
-            reform = reform << AS;
-            reform += split.first;
-            return reform;
-        }
-        
-        /**
-         * Function to label which hash function was used on this value
-         **/
-        remtype labelKey(remtype rem, int h){
-            remtype hnew = h;
-            hnew = hnew << ((HS-AS));
-            return hnew + rem;
-        }
-
-        remtype unlabelKey(remtype rem){
-            remtype mask = ((remtype)1 << ((HS-AS))) - 1 ;
-            rem = rem & mask;
+        __device__
+        uint64_t reformKey(addtype add, remtype rem){
+            rem = rem << AS;
+            rem += add;
             return rem;
         }
 
-        int getLabel(remtype rem){
-            return rem >> ((HS-AS));
+        __host__ __device__
+        int* createHashList(int n) {
+            int* list = new int[n];
+
+            for (int i = 0; i < n; i++) {
+                int newhash = rand() % 32;
+                
+                bool alreadyexists = false;
+                for (int j = 0; j < i; j++) {
+                    if (list[j] == newhash) { alreadyexists = true; }
+                }
+
+                if (alreadyexists) {
+                    i--;
+                }
+                else {
+                    list[i] = newhash;
+                }
+            }
+
+            return list;
         }
 
-        bool insertIntoTable(keytype k, remtype *rems, bool *occs, int hash1, int hash2, int depth=0){
+        __device__
+        int getNextHash(int* ls, int curr) {
+            for (int i = 0; i < hn; i++) {
+                if (ls[i] == curr) {
+                    if (i + 1 != hn) {
+                        return ls[i + 1];
+                    }
+                    else {
+                        return ls[0];
+                    }
+                }
+            }
+
+            //Default return 0 if hash can't be found
+            return ls[0];
+        }
+
+        __device__
+        bool containsHash(int* ls, int query) {
+            for (int i = 0; i < hn; i++) {
+                if (ls[i] == query) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Function to label which hash function was used on this value
+         **/
+        __device__
+        bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int depth=0){
             keytype x = k;
-            int hash = hash1;
+            int hash = hashlist[0];
 
             //If the key is already inserted don't do anything
-            if (lookup(k, rems, occs)) {
+            if (lookup(k, T)) {
                 return false;
             }
 
@@ -97,209 +130,128 @@ class ClearyCuckoo : public HashTable{
             while(c < MAXLOOPS){
                 //Get the key of k
                 hashtype hashed1 = RHASH(hash, x);
-                keyTuple split1 = splitKey(hashed1, hash);
+                keyTuple split1 = splitKey(hashed1);
 
                 //Store the old value
-                remtype temp = rems[split1.first];
-                bool wasoccupied = occs[split1.first];
+                remtype temp = T[split1.first].getR();
+                bool wasoccupied = T[split1.first].getO();
+                int oldhash = T[split1.first].getH();
 
                 //Place new value
-                rems[split1.first] = split1.second;
-                occs[split1.first] = true;
-                delta->insert(split1.first);
+                //TODO use atomicCAS
+                T[split1.first].setR(split1.second);
+                T[split1.first].setO(true);
+                T[split1.first].setH(hash);
 
                 //If the first spot was open return
                 if(!wasoccupied){
                     return true;
                 }
 
-                //Rebuild the original key
-                int oldhash = getLabel(temp);
-                hashtype h_old = reformKey(std::make_pair(split1.first, temp));
+                //Otherwise rebuild the original key
+                hashtype h_old = reformKey(split1.first, temp);
                 keytype k_old = RHASH_INVERSE(oldhash, h_old);
 
                 //Hash with the opposite hash value
-                if(oldhash == hash1){
-                    hash = hash2;
-                }else{
-                    hash = hash1;
-                }
+                hash = getNextHash(hashlist, oldhash);
                 
-                //Do the same procedure again
-                hashtype hashed2 = RHASH(hash, k_old);
-                keyTuple split2 = splitKey(hashed2, hash);
-                delta->insert(split2.first);
-
-                temp = rems[split2.first];
-                wasoccupied = occs[split2.first];
-
-                rems[split2.first] = split2.second;
-                occs[split2.first] = true;
-                //If the second spot was open return
-                if(!wasoccupied){
-                    return true;
-                }
-
-                oldhash = getLabel(temp);
-                //Hash with the opposite hash value
-                if(oldhash == hash1){
-                    hash = hash2;
-                }else{
-                    hash = hash1;
-                }
-                h_old = reformKey(std::make_pair(split2.first, temp));
-                x = RHASH_INVERSE(oldhash, h_old);
                 c++;
             }
+
             if(depth>0){return false;}
             //If MAXLOOPS is reached rehash the whole table
             if(!rehash()){
                 //If rehash fails, return
                 return false;
             }
-            if(insertIntoTable(x, rems, occs, h1, h2, depth)){return true;}
+
+            if(insertIntoTable(x, T, depth)){return true;}
+
             return false;
         };
 
+        __device__
         bool rehash(int depth){
             //Prevent recursion of rehashing
             if(depth >0){return false;}
 
-            int hash1 = rand() % 32;
-            int hash2 = rand() % 32;
-
-            //Store the table in a temporary array
-            remtype *t_new = new remtype[tablesize];
-            bool *o_new = new bool[tablesize];
-            for(int i=0; i<tablesize; i++){
-                t_new[i] = 0;
-                o_new[i] = 0;
-            }
+            hashlist = createHashList(hn);
 
             //Insert the old values in the new table
             for(int i=0; i<tablesize; i++){
-                if(O[i]){
-                    remtype rem = t[i];
-                    int label = getLabel(rem);
-                    hashtype h = reformKey(std::make_pair(i, rem));
-                    keytype k = RHASH_INVERSE(label, h);
-                    //If Insertion Fails (New Rehash) Return
-                    if(!insertIntoTable(k,t_new,o_new,hash1,hash2,depth+1)){
-                        delete [] t_new;
-                        delete [] o_new;
-                        return false;
-                    }
+
+                if (!containsHash(hashlist, T[i].getH())) {
+                    //Store the old value
+                    remtype temp = T[i].getR();
+                    int oldhash = T[i].getH();
+
+                    //Delete Entry
+                    T[i] = ClearyCuckooEntry<addtype, remtype>();
+
+                    //Insert
+                    hashtype h_old = reformKey(i, temp);
+                    keytype k_old = RHASH_INVERSE(oldhash, h_old);
+                    insertIntoTable(k_old, T, depth);
                 }
-            }
-
-            //If all vals are inserted, copy new into global and delete
-            h1 = hash1;
-            h2 = hash2;
-
-            for(int i=0; i<tablesize; i++){
-                t[i] = t_new[i];
-                O[i] = o_new[i];
-            }
-            
-            delete[] t_new;
-            delete[] o_new;
-
+            }            
             return true;
         };
 
-        bool lookup(uint64_t k, remtype* rems, bool* occs){
-            uint64_t hashed1 = RHASH(h1, k);
-            keyTuple split1 = splitKey(hashed1, h1);
-            if( rems[split1.first] == split1.second && occs[split1.first] ){
-                return true;
+        __device__
+        bool lookup(uint64_t k, ClearyCuckooEntry<addtype, remtype>* T){
+            for (int i = 0; i < 32; i++) {
+                uint64_t hashed1 = RHASH(hashlist[i], k);
+                keyTuple split1 = splitKey(hashed1);
+                if (T[split1.first].getR() == split1.second && T[split1.first].getO()) {
+                    return true;
+                }
             }
-
-            uint64_t hashed2 = RHASH(h2, k);
-            keyTuple split2 = splitKey(hashed2, h2);
-            if( rems[split2.first] == split2.second && occs[split2.first]){
-                return true;
-            }
-
             return false;
         };
-
-        void revertTable(){
-            for(int i: *delta){
-                t[i] = t_backup[i];
-                O[i] = O_backup[i];
-            }
-            h1 = h1_backup;
-            h2 = h2_backup;
-            delta->clear();
-        }
-
-        void updateBackup(){
-            for(int i: *delta){
-                t_backup[i] = t[i];
-                O_backup[i] = O[i];
-            }
-            h1_backup = h1;
-            h2_backup = h2;
-            delta->clear();
-        }
 
     
     public:
         /**
          * Constructor
          */
-        ClearyCuckoo(int adressSize){
+        ClearyCuckoo(int adressSize, int hashNumber){
             AS = adressSize;
             RS = HS-AS;
             tablesize = (int) pow(2,AS);
 
-            t = new remtype[tablesize];
-            O = new bool[tablesize];
-
-            t_backup = new remtype[tablesize];
-            O_backup = new bool[tablesize];
+            T = new ClearyCuckooEntry<addtype, remtype>[tablesize];
 
             for(int i=0; i<tablesize; i++){
-                t[i] = 0;
-                O[i] = false;
-
-                t_backup[i] = 0;
-                O_backup[i] = false;
+                T[i] = ClearyCuckooEntry<addtype, remtype>();
             }
-            h1 = 1;
-            h2 = 2;
+            
+            hn = hashNumber;
+            int* hashlist = createHashList(hn);
 
-            h1_backup = h1;
-            h2_backup = h2;
         }
 
         /**
          * Destructor
          */
         ~ClearyCuckoo(){
-            delete [] t;
-            delete [] O;
+            delete[] T;
 
-            delete[] t_backup;
-            delete[] O_backup;
-            delete delta;
+            delete[] hashlist;
         }
 
-        bool insert(keytype k){
+        __device__
+        bool ClearyCuckoo::insert(keytype k){
             //Succesful Insertion
-            if(insertIntoTable(k,t,O,h1,h2)){
+            if(insertIntoTable(k,T)){
                 //Reset the Hash Counter
                 hashcounter = 0;
-                //Update the Backup Table
-                updateBackup();
                 return true;
             }
-            //On Fail Revert the Table
-            revertTable();
             return false;
         };
 
-        bool rehash(){
+        __device__
+        bool ClearyCuckoo::rehash(){
             //Local counter for number of rehashes
             while(!rehash(0) && hashcounter<MAXREHASHES){
                 hashcounter++;
@@ -311,52 +263,48 @@ class ClearyCuckoo : public HashTable{
             hashcounter++;
             return true;
         }
-
-        bool lookup(uint64_t k){
-            return lookup(k, t, O);
+        
+        __device__
+        bool ClearyCuckoo::lookup(uint64_t k){
+            return lookup(k, T);
         };
 
-        void clear(){
+        __device__
+        void ClearyCuckoo::clear(){
             for(int i=0; i<tablesize; i++){
-                t[i] = 0;
-                O[i] = false;
+                T[i] = ClearyCuckooEntry<addtype, remtype>();
             }
         }
 
-        int getSize(){
+        __device__
+        int ClearyCuckoo::getSize(){
             return tablesize;
         }
 
-        void print(remtype* rems, bool* occs){
-            const char separator = ' ';
-            std::cout << "-----------------------------------\n";
-            std::cout << "|" << std::setw(6) << std::setfill(separator) << "i" << "|";
-            std::cout << std::setw(20)<< std::setfill(separator) << "r" << "|";
-            std::cout << std::setw(5)<< std::setfill(separator) << "O[i]" << "|";
-            std::cout << std::setw(20)<< std::setfill(separator) << "key" << "|";
-            std::cout << std::setw(5)<< std::setfill(separator) << "label" << "|\n";
+        __device__
+        void ClearyCuckoo::print(ClearyCuckooEntry<addtype, remtype>* T){
+            printf("-----------------------------------\n");
+            printf("|i|r|O[i]|key|label|\n");
             for(int i=0; i<tablesize; i++){
-                if(occs[i]){
-                    remtype rem = t[i];
-                    int label = getLabel(rem);
-                    hashtype h = reformKey(std::make_pair(i, rem));
+                if(T[i].getO()){
+                    remtype rem = T[i].getR();
+                    int label = T[i].getH();
+                    hashtype h = reformKey(i, rem);
                     keytype k = RHASH_INVERSE(label, h);
 
-                    std::cout << "|" << std::setw(6) << std::setfill(separator) << i << "|";
-                    std::cout << std::setw(20)<< std::setfill(separator) << rems[i] << "|";
-                    std::cout << std::setw(5)<< std::setfill(separator) << O[i] << "|";
-                    std::cout << std::setw(20)<< std::setfill(separator) << k << "|";
-                    std::cout << std::setw(5)<< std::setfill(separator) << label << "|\n";
+                    printf("|%-3i|%-10" PRIu64 "|%-3i|%-10" PRIu64 "|%-4i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
                 }
             }
-            std::cout << "-----------------------------------\n";
+            printf("-----------------------------------\n");
         }
 
-        void print(){
-            print(t,O);
+        __device__
+        void ClearyCuckoo::print(){
+            print(T);
         }
 
-        void debug(){}
+        __device__
+        void ClearyCuckoo::debug(){}
         
         void setMaxRehashes(int x){
             MAXREHASHES = x;

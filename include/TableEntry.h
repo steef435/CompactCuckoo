@@ -5,7 +5,7 @@
 template <class ADD, class REM>
 class TableEntry {
 
-private:
+protected:
     uint64_t val;
 
     void setBits(int start, int end, uint64_t ins) {

@@ -1,4 +1,8 @@
+#ifndef ENTRYINCLUDED
+#define ENTRYINCLUDED
 #include "TableEntry.h"
+#endif
+
 
 template <class ADD, class REM>
 class ClearyEntry : TableEntry <ADD, REM>{

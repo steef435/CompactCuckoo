@@ -14,9 +14,9 @@ class HashTable{
          * Output:
          *      new instance of a ClearyCuckoo table
          **/
-        HashTable(){};
+        HashTable() = default;
 
-        virtual ~HashTable(){};
+        virtual ~HashTable() = default;
 
         /**
          *  Insert Method
@@ -25,7 +25,8 @@ class HashTable{
          *  Output:
          *      Key k is inserted
          **/
-        virtual bool insert(uint64_t k);
+        __device__
+        virtual bool HashTable::insert(uint64_t k) = 0;
 
         /**
          *  Lookup Method
@@ -34,23 +35,31 @@ class HashTable{
          *  Output:
          *      Object stored at key k
          **/
-        virtual bool lookup(uint64_t k);
+        __device__
+        virtual bool HashTable::lookup(uint64_t k) = 0;
 
         /**
          *  Rehash
          **/
-        virtual bool rehash();
+        __device__
+        virtual bool HashTable::rehash() = 0;
 
         /**
          * Method to clear all values in the table
          **/
-        virtual void clear();
+        __device__
+        virtual void HashTable::clear() = 0;
 
-        virtual int getSize();
+        /*
+         * Method to get the size of the table
+         **/
+        __device__
+        virtual int HashTable::getSize() = 0;
         
         /**
          * Method to print
          * (Mostly for debugging/testing)
          * */
-        virtual void print();
+        __device__
+        virtual void HashTable::print() = 0;
 };
