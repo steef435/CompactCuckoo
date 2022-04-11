@@ -5,6 +5,10 @@
 #include <iterator>
 #include <set>
 #include <inttypes.h>
+#include <random>
+
+#include <curand.h>
+#include <curand_kernel.h>
 
 #ifndef HASHTABLE
 #define HASHTABLE
@@ -19,6 +23,13 @@
 #include "ClearyCuckooEntry.cu"
 
 class ClearyCuckoo : public HashTable{
+
+/*
+*
+*  Global Variables
+*
+*/
+
     //Allows for easy changing of the types
     using addtype = uint32_t;
     using remtype = uint64_t;
@@ -46,15 +57,22 @@ class ClearyCuckoo : public HashTable{
         int hn;
         int* hashlist;
 
-        __device__
-        keyTuple splitKey(keytype key){
+        __host__ __device__
+        addtype getAdd(keytype key){
             hashtype mask = ((hashtype) 1 << AS) - 1;
             addtype add = key & mask;
-            remtype rem = key >> AS ;
-            return std::make_pair(add,rem);
+            return add;
         }
 
-        __device__
+        __host__ __device__
+            remtype getRem(keytype key) {
+            hashtype mask = ((hashtype)1 << AS) - 1;
+            addtype add = key & mask;
+            remtype rem = key >> AS;
+            return rem;
+        }
+
+        __host__ __device__
         uint64_t reformKey(addtype add, remtype rem){
             rem = rem << AS;
             rem += add;
@@ -62,29 +80,17 @@ class ClearyCuckoo : public HashTable{
         }
 
         __host__ __device__
-        int* createHashList(int n) {
-            int* list = new int[n];
-
-            for (int i = 0; i < n; i++) {
-                int newhash = rand() % 32;
-                
-                bool alreadyexists = false;
-                for (int j = 0; j < i; j++) {
-                    if (list[j] == newhash) { alreadyexists = true; }
-                }
-
-                if (alreadyexists) {
-                    i--;
-                }
-                else {
-                    list[i] = newhash;
-                }
+        void createHashList(int* list) {
+            printf("\t\tCreating Hashlist\n");
+            for (int i = 0; i < hn; i++) {
+                printf("\t\tEntry %i\n", i);
+                list[i] = i;
+                printf("\t\tEntry %i Done\n", i);
             }
-
-            return list;
+            return;
         }
 
-        __device__
+        __host__ __device__
         int getNextHash(int* ls, int curr) {
             for (int i = 0; i < hn; i++) {
                 if (ls[i] == curr) {
@@ -101,7 +107,7 @@ class ClearyCuckoo : public HashTable{
             return ls[0];
         }
 
-        __device__
+        __host__ __device__
         bool containsHash(int* ls, int query) {
             for (int i = 0; i < hn; i++) {
                 if (ls[i] == query) {
@@ -114,7 +120,7 @@ class ClearyCuckoo : public HashTable{
         /**
          * Function to label which hash function was used on this value
          **/
-        __device__
+        __host__ __device__
         bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int depth=0){
             keytype x = k;
             int hash = hashlist[0];
@@ -130,18 +136,19 @@ class ClearyCuckoo : public HashTable{
             while(c < MAXLOOPS){
                 //Get the key of k
                 hashtype hashed1 = RHASH(hash, x);
-                keyTuple split1 = splitKey(hashed1);
+                addtype add = getAdd(hashed1);
+                remtype rem = getRem(hashed1);
 
                 //Store the old value
-                remtype temp = T[split1.first].getR();
-                bool wasoccupied = T[split1.first].getO();
-                int oldhash = T[split1.first].getH();
+                remtype temp = T[add].getR();
+                bool wasoccupied = T[add].getO();
+                int oldhash = T[add].getH();
 
                 //Place new value
                 //TODO use atomicCAS
-                T[split1.first].setR(split1.second);
-                T[split1.first].setO(true);
-                T[split1.first].setH(hash);
+                T[add].setR(rem);
+                T[add].setO(true);
+                T[add].setH(hash);
 
                 //If the first spot was open return
                 if(!wasoccupied){
@@ -149,7 +156,7 @@ class ClearyCuckoo : public HashTable{
                 }
 
                 //Otherwise rebuild the original key
-                hashtype h_old = reformKey(split1.first, temp);
+                hashtype h_old = reformKey(add, temp);
                 keytype k_old = RHASH_INVERSE(oldhash, h_old);
 
                 //Hash with the opposite hash value
@@ -170,12 +177,12 @@ class ClearyCuckoo : public HashTable{
             return false;
         };
 
-        __device__
+        __host__ __device__
         bool rehash(int depth){
             //Prevent recursion of rehashing
             if(depth >0){return false;}
 
-            hashlist = createHashList(hn);
+            createHashList(hashlist);
 
             //Insert the old values in the new table
             for(int i=0; i<tablesize; i++){
@@ -197,12 +204,13 @@ class ClearyCuckoo : public HashTable{
             return true;
         };
 
-        __device__
+        __host__ __device__
         bool lookup(uint64_t k, ClearyCuckooEntry<addtype, remtype>* T){
             for (int i = 0; i < 32; i++) {
                 uint64_t hashed1 = RHASH(hashlist[i], k);
-                keyTuple split1 = splitKey(hashed1);
-                if (T[split1.first].getR() == split1.second && T[split1.first].getO()) {
+                addtype add = getAdd(hashed1);
+                remtype rem = getRem(hashed1);
+                if (T[add].getR() == rem && T[add].getO()) {
                     return true;
                 }
             }
@@ -214,19 +222,30 @@ class ClearyCuckoo : public HashTable{
         /**
          * Constructor
          */
-        ClearyCuckoo(int adressSize, int hashNumber){
+        ClearyCuckoo() {
+
+        }
+
+        __host__
+        void ClearyCuckooInit(int adressSize, int hashNumber){
+            printf("Creating Table\n");
             AS = adressSize;
             RS = HS-AS;
             tablesize = (int) pow(2,AS);
 
-            T = new ClearyCuckooEntry<addtype, remtype>[tablesize];
+            hn = hashNumber;
 
+            printf("\tAllocating Memory\n");
+            cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>));
+            cudaMallocManaged(&hashlist, hn * sizeof(int));
+
+            printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
                 T[i] = ClearyCuckooEntry<addtype, remtype>();
             }
             
-            hn = hashNumber;
-            int* hashlist = createHashList(hn);
+            createHashList(hashlist);
+            printf("\tDone");
 
         }
 
@@ -234,14 +253,16 @@ class ClearyCuckoo : public HashTable{
          * Destructor
          */
         ~ClearyCuckoo(){
-            delete[] T;
+            printf("Destroying Table\n");
 
-            delete[] hashlist;
+            cudaFree(T);
+            cudaFree(hashlist);
         }
 
-        __device__
+        __host__ __device__
         bool ClearyCuckoo::insert(keytype k){
             //Succesful Insertion
+            printf("Inserting\n");
             if(insertIntoTable(k,T)){
                 //Reset the Hash Counter
                 hashcounter = 0;
@@ -250,7 +271,7 @@ class ClearyCuckoo : public HashTable{
             return false;
         };
 
-        __device__
+        __host__ __device__
         bool ClearyCuckoo::rehash(){
             //Local counter for number of rehashes
             while(!rehash(0) && hashcounter<MAXREHASHES){
@@ -264,24 +285,24 @@ class ClearyCuckoo : public HashTable{
             return true;
         }
         
-        __device__
+        __host__ __device__
         bool ClearyCuckoo::lookup(uint64_t k){
             return lookup(k, T);
         };
 
-        __device__
+        __host__ __device__
         void ClearyCuckoo::clear(){
             for(int i=0; i<tablesize; i++){
                 T[i] = ClearyCuckooEntry<addtype, remtype>();
             }
         }
 
-        __device__
+        __host__ __device__
         int ClearyCuckoo::getSize(){
             return tablesize;
         }
 
-        __device__
+        __host__ __device__
         void ClearyCuckoo::print(ClearyCuckooEntry<addtype, remtype>* T){
             printf("-----------------------------------\n");
             printf("|i|r|O[i]|key|label|\n");
@@ -298,13 +319,15 @@ class ClearyCuckoo : public HashTable{
             printf("-----------------------------------\n");
         }
 
-        __device__
+        __host__ __device__
         void ClearyCuckoo::print(){
             print(T);
         }
 
-        __device__
-        void ClearyCuckoo::debug(){}
+        __host__ __device__
+            void ClearyCuckoo::debug() {
+                printf("%" PRIu64, T[0]);
+        }
         
         void setMaxRehashes(int x){
             MAXREHASHES = x;

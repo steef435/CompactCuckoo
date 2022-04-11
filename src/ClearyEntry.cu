@@ -8,14 +8,15 @@ template <class ADD, class REM>
 class ClearyEntry : TableEntry <ADD, REM>{
 
 private:
-    std::pair<int, int> Rindex = std::pair<int, int>(1, 56);
-    std::pair<int, int> Oindex = std::pair<int, int>(57, 57);
-    std::pair<int, int> Vindex = std::pair<int, int>(58, 58);
-    std::pair<int, int> Cindex = std::pair<int, int>(59, 59);
-    std::pair<int, int> Aindex = std::pair<int, int>(60, 63);
+    int Rindex[2] = { 1, 56 };
+    int Oindex[2] = { 57, 57 };
+    int Vindex[2] = { 58, 58 };
+    int Cindex[2] = { 59, 59 };
+    int Aindex[2] = { 60, 63 };
 
 
 public:
+    __host__ __device__
     ClearyEntry(ADD R, bool O, bool V, bool C, int A) {
         val = 0;
         setR(R);
@@ -25,50 +26,62 @@ public:
         setA(A);
     }
 
+    __host__ __device__
     ClearyEntry() {
         ClearyEntry(0, false, false, true, 0);
     }
 
+    __host__ __device__
     void setR(REM x) {
-        setBits(Rindex.first, Rindex.second, x);
+        setBits(Rindex[0], Rindex[1], x);
     }
 
+    __host__ __device__
     REM getR() {
-        return (REM)getBits(Rindex.first, Rindex.second);
+        return (REM)getBits(Rindex[0], Rindex[1]);
     }
 
+    __host__ __device__
     void setO(bool x) {
-        setBits(Oindex.first, Oindex.second, x);
+        setBits(Oindex[0], Oindex[1], x);
     }
 
+    __host__ __device__
     bool getO() {
-        return (bool)getBits(Oindex.first, Oindex.second);
+        return (bool)getBits(Oindex[0], Oindex[1]);
     }
 
+    __host__ __device__
     void setV(bool x) {
-        setBits(Vindex.first, Vindex.second, x);
+        setBits(Vindex[0], Vindex[1], x);
     }
 
+    __host__ __device__
     bool getV() {
-        return (bool)getBits(Vindex.first, Vindex.second);
+        return (bool)getBits(Vindex[0], Vindex[1]);
     }
 
+    __host__ __device__
     void setC(bool x) {
-        setBits(Cindex.first, Cindex.second, x);
+        setBits(Cindex[0], Cindex[1], x);
     }
 
+    __host__ __device__
     bool getC() {
-        return (bool)getBits(Cindex.first, Cindex.second);
+        return (bool)getBits(Cindex[0], Cindex[1]);
     }
 
+    __host__ __device__
     void setA(int x) {
-        setBits(Aindex.first, Aindex.second, signed_to_unsigned(x, 3));
+        setBits(Aindex[0], Aindex[1], signed_to_unsigned(x, 3));
     }
 
+    __host__ __device__
     int getA() {
-        return unsigned_to_signed(getBits(Aindex.first, Aindex.second), 3);
+        return unsigned_to_signed(getBits(Aindex[0], Aindex[1]), 3);
     }
 
+    __host__ __device__
     void print() {
         std::cout << std::bitset<64>(val) << "\n";
     }

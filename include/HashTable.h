@@ -25,7 +25,7 @@ class HashTable{
          *  Output:
          *      Key k is inserted
          **/
-        __device__
+        __host__ __device__
         virtual bool HashTable::insert(uint64_t k) = 0;
 
         /**
@@ -35,31 +35,31 @@ class HashTable{
          *  Output:
          *      Object stored at key k
          **/
-        __device__
+        __host__ __device__
         virtual bool HashTable::lookup(uint64_t k) = 0;
 
         /**
          *  Rehash
          **/
-        __device__
+        __host__ __device__
         virtual bool HashTable::rehash() = 0;
 
         /**
          * Method to clear all values in the table
          **/
-        __device__
+        __host__ __device__
         virtual void HashTable::clear() = 0;
 
         /*
          * Method to get the size of the table
          **/
-        __device__
+        __host__ __device__
         virtual int HashTable::getSize() = 0;
         
         /**
          * Method to print
          * (Mostly for debugging/testing)
          * */
-        __device__
+        __host__ __device__
         virtual void HashTable::print() = 0;
 };

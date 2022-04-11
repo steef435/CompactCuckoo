@@ -3,7 +3,7 @@ CXXFLAGS = -g -O2 -Wall -Wno-sign-compare -I$(INC) -Iinclude -DHAVE_CONFIG_H -pe
 CXX = g++
 
 NVCC = nvcc
-NVCCFLAGS = -arch=compute_50 --expt-relaxed-constexpr -I$(INC)
+NVCCFLAGS = -arch=compute_50 --expt-relaxed-constexpr -g -G -I$(INC)
 
 SRC_DIR = src
 OBJ_DIR = obj
@@ -41,3 +41,4 @@ $(EXECUTABLE): $(OBJS)
 clean:
 	@$(RM) $(OBJ_DIR)/*
 	@$(RM) $(BIN_DIR)/*exe
+	@$(RM) $(BIN_DIR)/*exp

@@ -55,6 +55,7 @@ class Cleary : public HashTable{
         //Hash function ID
         int h1;
 
+        __host__ __device__
         keyTuple splitKey(keytype key){
             hashtype mask = ((hashtype) 1 << AS) - 1;
             addtype add = key & mask;
@@ -62,6 +63,7 @@ class Cleary : public HashTable{
             return std::make_pair(add + BUFFER,rem);
         }
 
+        __host__ __device__
         uint64_t reformKey(keyTuple split){
             remtype rem = split.second;
             hashtype reform = rem;
@@ -70,6 +72,7 @@ class Cleary : public HashTable{
             return reform;
         }
 
+        __host__ __device__
         int findIndex(uint64_t k){
             keyTuple js = splitKey( RHASH(h1, k) );
             addtype j = js.first;
@@ -174,7 +177,7 @@ class Cleary : public HashTable{
             delete [] T;
         }
 
-        __device__
+        __host__ __device__
         bool Cleary::insert(keytype k){
             //If the key is already inserted don't do anything
             if (lookup(k)) {
@@ -370,7 +373,7 @@ class Cleary : public HashTable{
             return true;
         };
 
-        __device__
+        __host__ __device__
         bool Cleary::lookup(uint64_t k){
             //Hash Key
             keyTuple js = splitKey( RHASH(h1, k) );
@@ -391,19 +394,19 @@ class Cleary : public HashTable{
             }
         };
 
-        __device__
+        __host__ __device__
         void Cleary::clear(){
             for(int i=0; i<tablesize; i++){
                 T[i] = ClearyEntry<addtype, remtype>();
             }
         }
 
-        __device__
+        __host__ __device__
         int Cleary::getSize(){
             return size;
         }
 
-        __device__
+        __host__ __device__
         void Cleary::print(){
             /*
             const char separator = ' ';
@@ -430,7 +433,7 @@ class Cleary : public HashTable{
         }
 
         //No rehash
-        __device__
+        __host__ __device__
         bool Cleary::rehash(){return true;}
 
 };

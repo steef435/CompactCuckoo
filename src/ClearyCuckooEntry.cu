@@ -9,9 +9,9 @@ class ClearyCuckooEntry : TableEntry <ADD, REM> {
 
 private:
     uint64_t val;
-    std::pair<int, int> Rindex = std::pair<int, int>(1, 56);
-    std::pair<int, int> Hindex = std::pair<int, int>(57, 62);
-    std::pair<int, int> Oindex = std::pair<int, int>(63, 64);
+    int Rindex[2] = { 1, 56 };
+    int Hindex[2] = { 57, 62 };
+    int Oindex[2] = { 63, 64 };
 
     __host__ __device__
     void setBits(int start, int end, uint64_t ins) {
@@ -55,6 +55,7 @@ private:
     }
 
 public:
+    __host__ __device__
     ClearyCuckooEntry(ADD R, int H, bool O) {
         val = 0;
         setR(R);
@@ -62,38 +63,39 @@ public:
         setO(O);
     }
 
+    __host__ __device__
     ClearyCuckooEntry() {
         ClearyCuckooEntry(0, 0, false);
     }
 
     __host__ __device__
     void setR(REM x) {
-        setBits(Rindex.first, Rindex.second, x);
+        setBits(Rindex[0], Rindex[1], x);
     }
 
     __host__ __device__
     REM getR() {
-        return (REM)getBits(Rindex.first, Rindex.second);
+        return (REM)getBits(Rindex[0], Rindex[1]);
     }
 
     __host__ __device__
     void setH(int x) {
-        setBits(Hindex.first, Hindex.second, x);
+        setBits(Hindex[0], Hindex[1], x);
     }
 
     __host__ __device__
     int getH() {
-        return (int) getBits(Hindex.first, Hindex.second);
+        return (int) getBits(Hindex[0], Hindex[1]);
     }
 
     __host__ __device__
     void setO(bool x) {
-        setBits(Oindex.first, Oindex.second, x);
+        setBits(Oindex[0], Oindex[1], x);
     }
 
     __host__ __device__
     bool getO() {
-        return (bool)getBits(Oindex.first, Oindex.second);
+        return (bool)getBits(Oindex[0], Oindex[1]);
     }
 
     __host__ __device__

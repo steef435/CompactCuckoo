@@ -78,7 +78,7 @@ void fillTable(int n, uint64_t* vals, ClearyCuckoo* H)
     int stride = blockDim.x;
     for (int i = index; i < n; i += stride) {
         printf("Value %i is %" PRIu64 "\n", i, vals[i]);
-        H->insert(vals[i]);
+        H->debug();
     }
 }
 
@@ -89,12 +89,20 @@ void Test(int N) {
     vals = generateTestSet(N);
 
 	//Create Table 1
-    ClearyCuckoo cc = ClearyCuckoo(8, 4);
-	fillTable << <1, 256 >> > (N, vals, &cc);
-    cc.print();
+    ClearyCuckoo* cc;
+    cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
+    new (cc) ClearyCuckoo();
+    cc->ClearyCuckooInit(N, 4);
+
+
+	fillTable << <1, 256 >> > (N, vals, cc);
+    cudaDeviceSynchronize();
+    cc->print();
 
 	//Create Table 2
 
+
+    //Destroy Vars
     cudaFree(vals);
 }
 
