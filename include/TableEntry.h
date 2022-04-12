@@ -14,7 +14,9 @@ protected:
         val = val & ~mask;      //Remove all of the bits currently in the positions
         ins = ins << (start - 1);   //Shift new val to correct position
         ins = ins & mask;       //Mask the new val to prevent overflow
-        val = val | ins;        //Place the new val
+        uint64_t newval = val | ins;        //Place the new val
+        atomicExch(&val, newval);
+        
     }
 
     __host__ __device__

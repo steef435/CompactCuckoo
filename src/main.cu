@@ -78,7 +78,8 @@ void fillTable(int n, uint64_t* vals, ClearyCuckoo* H)
     int stride = blockDim.x;
     for (int i = index; i < n; i += stride) {
         printf("Value %i is %" PRIu64 "\n", i, vals[i]);
-        H->debug();
+        H->insert(vals[i]);
+        //H->debug(vals[i]);
     }
 }
 
@@ -104,6 +105,7 @@ void Test(int N) {
 
     //Destroy Vars
     cudaFree(vals);
+    cudaFree(cc);
 }
 
 int main(void)

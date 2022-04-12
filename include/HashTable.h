@@ -8,11 +8,6 @@ class HashTable{
     public:
         /**
          * Constructor Method
-         * Input:
-         *      tablesize   : How large the table should be
-         *      elmtsize    : How large the elements are
-         * Output:
-         *      new instance of a ClearyCuckoo table
          **/
         HashTable() = default;
 
@@ -55,6 +50,7 @@ class HashTable{
          **/
         __host__ __device__
         virtual int HashTable::getSize() = 0;
+
         
         /**
          * Method to print

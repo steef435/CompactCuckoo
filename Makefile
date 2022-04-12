@@ -36,7 +36,7 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(H_FILES)
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c -o $@ $<
 	
 $(EXECUTABLE): $(OBJS)
-	$(NVCC) $(OBJS) -o $@
+	$(NVCC) -g -G $(OBJS) -o  $@
 	
 clean:
 	@$(RM) $(OBJ_DIR)/*

@@ -22,7 +22,7 @@
 
 #include "ClearyCuckooEntry.cu"
 
-class ClearyCuckoo : public HashTable{
+class ClearyCuckoo{
 
 /*
 *
@@ -35,7 +35,6 @@ class ClearyCuckoo : public HashTable{
     using remtype = uint64_t;
     using hashtype = uint64_t;
     using keytype = uint64_t;
-    typedef std::pair<addtype, remtype> keyTuple; 
 
     private:
         //Constant Vars
@@ -206,7 +205,7 @@ class ClearyCuckoo : public HashTable{
 
         __host__ __device__
         bool lookup(uint64_t k, ClearyCuckooEntry<addtype, remtype>* T){
-            for (int i = 0; i < 32; i++) {
+            for (int i = 0; i < hn; i++) {
                 uint64_t hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1);
                 remtype rem = getRem(hashed1);
@@ -260,9 +259,9 @@ class ClearyCuckoo : public HashTable{
         }
 
         __host__ __device__
-        bool ClearyCuckoo::insert(keytype k){
+        bool ClearyCuckoo::insert(uint64_t k){
             //Succesful Insertion
-            printf("Inserting\n");
+            printf("\tInserting %" PRIu64 "\n", k);
             if(insertIntoTable(k,T)){
                 //Reset the Hash Counter
                 hashcounter = 0;
@@ -325,8 +324,9 @@ class ClearyCuckoo : public HashTable{
         }
 
         __host__ __device__
-            void ClearyCuckoo::debug() {
-                printf("%" PRIu64, T[0]);
+        void debug(uint64_t i) {
+            //printf("%" PRIu64, T[0]);
+            printf("%" PRIu64, i);
         }
         
         void setMaxRehashes(int x){
