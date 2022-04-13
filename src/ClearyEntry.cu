@@ -8,27 +8,29 @@ template <class ADD, class REM>
 class ClearyEntry : TableEntry <ADD, REM>{
 
 private:
-    int Rindex[2] = { 1, 56 };
+    int Rindex[2] = {  1, 56 };
     int Oindex[2] = { 57, 57 };
     int Vindex[2] = { 58, 58 };
     int Cindex[2] = { 59, 59 };
     int Aindex[2] = { 60, 63 };
+    int Lindex[2] = { 64, 64 };
 
 
 public:
     __host__ __device__
-    ClearyEntry(ADD R, bool O, bool V, bool C, int A) {
+    ClearyEntry(ADD R, bool O, bool V, bool C, int A, bool L) {
         val = 0;
         setR(R);
         setO(O);
         setV(V);
         setC(C);
         setA(A);
+        setL(L);
     }
 
     __host__ __device__
     ClearyEntry() {
-        ClearyEntry(0, false, false, true, 0);
+        ClearyEntry(0, false, false, true, 0, false);
     }
 
     __host__ __device__
@@ -79,6 +81,16 @@ public:
     __host__ __device__
     int getA() {
         return unsigned_to_signed(getBits(Aindex[0], Aindex[1]), 3);
+    }
+
+    __host__ __device__
+    void setL(bool x) {
+        setBits(Lindex[0], Lindex[1], x);
+    }
+
+    __host__ __device__
+    bool getL() {
+        return getBits(Lindex[0], Lindex[1]);
     }
 
     __host__ __device__

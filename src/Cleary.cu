@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include <bitset>
+#include <inttypes.h>
 
 #ifndef HASHTABLE
 #define HASHTABLE
@@ -31,7 +32,7 @@ using keytype = uint64_t;
 enum direction{up, down, here};
 
 
-class Cleary : public HashTable{
+class Cleary{
     //Allows for easy changing of the types
     
     typedef std::pair<addtype, remtype> keyTuple;
@@ -56,27 +57,31 @@ class Cleary : public HashTable{
         int h1;
 
         __host__ __device__
-        keyTuple splitKey(keytype key){
-            hashtype mask = ((hashtype) 1 << AS) - 1;
+            addtype getAdd(keytype key) {
+            hashtype mask = ((hashtype)1 << AS) - 1;
             addtype add = key & mask;
-            remtype rem = key >> AS ;
-            return std::make_pair(add + BUFFER,rem);
+            return add;
         }
 
         __host__ __device__
-        uint64_t reformKey(keyTuple split){
-            remtype rem = split.second;
-            hashtype reform = rem;
-            reform = reform << AS;
-            reform += (split.first - BUFFER);
-            return reform;
+            remtype getRem(keytype key) {
+            remtype rem = key >> AS;
+            return rem;
+        }
+
+        __host__ __device__
+            uint64_t reformKey(addtype add, remtype rem) {
+            rem = rem << AS;
+            rem += add;
+            return rem;
         }
 
         __host__ __device__
         int findIndex(uint64_t k){
-            keyTuple js = splitKey( RHASH(h1, k) );
-            addtype j = js.first;
-            remtype rem =  js.second;
+            hashtype h = RHASH(h1, k);
+            addtype j = getAdd(h);
+            remtype rem =  getRem(h);
+
             addtype i = j;
             int cnt = 0;
 
@@ -153,18 +158,24 @@ class Cleary : public HashTable{
         /**
          * Constructor
          */
-        Cleary(int adressSize){
 
+        //Default constructor for mem-alloc
+        Cleary() {}
+
+        Cleary(int adressSize){
+            printf("Creating Cleary Table\n");
             AS = adressSize;
             RS = HS-AS;
             tablesize = (int) pow(2,AS) + 2*BUFFER;
             size = (int) pow(2,AS);
             MAX_ADRESS = tablesize - 1;
 
+            printf("\tAllocating Memory\n");
+            cudaMallocManaged(&T, tablesize * sizeof(ClearyEntry<addtype, remtype>));
             T = new ClearyEntry<addtype, remtype>[tablesize];
 
             for(int i=0; i<tablesize; i++){
-                T[i] = ClearyEntry<addtype, remtype>(0, false, false, true, 0);
+                T[i] = ClearyEntry<addtype, remtype>();
             }
 
             h1 = 1;
@@ -174,7 +185,7 @@ class Cleary : public HashTable{
          * Destructor
          */
         ~Cleary(){
-            delete [] T;
+            cudaFree(T);
         }
 
         __host__ __device__
@@ -184,9 +195,9 @@ class Cleary : public HashTable{
                 return false;
             }
 
-            keyTuple js = splitKey( RHASH(h1, k) );
-            addtype j = js.first;
-            remtype rem =  js.second;
+            hashtype h = RHASH(h1, k);
+            addtype j = getAdd(h);
+            remtype rem =  getRem(h);
 
             bool newgroup = false;
 
@@ -233,7 +244,9 @@ class Cleary : public HashTable{
             }
 
             //Decide to shift mem up or down
-            int shift = (rand() % 2 == 0) ? -1 : 1;
+            //TODO: Maybe randomize
+            int shift = 1;
+
             //Prevent Overflows
             if(T[MAX_ADRESS].getO() && !T[MIN_ADRESS].getO()){
                 shift = -1;
@@ -376,9 +389,9 @@ class Cleary : public HashTable{
         __host__ __device__
         bool Cleary::lookup(uint64_t k){
             //Hash Key
-            keyTuple js = splitKey( RHASH(h1, k) );
-            addtype j = js.first;
-            remtype rem =  js.second;
+            hashtype h = RHASH(h1, k);
+            addtype j = getAdd(h);
+            remtype rem = getRem(h);
 
             //If no values with add exist, return
             if(T[j].getV() == 0){
@@ -408,28 +421,14 @@ class Cleary : public HashTable{
 
         __host__ __device__
         void Cleary::print(){
-            /*
-            const char separator = ' ';
-            std::cout << "-----------------------------------\n";
-            std::cout << "|" << std::setw(6) << std::setfill(separator) << "i" << "|";
-            std::cout << std::setw(20)<< std::setfill(separator) << "R[i]" << "|";
-            std::cout << std::setw(5)<< std::setfill(separator) << "C[i]" << "|";
-            std::cout << std::setw(5)<< std::setfill(separator) << "V[i]" << "|";
-            std::cout << std::setw(5)<< std::setfill(separator) << "O[i]" << "|";
-            std::cout << std::setw(5)<< std::setfill(separator) << "A[i]" << "|\n";
+            printf("-----------------------------------\n");
+            printf("| i | R[i] | C[i] | V[i] | O[i] | A[i] | L[i] |\n");
             for(int i=0; i<tablesize; i++){
                 if(T[i].getO()){
-                    std::cout << "|" << std::setw(6) << std::setfill(separator) << i << "|";
-                    std::cout << std::setw(20)<< std::setfill(separator) << T[i].getR() << "|";
-                    std::cout << std::setw(5)<< std::setfill(separator) << T[i].getC() << "|";
-                    std::cout << std::setw(5)<< std::setfill(separator) << T[i].getV() << "|";
-                    std::cout << std::setw(5)<< std::setfill(separator) << T[i].getO() << "|";
-                    std::cout << std::setw(5)<< std::setfill(separator) << static_cast<int16_t>(T[i].getA()) << "| ";
-                    T[i].print();
+                    printf("|%-3i|%-10" PRIu64 "|%-3i|%-3i|%-3i|%-5i|%-3i|\n", i, T[i].getR(), T[i].getC(), T[i].getV(), T[i].getO(), T[i].getA(), T[i].getL());
                 }
             }
-            std::cout << "-----------------------------------\n";
-            */
+            printf("-----------------------------------\n");
         }
 
         //No rehash

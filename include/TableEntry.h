@@ -51,10 +51,34 @@ protected:
         return res;
     }
 
+    __host__ __device__
+    uint64_t getValue() {
+        return val;
+    }
+
+    __host__ __device__
+    void setValue(uint64_t x) {
+        val = x;
+    }
+
 public:
     __host__ __device__
     TableEntry() {
         val = 0;
+    }
+
+    __host__ __device__
+        TableEntry(uint64_t x) {
+        val = x;
+    }
+
+    __host__ __device__
+    void exchValue(TableEntry* x) {
+        //Atomically set this value to the new one
+        uint64_t old =  atomicExch(&val, x->getValue());
+        //Return an entry with prev val
+        x->setValue(old);
+        return;
     }
 
     __host__ __device__

@@ -135,16 +135,18 @@ class ClearyCuckoo{
                 addtype add = getAdd(hashed1);
                 remtype rem = getRem(hashed1);
 
-                //Store the old value
-                remtype temp = T[add].getR();
-                bool wasoccupied = T[add].getO();
-                int oldhash = T[add].getH();
+                return false;
 
                 //Place new value
-                //TODO use atomicCAS
-                T[add].setR(rem);
-                T[add].setO(true);
-                T[add].setH(hash);
+                ClearyCuckooEntry<addtype, remtype> entry = ClearyCuckooEntry<addtype, remtype>(rem, hash, true);
+                T[add].exchValue(&entry);
+
+                //Store the old value
+                remtype temp = entry.getR();
+                bool wasoccupied = entry.getO();
+                int oldhash = entry.getH();
+
+                
 
                 //If the first spot was open return
                 if(!wasoccupied){

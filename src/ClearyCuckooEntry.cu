@@ -27,6 +27,17 @@ public:
         val = 0;
     }
 
+
+    __host__ __device__
+    void exchValue(ClearyCuckooEntry* x) {
+        //Atomically set this value to the new one
+        uint64_t old = atomicExch(&val, x->getValue());
+        //Return an entry with prev val
+        x->setValue(old);
+        return;
+    }
+
+
     __host__ __device__
     void setR(REM x) {
         setBits(Rindex[0], Rindex[1], x);
