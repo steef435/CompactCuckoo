@@ -72,14 +72,31 @@ uint64_t* generateTestSet(int size) {
 
 //TODO Need to make this abstract
 __global__
-void fillTable(int n, uint64_t* vals, ClearyCuckoo* H)
+void fillClearyCuckoo(int n, uint64_t* vals, ClearyCuckoo* H)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index; i < n; i += stride) {
         printf("Value %i is %" PRIu64 "\n", i, vals[i]);
         H->insert(vals[i]);
-        //H->debug(vals[i]);
+        if (i == 9) {
+            H->print();
+        }
+    }
+}
+
+//TODO Need to make this abstract
+__global__
+void fillCleary(int n, uint64_t* vals, Cleary* H)
+{
+    int index = threadIdx.x;
+    int stride = blockDim.x;
+    for (int i = index; i < n; i += stride) {
+        printf("Value %i is %" PRIu64 "\n", i, vals[i]);
+        H->insert(vals[i]);
+        if (i == 9) {
+            H->print();
+        }
     }
 }
 
@@ -95,17 +112,24 @@ void Test(int N) {
     new (cc) ClearyCuckoo();
     cc->ClearyCuckooInit(N, 4);
 
-
-	fillTable << <1, 256 >> > (N, vals, cc);
+	fillClearyCuckoo << <1, 256 >> > (N, vals, cc);
+    printf("Filling Done\n");
     cudaDeviceSynchronize();
-    cc->print();
+    printf("Devices Synced\n");
+    //cc->print();
 
 	//Create Table 2
+    //Cleary* c;
+    //cudaMallocManaged((void**)&c, sizeof(Cleary));
+    //new (c) Cleary(N);
 
+    //fillCleary << <1, 256 >> > (N, vals, c);
+    //cudaDeviceSynchronize();
 
     //Destroy Vars
     cudaFree(vals);
     cudaFree(cc);
+    //cudaFree(c);
 }
 
 int main(void)

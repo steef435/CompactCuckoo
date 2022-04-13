@@ -65,8 +65,6 @@ class ClearyCuckoo{
 
         __host__ __device__
             remtype getRem(keytype key) {
-            hashtype mask = ((hashtype)1 << AS) - 1;
-            addtype add = key & mask;
             remtype rem = key >> AS;
             return rem;
         }
@@ -84,7 +82,6 @@ class ClearyCuckoo{
             for (int i = 0; i < hn; i++) {
                 printf("\t\tEntry %i\n", i);
                 list[i] = i;
-                printf("\t\tEntry %i Done\n", i);
             }
             return;
         }
@@ -227,7 +224,7 @@ class ClearyCuckoo{
 
         __host__
         void ClearyCuckooInit(int adressSize, int hashNumber){
-            printf("Creating Table\n");
+            printf("Creating ClearyCuckoo Table\n");
             AS = adressSize;
             RS = HS-AS;
             tablesize = (int) pow(2,AS);
@@ -244,7 +241,7 @@ class ClearyCuckoo{
             }
             
             createHashList(hashlist);
-            printf("\tDone");
+            printf("\tDone\n");
 
         }
 
