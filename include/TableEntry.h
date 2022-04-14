@@ -11,12 +11,17 @@ protected:
     __host__ __device__
     void setBits(int start, int end, uint64_t ins) {
         uint64_t mask = ((((uint64_t)1) << end) - 1) ^ ((((uint64_t)1) << (start - 1)) - 1);
-        val = val & ~mask;      //Remove all of the bits currently in the positions
+        uint64_t tempval = val & ~mask;      //Remove all of the bits currently in the positions
         ins = ins << (start - 1);   //Shift new val to correct position
         ins = ins & mask;       //Mask the new val to prevent overflow
-        uint64_t newval = val | ins;        //Place the new val
+        uint64_t newval = tempval | ins;        //Place the new val
+
+        //In devices, atomically exchange
+        #ifdef  __CUDA_ARCH__
         atomicExch(&val, newval);
-        
+        #else
+        val = newval;
+        #endif
     }
 
     __host__ __device__

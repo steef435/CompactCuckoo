@@ -35,8 +35,6 @@ enum direction{up, down, here};
 class Cleary{
     //Allows for easy changing of the types
     
-    typedef std::pair<addtype, remtype> keyTuple;
-
     private:
         //Constant Vars
         const static int HS = 59;       //HashSize
@@ -172,13 +170,14 @@ class Cleary{
 
             printf("\tAllocating Memory\n");
             cudaMallocManaged(&T, tablesize * sizeof(ClearyEntry<addtype, remtype>));
-            T = new ClearyEntry<addtype, remtype>[tablesize];
 
+            printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
                 T[i] = ClearyEntry<addtype, remtype>();
             }
 
             h1 = 1;
+            printf("\tDone\n");
         }
 
         /**

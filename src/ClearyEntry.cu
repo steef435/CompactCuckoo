@@ -5,21 +5,22 @@
 
 
 template <class ADD, class REM>
-class ClearyEntry : TableEntry <ADD, REM>{
+class ClearyEntry : TableEntry <ADD, REM> {
 
 private:
     int Rindex[2] = {  1, 56 };
     int Oindex[2] = { 57, 57 };
     int Vindex[2] = { 58, 58 };
     int Cindex[2] = { 59, 59 };
-    int Aindex[2] = { 60, 63 };
-    int Lindex[2] = { 64, 64 };
+    int Aindex[2] = { 60, 62 };
+    int Lindex[2] = { 63, 63 };
 
 
 public:
     __host__ __device__
     ClearyEntry(ADD R, bool O, bool V, bool C, int A, bool L) {
         val = 0;
+        printf("\t\t\tSetR\n");
         setR(R);
         setO(O);
         setV(V);
@@ -31,6 +32,15 @@ public:
     __host__ __device__
     ClearyEntry() {
         ClearyEntry(0, false, false, true, 0, false);
+    }
+
+    __host__ __device__
+    void exchValue(ClearyEntry* x) {
+        //Atomically set this value to the new one
+        uint64_t old = atomicExch(&val, x->getValue());
+        //Return an entry with prev val
+        x->setValue(old);
+        return;
     }
 
     __host__ __device__
@@ -75,12 +85,12 @@ public:
 
     __host__ __device__
     void setA(int x) {
-        setBits(Aindex[0], Aindex[1], signed_to_unsigned(x, 3));
+        setBits(Aindex[0], Aindex[1], signed_to_unsigned(x, Aindex[1]-Aindex[0]));
     }
 
     __host__ __device__
     int getA() {
-        return unsigned_to_signed(getBits(Aindex[0], Aindex[1]), 3);
+        return unsigned_to_signed(getBits(Aindex[0], Aindex[1]), Aindex[1] - Aindex[0]);
     }
 
     __host__ __device__

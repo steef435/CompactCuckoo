@@ -220,11 +220,8 @@ class ClearyCuckoo{
         /**
          * Constructor
          */
-        ClearyCuckoo() {
+        ClearyCuckoo() {}
 
-        }
-
-        __host__
         void ClearyCuckooInit(int adressSize, int hashNumber){
             printf("Creating ClearyCuckoo Table\n");
             AS = adressSize;

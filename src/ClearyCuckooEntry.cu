@@ -8,7 +8,6 @@ template <class ADD, class REM>
 class ClearyCuckooEntry : TableEntry <ADD, REM> {
 
 private:
-    uint64_t val;
     int Rindex[2] = { 1, 56 };
     int Hindex[2] = { 57, 62 };
     int Oindex[2] = { 63, 64 };

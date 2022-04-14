@@ -119,17 +119,17 @@ void Test(int N) {
     //cc->print();
 
 	//Create Table 2
-    //Cleary* c;
-    //cudaMallocManaged((void**)&c, sizeof(Cleary));
-    //new (c) Cleary(N);
+    Cleary* c;
+    cudaMallocManaged((void**)&c, sizeof(Cleary));
+    new (c) Cleary(N);
 
-    //fillCleary << <1, 256 >> > (N, vals, c);
-    //cudaDeviceSynchronize();
+    fillCleary << <1, 256 >> > (N, vals, c);
+    cudaDeviceSynchronize();
 
     //Destroy Vars
     cudaFree(vals);
     cudaFree(cc);
-    //cudaFree(c);
+    cudaFree(c);
 }
 
 int main(void)
