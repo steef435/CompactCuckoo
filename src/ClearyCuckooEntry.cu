@@ -14,11 +14,11 @@ private:
 
 public:
     __host__ __device__
-    ClearyCuckooEntry(ADD R, int H, bool O) {
+    ClearyCuckooEntry(ADD R, int H, bool O, bool onDevice=true) {
         val = 0;
-        setR(R);
-        setH(H);
-        setO(O);
+        setR(R, onDevice);
+        setH(H, onDevice);
+        setO(O, onDevice);
     }
 
     __host__ __device__
@@ -38,8 +38,8 @@ public:
 
 
     __host__ __device__
-    void setR(REM x) {
-        setBits(Rindex[0], Rindex[1], x);
+    void setR(REM x, bool onDevice=true) {
+        setBits(Rindex[0], Rindex[1], x, onDevice);
     }
 
     __host__ __device__
@@ -48,8 +48,8 @@ public:
     }
 
     __host__ __device__
-    void setH(int x) {
-        setBits(Hindex[0], Hindex[1], x);
+    void setH(int x, bool onDevice = true) {
+        setBits(Hindex[0], Hindex[1], x, onDevice);
     }
 
     __host__ __device__
@@ -58,8 +58,8 @@ public:
     }
 
     __host__ __device__
-    void setO(bool x) {
-        setBits(Oindex[0], Oindex[1], x);
+    void setO(bool x, bool onDevice = true) {
+        setBits(Oindex[0], Oindex[1], x, onDevice);
     }
 
     __host__ __device__
@@ -69,7 +69,7 @@ public:
 
     __host__ __device__
     void print() {
-        std::cout << std::bitset<64>(val) << "\n";
+        printf("%" PRIu64  "\n", val);
     }
 
 };

@@ -80,7 +80,6 @@ class ClearyCuckoo{
         void createHashList(int* list) {
             printf("\t\tCreating Hashlist\n");
             for (int i = 0; i < hn; i++) {
-                printf("\t\tEntry %i\n", i);
                 list[i] = i;
             }
             return;
@@ -135,10 +134,8 @@ class ClearyCuckoo{
                 addtype add = getAdd(hashed1);
                 remtype rem = getRem(hashed1);
 
-                return false;
-
                 //Place new value
-                ClearyCuckooEntry<addtype, remtype> entry = ClearyCuckooEntry<addtype, remtype>(rem, hash, true);
+                ClearyCuckooEntry<addtype, remtype> entry = ClearyCuckooEntry<addtype, remtype>(rem, hash, true, false);
                 T[add].exchValue(&entry);
 
                 //Store the old value
@@ -236,7 +233,7 @@ class ClearyCuckoo{
 
             printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
-                T[i] = ClearyCuckooEntry<addtype, remtype>();
+                new (&T[i]) ClearyCuckooEntry<addtype, remtype>();
             }
             
             createHashList(hashlist);

@@ -113,7 +113,6 @@ void Test(int N) {
     cc->ClearyCuckooInit(N, 4);
 
 	fillClearyCuckoo << <1, 256 >> > (N, vals, cc);
-    printf("Filling Done\n");
     cudaDeviceSynchronize();
     printf("Devices Synced\n");
     //cc->print();
@@ -132,11 +131,34 @@ void Test(int N) {
     cudaFree(c);
 }
 
+__device__
+void TestEntriesOnDevices(ClearyCuckooEntry<addtype, remtype>* entry1, ClearyCuckooEntry<addtype, remtype>* entry2) {
+    entry1->setR(13456);
+    entry2->setR(23);
+
+    entry1->print();
+    entry2->print();
+
+    //entry1->exchValue(entry2);
+
+    entry1->print();
+    entry2->print();
+
+    return;
+}
+
+__global__
+void TestEntries(ClearyCuckooEntry<addtype, remtype>* entry1, ClearyCuckooEntry<addtype, remtype>* entry2) {
+    
+
+    TestEntriesOnDevices(entry1, entry2);
+}
+
 int main(void)
 {
     printf("Starting\n");
+
 	Test(10);
-	//Benchmark();
 
     return 0;
 }

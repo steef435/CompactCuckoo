@@ -20,7 +20,6 @@ public:
     __host__ __device__
     ClearyEntry(ADD R, bool O, bool V, bool C, int A, bool L) {
         val = 0;
-        printf("\t\t\tSetR\n");
         setR(R);
         setO(O);
         setV(V);

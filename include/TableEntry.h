@@ -1,6 +1,8 @@
 #include <utility>
 #include <iostream>
 #include <bitset>
+#include <inttypes.h>
+
 
 template <class ADD, class REM>
 class TableEntry {
@@ -18,7 +20,14 @@ protected:
 
         //In devices, atomically exchange
         #ifdef  __CUDA_ARCH__
-        atomicExch(&val, newval);
+        //printf("\tAtomic\n");
+        if (onDevice) {
+            atomicExch(&val, newval);
+        }
+        else {
+            val = newval;
+        }
+        //printf("\tVal after %" PRIu64 "\n", val);
         #else
         val = newval;
         #endif
