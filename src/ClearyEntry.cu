@@ -102,6 +102,23 @@ public:
     }
 
     __host__ __device__
+    bool lock() {
+        if (getBits(Lindex[0], Lindex[1])) {
+            return false;
+        }
+        else {
+            setL(true);
+            return true;
+        }
+    }
+
+    __host__ __device__
+    bool unlock() {
+        setL(false);
+        return true;
+    }
+
+    __host__ __device__
     void print() {
         printf("%" PRIu64  "\n", val);
     }

@@ -73,7 +73,7 @@ uint64_t* generateTestSet(int size) {
 //TODO Need to make this abstract
 __global__
 void fillClearyCuckoo(int n, uint64_t* vals, ClearyCuckoo* H)
-{
+{   
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index; i < n; i += stride) {
@@ -92,7 +92,6 @@ void fillCleary(int n, uint64_t* vals, Cleary* H)
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index; i < n; i += stride) {
-        printf("Value %i is %" PRIu64 "\n", i, vals[i]);
         H->insert(vals[i]);
         if (i == 9) {
             H->print();
@@ -111,6 +110,7 @@ void Test(int N) {
     cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
     new (cc) ClearyCuckoo(N, 4);
 
+    printf("Filling ClearyCuckoo\n");
 	fillClearyCuckoo << <1, 256 >> > (N, vals, cc);
     cudaDeviceSynchronize();
     printf("Devices Synced\n");
@@ -121,6 +121,7 @@ void Test(int N) {
     cudaMallocManaged((void**)&c, sizeof(Cleary));
     new (c) Cleary(N);
 
+    printf("Filling Cleary\n");
     fillCleary << <1, 256 >> > (N, vals, c);
     cudaDeviceSynchronize();
 
@@ -128,29 +129,6 @@ void Test(int N) {
     cudaFree(vals);
     cudaFree(cc);
     cudaFree(c);
-}
-
-__device__
-void TestEntriesOnDevices(ClearyCuckooEntry<addtype, remtype>* entry1, ClearyCuckooEntry<addtype, remtype>* entry2) {
-    entry1->setR(13456);
-    entry2->setR(23);
-
-    entry1->print();
-    entry2->print();
-
-    //entry1->exchValue(entry2);
-
-    entry1->print();
-    entry2->print();
-
-    return;
-}
-
-__global__
-void TestEntries(ClearyCuckooEntry<addtype, remtype>* entry1, ClearyCuckooEntry<addtype, remtype>* entry2) {
-    
-
-    TestEntriesOnDevices(entry1, entry2);
 }
 
 int main(void)

@@ -296,8 +296,9 @@ class ClearyCuckoo{
 
         __host__ __device__
         void ClearyCuckoo::print(ClearyCuckooEntry<addtype, remtype>* T){
-            printf("-----------------------------------\n");
-            printf("|i|r|O[i]|key|label|\n");
+            printf("------------------------------------------------------------\n");
+            printf("|    i     |     R[i]       | O[i] |      key       |label |\n");
+            printf("------------------------------------------------------------\n");
             for(int i=0; i<tablesize; i++){
                 if(T[i].getO()){
                     remtype rem = T[i].getR();
@@ -305,10 +306,10 @@ class ClearyCuckoo{
                     hashtype h = reformKey(i, rem);
                     keytype k = RHASH_INVERSE(label, h);
 
-                    printf("|%-3i|%-10" PRIu64 "|%-3i|%-10" PRIu64 "|%-4i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
+                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-16" PRIu64 "|%-6i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
                 }
             }
-            printf("-----------------------------------\n");
+            printf("------------------------------------------------------------\n");
         }
 
         __host__ __device__

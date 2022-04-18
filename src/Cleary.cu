@@ -420,14 +420,15 @@ class Cleary{
 
         __host__ __device__
         void Cleary::print(){
-            printf("-----------------------------------\n");
-            printf("| i | R[i] | C[i] | V[i] | O[i] | A[i] | L[i] |\n");
+            printf("----------------------------------------------------------------\n");
+            printf("|    i     |     R[i]       | C[i] | V[i] | O[i] | A[i] | L[i] |\n");
+            printf("----------------------------------------------------------------\n");
             for(int i=0; i<tablesize; i++){
                 if(T[i].getO()){
-                    printf("|%-3i|%-10" PRIu64 "|%-3i|%-3i|%-3i|%-5i|%-3i|\n", i, T[i].getR(), T[i].getC(), T[i].getV(), T[i].getO(), T[i].getA(), T[i].getL());
+                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-6i|%-6i|%-6i|%-6i|\n", i, T[i].getR(), T[i].getC(), T[i].getV(), T[i].getO(), T[i].getA(), T[i].getL());
                 }
             }
-            printf("-----------------------------------\n");
+            printf("----------------------------------------------------------------\n");
         }
 
         //No rehash
