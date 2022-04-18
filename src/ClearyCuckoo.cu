@@ -219,7 +219,7 @@ class ClearyCuckoo{
          */
         ClearyCuckoo() {}
 
-        void ClearyCuckooInit(int adressSize, int hashNumber){
+        ClearyCuckoo(int adressSize, int hashNumber){
             printf("Creating ClearyCuckoo Table\n");
             AS = adressSize;
             RS = HS-AS;
@@ -255,7 +255,7 @@ class ClearyCuckoo{
         bool ClearyCuckoo::insert(uint64_t k){
             //Succesful Insertion
             printf("\tInserting %" PRIu64 "\n", k);
-            if(insertIntoTable(k,T)){
+            if(insertIntoTable(k,T,0)){
                 //Reset the Hash Counter
                 hashcounter = 0;
                 return true;

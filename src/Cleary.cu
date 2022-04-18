@@ -75,7 +75,7 @@ class Cleary{
         }
 
         __host__ __device__
-        int findIndex(uint64_t k){
+        addtype findIndex(uint64_t k){
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
             remtype rem =  getRem(h);
@@ -173,7 +173,7 @@ class Cleary{
 
             printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
-                T[i] = ClearyEntry<addtype, remtype>();
+                new (&T[i]) ClearyEntry<addtype, remtype>();
             }
 
             h1 = 1;

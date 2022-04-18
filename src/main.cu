@@ -109,8 +109,7 @@ void Test(int N) {
 	//Create Table 1
     ClearyCuckoo* cc;
     cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
-    new (cc) ClearyCuckoo();
-    cc->ClearyCuckooInit(N, 4);
+    new (cc) ClearyCuckoo(N, 4);
 
 	fillClearyCuckoo << <1, 256 >> > (N, vals, cc);
     cudaDeviceSynchronize();

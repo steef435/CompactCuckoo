@@ -11,7 +11,7 @@ protected:
     uint64_t val;
 
     __host__ __device__
-    void setBits(int start, int end, uint64_t ins) {
+    void setBits(int start, int end, uint64_t ins, bool onDevice=true) {
         uint64_t mask = ((((uint64_t)1) << end) - 1) ^ ((((uint64_t)1) << (start - 1)) - 1);
         uint64_t tempval = val & ~mask;      //Remove all of the bits currently in the positions
         ins = ins << (start - 1);   //Shift new val to correct position

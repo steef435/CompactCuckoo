@@ -12,25 +12,24 @@ private:
     int Oindex[2] = { 57, 57 };
     int Vindex[2] = { 58, 58 };
     int Cindex[2] = { 59, 59 };
-    int Aindex[2] = { 60, 62 };
-    int Lindex[2] = { 63, 63 };
+    int Lindex[2] = { 60, 60 };
+    int Aindex[2] = { 61, 63 };
 
 
 public:
     __host__ __device__
-    ClearyEntry(ADD R, bool O, bool V, bool C, int A, bool L) {
+    ClearyEntry(ADD R, bool O, bool V, bool C, int A, bool L, bool onDevice = true) {
         val = 0;
-        setR(R);
-        setO(O);
-        setV(V);
-        setC(C);
-        setA(A);
-        setL(L);
+        setR(R, onDevice);
+        setO(O, onDevice);
+        setV(V, onDevice);
+        setC(C, onDevice);
+        setA(A, onDevice);
+        setL(L, onDevice);
     }
 
     __host__ __device__
-    ClearyEntry() {
-        ClearyEntry(0, false, false, true, 0, false);
+    ClearyEntry() : ClearyEntry(0, false, false, true, 0, false) {
     }
 
     __host__ __device__
@@ -43,8 +42,8 @@ public:
     }
 
     __host__ __device__
-    void setR(REM x) {
-        setBits(Rindex[0], Rindex[1], x);
+    void setR(REM x, bool onDevice = true) {
+        setBits(Rindex[0], Rindex[1], x, onDevice);
     }
 
     __host__ __device__
@@ -53,8 +52,8 @@ public:
     }
 
     __host__ __device__
-    void setO(bool x) {
-        setBits(Oindex[0], Oindex[1], x);
+    void setO(bool x, bool onDevice = true) {
+        setBits(Oindex[0], Oindex[1], x, onDevice);
     }
 
     __host__ __device__
@@ -63,8 +62,8 @@ public:
     }
 
     __host__ __device__
-    void setV(bool x) {
-        setBits(Vindex[0], Vindex[1], x);
+    void setV(bool x, bool onDevice = true) {
+        setBits(Vindex[0], Vindex[1], x, onDevice);
     }
 
     __host__ __device__
@@ -73,8 +72,8 @@ public:
     }
 
     __host__ __device__
-    void setC(bool x) {
-        setBits(Cindex[0], Cindex[1], x);
+    void setC(bool x, bool onDevice = true) {
+        setBits(Cindex[0], Cindex[1], x, onDevice);
     }
 
     __host__ __device__
@@ -83,8 +82,8 @@ public:
     }
 
     __host__ __device__
-    void setA(int x) {
-        setBits(Aindex[0], Aindex[1], signed_to_unsigned(x, Aindex[1]-Aindex[0]));
+    void setA(int x, bool onDevice = true) {
+        setBits(Aindex[0], Aindex[1], signed_to_unsigned(x, Aindex[1]-Aindex[0]), onDevice);
     }
 
     __host__ __device__
@@ -93,8 +92,8 @@ public:
     }
 
     __host__ __device__
-    void setL(bool x) {
-        setBits(Lindex[0], Lindex[1], x);
+    void setL(bool x, bool onDevice = true) {
+        setBits(Lindex[0], Lindex[1], x, onDevice);
     }
 
     __host__ __device__
@@ -104,7 +103,7 @@ public:
 
     __host__ __device__
     void print() {
-        std::cout << std::bitset<64>(val) << "\n";
+        printf("%" PRIu64  "\n", val);
     }
 
 };
