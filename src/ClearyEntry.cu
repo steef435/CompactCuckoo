@@ -29,8 +29,12 @@ public:
     }
 
     __host__ __device__
-    ClearyEntry() : ClearyEntry(0, false, false, true, 0, false) {
+    ClearyEntry(uint64_t x) {
+        val = x;
     }
+
+    __host__ __device__
+    ClearyEntry() : ClearyEntry(0, false, false, true, 0, false) {}
 
     __host__ __device__
     void exchValue(ClearyEntry* x) {
@@ -101,26 +105,66 @@ public:
         return getBits(Lindex[0], Lindex[1]);
     }
 
+    //Need to do with CAS
     __host__ __device__
     bool lock() {
-        if (getBits(Lindex[0], Lindex[1])) {
+        //Store old Value
+        uint64_t oldval = val;
+        //Make the new value with lock locked
+        uint64_t newval = val;
+        setBits(Lindex[0], Lindex[1], 1, &newval, false);
+
+        //If Lockbit was set return false
+        if (getBits(Lindex[0], Lindex[1], oldval)) {
             return false;
         }
-        else {
-            setL(true);
+
+        //Swap if the old value hasn't changed
+        uint64_t res = atomicCAS(&val, oldval, newval);
+        
+        //Check if lockbit is now set and wasn't already
+        if (getBits(Lindex[0], Lindex[1]) && !getBits(Lindex[0], Lindex[1], res)) {
             return true;
+        }
+        else {
+            return false;
         }
     }
 
     __host__ __device__
     bool unlock() {
-        setL(false);
-        return true;
+        //Store old Value
+        uint64_t oldval = val;
+        //Make the new value with lock locked
+        uint64_t newval = val;
+        setBits(Lindex[0], Lindex[1], 0, &newval, false);
+
+        //If Lockbit was already free return false
+        if (!getBits(Lindex[0], Lindex[1], oldval)) {
+            return true;
+        }
+
+        //Swap if the old value hasn't changed
+        uint64_t res = atomicCAS(&val, oldval, newval);
+
+        //Check if lockbit is now not set
+        if (!getBits(Lindex[0], Lindex[1])) {
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     __host__ __device__
     void print() {
         printf("%" PRIu64  "\n", val);
+    }
+
+    __host__ __device__
+    compareAndSwap(ClearyEntry<addtype, remtype> comp, ClearyEntry<addtype, remtype> swap) {
+        uint64_t newVal = atomicCAS(&val, comp.getValue(), swap.getValue());
+        return ClearyEntry(uint64_t val);
     }
 
 };

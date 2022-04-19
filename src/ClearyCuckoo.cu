@@ -78,7 +78,7 @@ class ClearyCuckoo{
 
         __host__ __device__
         void createHashList(int* list) {
-            printf("\t\tCreating Hashlist\n");
+            printf("\tCreating Hashlist\n");
             for (int i = 0; i < hn; i++) {
                 list[i] = i;
             }
@@ -117,11 +117,13 @@ class ClearyCuckoo{
          **/
         __host__ __device__
         bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int depth=0){
+            printf("\tInsertintoTable\n");
             keytype x = k;
             int hash = hashlist[0];
 
             //If the key is already inserted don't do anything
             if (lookup(k, T)) {
+                printf("\tAlready Exists\n");
                 return false;
             }
 
@@ -135,6 +137,7 @@ class ClearyCuckoo{
                 remtype rem = getRem(hashed1);
 
                 //Place new value
+                printf("\tPlacing New Value\n");
                 ClearyCuckooEntry<addtype, remtype> entry = ClearyCuckooEntry<addtype, remtype>(rem, hash, true, false);
                 T[add].exchValue(&entry);
 

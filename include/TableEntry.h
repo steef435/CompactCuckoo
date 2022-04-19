@@ -12,34 +12,41 @@ protected:
 
     __host__ __device__
     void setBits(int start, int end, uint64_t ins, bool onDevice=true) {
-        uint64_t mask = ((((uint64_t)1) << end) - 1) ^ ((((uint64_t)1) << (start - 1)) - 1);
-        uint64_t tempval = val & ~mask;      //Remove all of the bits currently in the positions
-        ins = ins << (start - 1);   //Shift new val to correct position
-        ins = ins & mask;       //Mask the new val to prevent overflow
-        uint64_t newval = tempval | ins;        //Place the new val
+        setBits(start, end, ins, &val, onDevice)
+    }
 
-        //In devices, atomically exchange
-        #ifdef  __CUDA_ARCH__
-        //printf("\tAtomic\n");
+    __host__ __device__
+    void setBits(int start, int end, uint64_t ins, uint64_t* loc, bool onDevice = true) {
+    uint64_t mask = ((((uint64_t)1) << end) - 1) ^ ((((uint64_t)1) << (start - 1)) - 1);
+    uint64_t tempval = val & ~mask;      //Remove all of the bits currently in the positions
+    ins = ins << (start - 1);   //Shift new val to correct position
+    ins = ins & mask;       //Mask the new val to prevent overflow
+    uint64_t newval = tempval | ins;        //Place the new val
+    //In devices, atomically exchange
+    #ifdef  __CUDA_ARCH__
         if (onDevice) {
             atomicExch(&val, newval);
         }
         else {
             val = newval;
         }
-        //printf("\tVal after %" PRIu64 "\n", val);
-        #else
+    #else
         val = newval;
-        #endif
+    #endif
     }
 
     __host__ __device__
-    uint64_t getBits(int start, int end) {
-        uint64_t res = val;
+        uint64_t getBits(int start, int end, uint64_t x) {
+        uint64_t res = x;
         uint64_t mask = ((((uint64_t)1) << end) - ((uint64_t)1)) ^ ((((uint64_t)1) << (start - 1)) - ((uint64_t)1));
         res = res & mask;
         res = res >> (start - 1);
         return res;
+    }
+
+    __host__ __device__
+    uint64_t getBits(int start, int end) {
+        return getBits(start, end, val)
     }
 
     __host__ __device__

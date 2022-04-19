@@ -80,6 +80,8 @@ class Cleary{
             addtype j = getAdd(h);
             remtype rem =  getRem(h);
 
+            printf("\t\t findIndex:add:%" PRIu32 " rem:%" PRIu64 "\n", j, rem);
+
             addtype i = j;
             int cnt = 0;
 
@@ -148,7 +150,236 @@ class Cleary{
                 default:
                     break;
             };
+            printf("\t\tfoundindex:%" PRIu32 "\n", i);
             return i;
+        }
+
+
+        addtype leftLock(addtype i) {
+            if (i == MIN_ADDRESS) {
+                return i;
+            }
+            while (T[i-1].getO() && i>MIN_ADDRESS) {
+                i -= 1;
+            }
+            return i;
+        }
+
+        addtype rightLock(addtype i) {
+            if (i == MAX_ADDRESS) {
+                return i;
+            }
+            while (T[i+1].getO() && i<MAX_ADDRESS) {
+                i += 1;
+            }
+            return i;
+        }
+
+
+        __host__ __device__
+        insertIntoTable(keytype k) {
+            printf("\tInserting Into Table %" PRIu64 "\n", k);
+
+            hashtype h = RHASH(h1, k);
+            addtype j = getAdd(h);
+            remtype rem = getRem(h);
+
+            bool newgroup = false;
+
+            //Check virgin bit and set
+            if (!T[j].getV()) {
+                T[j].setV(true);
+                newgroup = true;
+            }
+
+            //Find insertion index
+            addtype i = findIndex(k);
+            printf("\t\tFind index %" PRIu32 "\n", i);
+
+            bool groupstart = T[i].getC() == 1 && T[i].getO() != false;
+            bool groupend;
+            if (i != MAX_ADRESS) { groupend = T[i + 1].getC() == 1 && T[i].getO() != false; }
+            else { groupend = true; }
+
+            //Check whether i should be 0 (Check all smaller Vs)
+            bool setStart = false;
+            if (i == MIN_ADRESS && j != MIN_ADRESS && !T[MIN_ADRESS].getV()) {
+                setStart = true;
+                for (int x = 1; x < j; x++) {
+                    if (T[x].getV() != 0) {
+                        setStart = false;
+                        break;
+                    }
+                }
+            }
+            //If a new group needs to be formed, look for the end of the group
+            if (newgroup && T[i].getO() && !setStart) {
+                direction dir = up;
+                while (dir != here) {
+                    if (i == MAX_ADRESS) {
+                        dir = here;
+                    }
+                    else if (T[i + 1].getC() == 1) {
+                        i++;
+                        dir = here;
+                    }
+                    else {
+                        i = i + 1;
+                    }
+                };
+            }
+
+            //Decide to shift mem up or down
+            //TODO: Maybe randomize
+            int shift = 1;
+
+            //Prevent Overflows
+            if (T[MAX_ADRESS].getO() && !T[MIN_ADRESS].getO()) {
+                shift = -1;
+            }
+            else if (T[MIN_ADRESS].getO() && !T[MAX_ADRESS].getO()) {
+                shift = 1;
+            }
+            else if (T[MIN_ADRESS].getO() && T[MAX_ADRESS].getO()) {
+                //Look which side will be shifted
+                int k = MIN_ADRESS;
+                int l = MAX_ADRESS;
+                while (k != i && l != i && (T[k].getO() || T[l].getO())) {
+                    if (T[k].getO()) { k++; }
+                    if (T[l].getO()) { l--; }
+                }
+                if (k == i) {
+                    shift = 1;
+                }
+                else if (l == i) {
+                    shift = -1;
+                }
+            }
+
+            //Edge cases where the location must be shifted
+            bool setC = false;
+            if (shift == -1) {
+                if (groupstart && (!newgroup) && (T[i].getR() > rem) && T[i].getO() && (i != MIN_ADRESS)) {
+                    T[i].setC(false);
+                    setC = true;
+                    i--;
+                }
+                else if (!newgroup && T[i].getR() > rem && T[i].getO() && i != MIN_ADRESS) {
+                    i--;
+                }
+                else if (newgroup && T[i].getO() && i != MIN_ADRESS) {
+                    if (i == MAX_ADRESS && j != MAX_ADRESS) {
+                        bool checkPos = true;
+                        for (int m = j + 1; m <= MAX_ADRESS; m++) {
+                            if (T[m].getV()) { checkPos = false; break; }
+                        }
+                        if (!checkPos) {
+                            i--;
+                        }
+                    }
+                    else if (i != MAX_ADRESS) {
+                        i--;
+                    }
+                }
+            }
+            if (shift == 1) {
+                if (groupend && (!newgroup) && (T[i].getR() < rem) && T[i].getO() && (i != MAX_ADRESS)) {
+                    i++;
+                    T[i].setC(false);
+                    setC = true;
+                }
+                else if (!newgroup && T[i].getR() < rem && T[i].getO() && i != MAX_ADRESS) {
+                    i++;
+                }
+                else if (j == MIN_ADRESS && newgroup) {
+                    i = MIN_ADRESS;
+                }
+            }
+
+            //Store where the search started for later
+            addtype startloc = i;
+            //Check whether location is empty
+            bool wasoccupied = T[i].getO();
+
+            //Store values at found location
+            printf("\t\tStoring Values\n");
+            remtype R_old = T[i].getR();
+            bool C_old = T[i].getC();
+            bool O_old = T[i].getO();
+
+            //Insert new values
+            T[i].setR(rem);
+            T[i].setO(true);
+            if ((shift == 1) && !setC) {
+                T[i].setC(C_old);
+            }
+            else if (shift == -1) {
+                T[i].setC(newgroup);
+            }
+
+            if (setC && shift == -1) { T[i].setC(true); }
+
+            //Update C Value
+            if (shift == 1 && !newgroup) {
+                C_old = setC;
+            }
+
+            //If the space was occupied shift mem
+            if (wasoccupied) {
+                printf("\t\tShifting Mem\n");
+                while (O_old) {
+                    i += shift;
+                    //Store the values
+                    remtype R_temp = T[i].getR();
+                    bool C_temp = T[i].getC();
+                    bool O_temp = T[i].getO();
+
+                    //Put the old values in the new location
+                    T[i].setR(R_old);
+                    T[i].setO(true);
+                    T[i].setC(C_old);
+
+                    //Store the old values again
+                    R_old = R_temp;
+                    C_old = C_temp;
+                    O_old = O_temp;
+
+                    if (i == MIN_ADRESS || i == MAX_ADRESS) {
+                        break;
+                    }
+
+                }
+            }
+
+            addtype x = (startloc < i) ? startloc : i;
+            if (newgroup) {
+                x = (j < x) ? j : x;
+            }
+
+            //Update the A values
+            printf("\t\tUpdating A Values\n");
+            while (T[x].getO() && x <= MAX_ADRESS) {
+                int A_old;
+                //Starting Value for A
+                if (((int)x - 1) >= 0) {
+                    A_old = T[x - 1].getA();
+                }
+                else {
+                    A_old = 0;
+                }
+
+                //Update Based on C and V
+                if (T[x].getC()) {
+                    A_old += 1;
+                }
+                if (T[x].getV()) {
+                    A_old -= 1;
+                }
+                T[x].setA(A_old);
+                x++;
+            }
+
+            return true;
         }
 
 
@@ -189,200 +420,45 @@ class Cleary{
 
         __host__ __device__
         bool Cleary::insert(keytype k){
-            //If the key is already inserted don't do anything
+            //Calculate Hash
+            hashtype h = RHASH(h1, k);
+            addtype j = getAdd(h);
+            remtype rem = getRem(h);
+
+            //Try Non-Exclusive Write
+            ClearyEntry<addtype,remtype> old = 
+                T[j].compareAndSwap(ClearyEntry<addtype, remtype>(), ClearyEntry<addtype, remtype>(rem, true, true, true, 0, false));
+
+            //If not locked + not occupied then success
+            if ((!old.getL()) && (!old.getO()) {
+                return true;
+            }
+
+            //Get the locks
+            addtype left = leftLock(j);
+            addtype right = rightLock(j);
+
+            if (!T[left].lock()) {
+                return insert(k);
+            }
+
+            if (!T[right].lock()) {
+                T[left].unlock();
+                return insert(k);
+            }
+            
+            //Do a read
             if (lookup(k)) {
+                //Val already exists
                 return false;
             }
 
-            hashtype h = RHASH(h1, k);
-            addtype j = getAdd(h);
-            remtype rem =  getRem(h);
+            //Write
+            bool res = insertIntoTable(k);
+            T[left].unlock();
+            T[right].unlock();
 
-            bool newgroup = false;
-
-            //Check virgin bit and set
-            if(!T[j].getV()){
-                T[j].setV(true);
-                newgroup = true;
-            }
-
-            //Find insertion index
-            addtype i = findIndex(k);
-
-            bool groupstart = T[i].getC() == 1 && T[i].getO() != false;
-            bool groupend;
-            if(i!=MAX_ADRESS){groupend = T[i+1].getC() == 1 && T[i].getO() != false;}
-            else{groupend = true;}
-
-            //Check whether i should be 0 (Check all smaller Vs)
-            bool setStart = false;
-            if(i == MIN_ADRESS && j!= MIN_ADRESS && !T[MIN_ADRESS].getV()){
-                setStart = true;
-                for(int x=1; x<j; x++){
-                    if(T[x].getV() != 0){
-                        setStart = false;
-                        break;
-                    }
-                }
-            }
-            //If a new group needs to be formed, look for the end of the group
-            if(newgroup && T[i].getO() && !setStart){
-                direction dir = up;
-                while(dir != here){
-                    if(i==MAX_ADRESS){
-                        dir = here;
-                    }
-                    else if(T[i+1].getC() == 1){
-                        i++;
-                        dir = here;
-                    }
-                    else{
-                        i=i+1;
-                    }
-                };
-            }
-
-            //Decide to shift mem up or down
-            //TODO: Maybe randomize
-            int shift = 1;
-
-            //Prevent Overflows
-            if(T[MAX_ADRESS].getO() && !T[MIN_ADRESS].getO()){
-                shift = -1;
-            }else if(T[MIN_ADRESS].getO() && !T[MAX_ADRESS].getO()){
-                shift = 1;
-            }else if(T[MIN_ADRESS].getO() && T[MAX_ADRESS].getO()){
-                //Look which side will be shifted
-                int k = MIN_ADRESS;
-                int l = MAX_ADRESS;
-                while(k!=i && l!=i && (T[k].getO() || T[l].getO())){
-                    if(T[k].getO()){k++;}
-                    if(T[l].getO()){l--;}
-                }
-                if(k == i){
-                    shift = 1;
-                }else if(l == i){
-                    shift = -1;
-                }
-            }
-
-            //Edge cases where the location must be shifted
-            bool setC = false;
-            if(shift==-1){
-                if(groupstart && (!newgroup) && (T[i].getR() > rem) && T[i].getO() && (i!=MIN_ADRESS)){
-                    T[i].setC(false);
-                    setC = true;
-                    i--;
-                }
-                else if(!newgroup && T[i].getR() > rem && T[i].getO() && i!=MIN_ADRESS){
-                    i--;
-                }
-                else if(newgroup && T[i].getO() && i!=MIN_ADRESS){
-                    if(i == MAX_ADRESS && j != MAX_ADRESS){
-                        bool checkPos = true;
-                        for(int m=j+1; m<=MAX_ADRESS; m++){
-                            if(T[m].getV()){checkPos = false;break;}
-                        }
-                        if(!checkPos){
-                            i--;
-                        }
-                    }else if(i != MAX_ADRESS){
-                        i--;
-                    }
-                }
-            }
-            if(shift==1){
-                if(groupend && (!newgroup) && (T[i].getR() < rem) && T[i].getO() && (i!=MAX_ADRESS)){
-                    i++;
-                    T[i].setC(false);
-                    setC = true;
-                }
-                else if(!newgroup && T[i].getR() < rem && T[i].getO() && i!= MAX_ADRESS){
-                    i++;
-                }else if(j==MIN_ADRESS && newgroup){
-                    i=MIN_ADRESS;
-                }
-            }
-
-            //Store where the search started for later
-            addtype startloc = i;
-            //Check whether location is empty
-            bool wasoccupied = T[i].getO();
-
-            //Store values at found location
-            remtype R_old = T[i].getR();
-            bool C_old= T[i].getC();
-            bool O_old = T[i].getO();
-
-            //Insert new values
-            T[i].setR(rem);
-            T[i].setO(true);
-            if((shift == 1) && !setC){
-                T[i].setC(C_old);
-            }else if(shift == -1){
-                T[i].setC(newgroup);
-            }
-
-            if(setC && shift == -1){T[i].setC(true);}
-
-            //Update C Value
-            if(shift == 1 && !newgroup){
-                C_old = setC;
-            }
-
-            //If the space was occupied shift mem
-            if(wasoccupied){
-                while(O_old){
-                    i += shift;
-                    //Store the values
-                    remtype R_temp = T[i].getR();
-                    bool C_temp = T[i].getC();
-                    bool O_temp = T[i].getO();
-
-                    //Put the old values in the new location
-                    T[i].setR(R_old);
-                    T[i].setO(true);
-                    T[i].setC(C_old);
-
-                    //Store the old values again
-                    R_old = R_temp;
-                    C_old = C_temp;
-                    O_old = O_temp;
-
-                    if(i == MIN_ADRESS || i == MAX_ADRESS){
-                        break;
-                    }
-
-                }
-            }
-
-            addtype x = (startloc<i) ? startloc : i;
-            if(newgroup){
-                x = (j < x) ? j : x;
-            }
-
-            //Update the A values
-            while(T[x].getO() && x<=MAX_ADRESS){
-                int A_old;
-                //Starting Value for A
-                if(((int)x-1) >= 0){
-                    A_old = T[x-1].getA();
-                }else{
-                    A_old = 0;
-                }
-
-                //Update Based on C and V
-                if(T[x].getC()){
-                    A_old += 1;
-                }
-                if(T[x].getV()){
-                    A_old -= 1;
-                }
-                T[x].setA(A_old);
-                x++;
-            }
-
-            return true;
+            return res;
         };
 
         __host__ __device__
@@ -401,8 +477,6 @@ class Cleary{
 
             if(T[i].getR() == rem){
                 return true;
-            }else{
-                return false;
             }
         };
 
