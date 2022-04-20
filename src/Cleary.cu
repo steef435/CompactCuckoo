@@ -154,22 +154,23 @@ class Cleary{
             return i;
         }
 
-
+        __host__ __device__
         addtype leftLock(addtype i) {
-            if (i == MIN_ADDRESS) {
+            if (i == MIN_ADRESS) {
                 return i;
             }
-            while (T[i-1].getO() && i>MIN_ADDRESS) {
+            while (T[i].getO() && i>MIN_ADRESS) {
                 i -= 1;
             }
             return i;
         }
 
+        __host__ __device__
         addtype rightLock(addtype i) {
-            if (i == MAX_ADDRESS) {
+            if (i == MAX_ADRESS) {
                 return i;
             }
-            while (T[i+1].getO() && i<MAX_ADDRESS) {
+            while (T[i].getO() && i<MAX_ADRESS) {
                 i += 1;
             }
             return i;
@@ -177,7 +178,7 @@ class Cleary{
 
 
         __host__ __device__
-        insertIntoTable(keytype k) {
+        bool insertIntoTable(keytype k) {
             printf("\tInserting Into Table %" PRIu64 "\n", k);
 
             hashtype h = RHASH(h1, k);
@@ -420,23 +421,29 @@ class Cleary{
 
         __host__ __device__
         bool Cleary::insert(keytype k){
+            printf("\tInserting %" PRIu64 "\n", k);
             //Calculate Hash
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
             remtype rem = getRem(h);
 
+            printf("\t\tTrying non-exclusive Write\n");
             //Try Non-Exclusive Write
             ClearyEntry<addtype,remtype> old = 
-                T[j].compareAndSwap(ClearyEntry<addtype, remtype>(), ClearyEntry<addtype, remtype>(rem, true, true, true, 0, false));
+                T[j].compareAndSwap(ClearyEntry<addtype, remtype>(0, false, false, true, 0, false, false), ClearyEntry<addtype, remtype>(rem, true, true, true, 0, false, false));
 
             //If not locked + not occupied then success
-            if ((!old.getL()) && (!old.getO()) {
+            if ((!old.getL()) && (!old.getO())) {
+                printf("\t\tNon-Exclusive Success\n");
                 return true;
             }
 
             //Get the locks
+            printf("\t\tGetting Locks\n");
             addtype left = leftLock(j);
             addtype right = rightLock(j);
+
+            printf("\t\tleft:%" PRIu32 " right:%" PRIu32 "\n", left, right);
 
             if (!T[left].lock()) {
                 return insert(k);
@@ -447,6 +454,8 @@ class Cleary{
                 return insert(k);
             }
             
+            printf("\t\tReading\n");
+
             //Do a read
             if (lookup(k)) {
                 //Val already exists

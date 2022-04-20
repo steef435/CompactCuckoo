@@ -12,26 +12,26 @@ protected:
 
     __host__ __device__
     void setBits(int start, int end, uint64_t ins, bool onDevice=true) {
-        setBits(start, end, ins, &val, onDevice)
+        setBits(start, end, ins, &val, onDevice);
     }
 
     __host__ __device__
     void setBits(int start, int end, uint64_t ins, uint64_t* loc, bool onDevice = true) {
     uint64_t mask = ((((uint64_t)1) << end) - 1) ^ ((((uint64_t)1) << (start - 1)) - 1);
-    uint64_t tempval = val & ~mask;      //Remove all of the bits currently in the positions
+    uint64_t tempval = *loc & ~mask;      //Remove all of the bits currently in the positions
     ins = ins << (start - 1);   //Shift new val to correct position
     ins = ins & mask;       //Mask the new val to prevent overflow
     uint64_t newval = tempval | ins;        //Place the new val
     //In devices, atomically exchange
     #ifdef  __CUDA_ARCH__
-        if (onDevice) {
-            atomicExch(&val, newval);
-        }
-        else {
-            val = newval;
-        }
+    if (onDevice) {
+        atomicExch(loc, newval);
+    }
+    else {
+        *loc = newval;
+    }
     #else
-        val = newval;
+        *loc = newval;
     #endif
     }
 
@@ -46,7 +46,7 @@ protected:
 
     __host__ __device__
     uint64_t getBits(int start, int end) {
-        return getBits(start, end, val)
+        return getBits(start, end, val);
     }
 
     __host__ __device__
