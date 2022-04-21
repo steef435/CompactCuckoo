@@ -80,8 +80,6 @@ class Cleary{
             addtype j = getAdd(h);
             remtype rem =  getRem(h);
 
-            printf("\t\t findIndex:add:%" PRIu32 " rem:%" PRIu64 "\n", j, rem);
-
             addtype i = j;
             int cnt = 0;
 
@@ -150,7 +148,6 @@ class Cleary{
                 default:
                     break;
             };
-            printf("\t\tfoundindex:%" PRIu32 "\n", i);
             return i;
         }
 
@@ -179,7 +176,7 @@ class Cleary{
 
         __host__ __device__
         bool insertIntoTable(keytype k) {
-            printf("\tInserting Into Table %" PRIu64 "\n", k);
+            printf("\t\t\tInserting Into Table %" PRIu64 "\n", k);
 
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
@@ -195,7 +192,6 @@ class Cleary{
 
             //Find insertion index
             addtype i = findIndex(k);
-            printf("\t\tFind index %" PRIu32 "\n", i);
 
             bool groupstart = T[i].getC() == 1 && T[i].getO() != false;
             bool groupend;
@@ -303,7 +299,6 @@ class Cleary{
             bool wasoccupied = T[i].getO();
 
             //Store values at found location
-            printf("\t\tStoring Values\n");
             remtype R_old = T[i].getR();
             bool C_old = T[i].getC();
             bool O_old = T[i].getO();
@@ -327,7 +322,6 @@ class Cleary{
 
             //If the space was occupied shift mem
             if (wasoccupied) {
-                printf("\t\tShifting Mem\n");
                 while (O_old) {
                     i += shift;
                     //Store the values
@@ -358,7 +352,6 @@ class Cleary{
             }
 
             //Update the A values
-            printf("\t\tUpdating A Values\n");
             while (T[x].getO() && x <= MAX_ADRESS) {
                 int A_old;
                 //Starting Value for A
@@ -427,63 +420,52 @@ class Cleary{
             addtype j = getAdd(h);
             remtype rem = getRem(h);
 
-            printf("\tAdd:%" PRIu32 "\n", j);
-
             while (true) {
 
-                printf("\t\tTrying non-exclusive Write\n");
                 //Try Non-Exclusive Write
                 ClearyEntry<addtype, remtype> old =
                     T[j].compareAndSwap(ClearyEntry<addtype, remtype>(0, false, false, true, 0, false, false), ClearyEntry<addtype, remtype>(rem, true, true, true, 0, false, false));
 
                 //If not locked + not occupied then success
                 if ((!old.getL()) && (!old.getO())) {
-                    printf("\t\tNon-Exclusive Success\n");
+                    printf("\t\tInsertion Success\n");
                     return true;
                 }
 
                 //Else Need Exclusivity
-                printf("\t\tGetting Locks\n");
                 addtype left = leftLock(j);
                 addtype right = rightLock(j);
-
-                printf("\t\tleft:%" PRIu32 " right:%" PRIu32 "\n", left, right);
 
                 if (!T[left].lock()) {
                     continue;
                 }
 
-                printf("\t\tFirst Lock Gotten\n");
-
                 if (!T[right].lock()) {
-                    printf("\t\tAbort Locking\n");
                     T[left].unlock();
                     continue;
                 }
 
-                printf("\t\tSecond Lock Gotten\n");
-
-                printf("\t\tReading\n");
-
                 //Do a read
-                //if (lookup(k)) {
-                if (false) {
+                if (lookup(k)) {
                     //Val already exists
+                    printf("\t\tVal Already Exists\n");
+                    T[left].unlock();
+                    T[right].unlock();
                     return false;
                 }
 
                 //Write
-                //bool res = insertIntoTable(k);
-                bool res = true;
+                bool res = insertIntoTable(k);
                 T[left].unlock();
                 T[right].unlock();
-
+                printf("\t\tInsertion Success\n");
                 return res;
             }
         };
 
         __host__ __device__
         bool Cleary::lookup(uint64_t k){
+            printf("\t\t\tLookup\n");
             //Hash Key
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
@@ -494,11 +476,13 @@ class Cleary{
                 return false;
             };
 
-            int i = findIndex(k);
+            addtype i = findIndex(k);
 
             if(T[i].getR() == rem){
                 return true;
             }
+
+            return false;
         };
 
         __host__ __device__

@@ -76,7 +76,21 @@ uint64_t* generateCollidingSet(int size, int N) {
 
     uint64_t add = 7;
 
-    for (int n = 0; n < size; ++n) {
+    for (int n = 0; n < (int) size/2; ++n) {
+        uint64_t num = reformKey(add, n, N);
+        uint64_t nval = RHASH_INVERSE(0, num);
+        if (!contains(res, nval, n)) {
+            res[n] = nval;
+        }
+        else {
+            //Redo the step
+            n--;
+        }
+    }
+
+    add = 10;
+
+    for (int n = ((int)size / 2); n < size; ++n) {
         uint64_t num = reformKey(add, n, N);
         uint64_t nval = RHASH_INVERSE(0, num);
         if (!contains(res, nval, n)) {
@@ -146,7 +160,7 @@ void TestFill(int N, uint64_t* vals) {
     new (c) Cleary(N);
 
     printf("Filling Cleary\n");
-    fillCleary << <1, 1 >> > (N, vals, c);
+    fillCleary << <1, 256 >> > (N, vals, c);
     cudaDeviceSynchronize();
 
     //Destroy Vars

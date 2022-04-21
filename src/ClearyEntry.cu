@@ -112,10 +112,7 @@ public:
         uint64_t oldval = val;
         //Make the new value with lock locked
         uint64_t newval = val;
-        printf("\t\t\tSetBits\n");
         setBits(Lindex[0], Lindex[1], ((uint64_t) 1), &newval, false);
-
-        printf("\t\t\tnewval:%" PRIu64 "\n", newval);
 
         //If Lockbit was set return false
         if (getBits(Lindex[0], Lindex[1], oldval)) {
@@ -124,12 +121,8 @@ public:
         }
 
         //Swap if the old value hasn't changed
-        printf("\t\t\tSwapping\n");
-        printf("\t\tBefore: %" PRIu64 ", %" PRIu64 ", %" PRIu64 "\n", val, newval, oldval);
         uint64_t res = atomicCAS(&val, oldval, newval);
-        printf("\t\tAfter: %" PRIu64 ", %" PRIu64 "\n", val, newval);
-        
-        printf("\t\t\tNewL:%" PRIu64 " oldL:%" PRIu64 "\n", getBits(Lindex[0], Lindex[1]), getBits(Lindex[0], Lindex[1], res));
+
         //Check if lockbit is now set and wasn't already
         if (getBits(Lindex[0], Lindex[1]) && !getBits(Lindex[0], Lindex[1], res)) {
             printf("\t\t\tSuccess\n");
@@ -173,9 +166,7 @@ public:
 
     __host__ __device__
     ClearyEntry<ADD, REM> compareAndSwap(ClearyEntry<ADD, REM> comp, ClearyEntry<ADD, REM> swap) {
-        printf("\t\t\tAtomicCAS\n");
         uint64_t newVal = atomicCAS(&val, comp.getValue(), swap.getValue());
-        printf("\t\t\tAfterAtomicCAS\n");
         return ClearyEntry(newVal);
     }
 
