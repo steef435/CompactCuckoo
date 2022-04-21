@@ -408,7 +408,7 @@ class Cleary{
                 new (&T[i]) ClearyEntry<addtype, remtype>();
             }
 
-            h1 = 1;
+            h1 = 0;
             printf("\tDone\n");
         }
 
@@ -427,47 +427,59 @@ class Cleary{
             addtype j = getAdd(h);
             remtype rem = getRem(h);
 
-            printf("\t\tTrying non-exclusive Write\n");
-            //Try Non-Exclusive Write
-            ClearyEntry<addtype,remtype> old = 
-                T[j].compareAndSwap(ClearyEntry<addtype, remtype>(0, false, false, true, 0, false, false), ClearyEntry<addtype, remtype>(rem, true, true, true, 0, false, false));
+            printf("\tAdd:%" PRIu32 "\n", j);
 
-            //If not locked + not occupied then success
-            if ((!old.getL()) && (!old.getO())) {
-                printf("\t\tNon-Exclusive Success\n");
-                return true;
-            }
+            while (true) {
 
-            //Get the locks
-            printf("\t\tGetting Locks\n");
-            addtype left = leftLock(j);
-            addtype right = rightLock(j);
+                printf("\t\tTrying non-exclusive Write\n");
+                //Try Non-Exclusive Write
+                ClearyEntry<addtype, remtype> old =
+                    T[j].compareAndSwap(ClearyEntry<addtype, remtype>(0, false, false, true, 0, false, false), ClearyEntry<addtype, remtype>(rem, true, true, true, 0, false, false));
 
-            printf("\t\tleft:%" PRIu32 " right:%" PRIu32 "\n", left, right);
+                //If not locked + not occupied then success
+                if ((!old.getL()) && (!old.getO())) {
+                    printf("\t\tNon-Exclusive Success\n");
+                    return true;
+                }
 
-            if (!T[left].lock()) {
-                return insert(k);
-            }
+                //Else Need Exclusivity
+                printf("\t\tGetting Locks\n");
+                addtype left = leftLock(j);
+                addtype right = rightLock(j);
 
-            if (!T[right].lock()) {
+                printf("\t\tleft:%" PRIu32 " right:%" PRIu32 "\n", left, right);
+
+                if (!T[left].lock()) {
+                    continue;
+                }
+
+                printf("\t\tFirst Lock Gotten\n");
+
+                if (!T[right].lock()) {
+                    printf("\t\tAbort Locking\n");
+                    T[left].unlock();
+                    continue;
+                }
+
+                printf("\t\tSecond Lock Gotten\n");
+
+                printf("\t\tReading\n");
+
+                //Do a read
+                //if (lookup(k)) {
+                if (false) {
+                    //Val already exists
+                    return false;
+                }
+
+                //Write
+                //bool res = insertIntoTable(k);
+                bool res = true;
                 T[left].unlock();
-                return insert(k);
+                T[right].unlock();
+
+                return res;
             }
-            
-            printf("\t\tReading\n");
-
-            //Do a read
-            if (lookup(k)) {
-                //Val already exists
-                return false;
-            }
-
-            //Write
-            bool res = insertIntoTable(k);
-            T[left].unlock();
-            T[right].unlock();
-
-            return res;
         };
 
         __host__ __device__

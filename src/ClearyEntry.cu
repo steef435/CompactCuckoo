@@ -145,11 +145,11 @@ public:
     bool unlock() {
         //Store old Value
         uint64_t oldval = val;
-        //Make the new value with lock locked
+        //Make the new value with lock unlocked
         uint64_t newval = val;
-        setBits(Lindex[0], Lindex[1], 0, &newval, false);
+        setBits(Lindex[0], Lindex[1], ((uint64_t) 0), &newval, false);
 
-        //If Lockbit was already free return false
+        //If Lockbit was already free return
         if (!getBits(Lindex[0], Lindex[1], oldval)) {
             return true;
         }
@@ -173,7 +173,9 @@ public:
 
     __host__ __device__
     ClearyEntry<ADD, REM> compareAndSwap(ClearyEntry<ADD, REM> comp, ClearyEntry<ADD, REM> swap) {
+        printf("\t\t\tAtomicCAS\n");
         uint64_t newVal = atomicCAS(&val, comp.getValue(), swap.getValue());
+        printf("\t\t\tAfterAtomicCAS\n");
         return ClearyEntry(newVal);
     }
 

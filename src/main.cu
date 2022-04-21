@@ -63,6 +63,34 @@ uint64_t* generateTestSet(int size) {
     return res;
 }
 
+__host__ __device__
+uint64_t reformKey(addtype add, remtype rem, int N) {
+    rem = rem << N;
+    rem += add;
+    return rem;
+}
+
+uint64_t* generateCollidingSet(int size, int N) {
+    uint64_t* res;
+    cudaMallocManaged(&res, size * sizeof(uint64_t));
+
+    uint64_t add = 7;
+
+    for (int n = 0; n < size; ++n) {
+        uint64_t num = reformKey(add, n, N);
+        uint64_t nval = RHASH_INVERSE(0, num);
+        if (!contains(res, nval, n)) {
+            res[n] = nval;
+        }
+        else {
+            //Redo the step
+            n--;
+        }
+    }
+
+    return res;
+}
+
 /*
  *
  * Main Functions
@@ -100,11 +128,7 @@ void fillCleary(int n, uint64_t* vals, Cleary* H)
 }
 
 
-void Test(int N) {
-	//Create List of Values
-	uint64_t* vals;
-    vals = generateTestSet(N);
-
+void TestFill(int N, uint64_t* vals) {
 	//Create Table 1
     ClearyCuckoo* cc;
     cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
@@ -122,7 +146,7 @@ void Test(int N) {
     new (c) Cleary(N);
 
     printf("Filling Cleary\n");
-    fillCleary << <1, 256 >> > (N, vals, c);
+    fillCleary << <1, 1 >> > (N, vals, c);
     cudaDeviceSynchronize();
 
     //Destroy Vars
@@ -131,11 +155,78 @@ void Test(int N) {
     cudaFree(c);
 }
 
+__global__
+void lockTestDevice(ClearyEntry<addtype, remtype>* T){
+    addtype left = 1;
+    addtype right = 4;
+
+    while (true) {
+        printf("\tGetting First Lock\n");
+        if (!T[left].lock()) {
+            printf("\tFirst Lock Failed\n");
+                continue;
+        }
+
+        printf("\tLeft");
+        T[left].print();
+
+        printf("\tGetting Second Lock\n");
+        if (!T[right].lock()) {
+            printf("\tSecond Lock Failed\n");
+                printf("\tAbort Locking\n");
+            T[left].unlock();
+            printf("\tUnlocked\n");
+                continue;
+        }
+
+        printf("\tRight");
+        T[left].print();
+
+        printf("\t'Insertion\' Succeeded\n");
+        T[left].unlock();
+        T[right].unlock();
+        printf("\tUnlocked\n");
+
+        printf("\tLeft");
+        T[left].print();
+        printf("\tRight");
+        T[left].print();
+
+        return;
+    }
+
+}
+
+void lockTest() {
+    int tablesize = 256;
+    ClearyEntry<addtype, remtype>* T;
+    cudaMallocManaged(&T, tablesize * sizeof(ClearyEntry<addtype, remtype>));
+
+    printf("\tInitializing Entries\n");
+    for (int i = 0; i < tablesize; i++) {
+        new (&T[i]) ClearyEntry<addtype, remtype>();
+    }
+
+    printf("\tStarting Lock Test\n");
+    lockTestDevice << <1, 10 >> > (T);
+    cudaDeviceSynchronize();
+
+    cudaFree(T);
+}
+
+
 int main(void)
 {
-    printf("Starting\n");
+    /*
+    printf("Normal Test\n");
+    TestFill(10, generateTestSet(10));
+    */
+    printf("Collision Test\n");
+    TestFill(10, generateCollidingSet(10, 10));
+    
 
-	Test(10);
+    //printf("Lock Test\n");
+    //lockTest();
 
     return 0;
 }
