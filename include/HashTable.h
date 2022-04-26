@@ -9,9 +9,9 @@ class HashTable{
         /**
          * Constructor Method
          **/
-        HashTable() = default;
+        HashTable() {};
 
-        virtual ~HashTable() = default;
+        ~HashTable() {};
 
         /**
          *  Insert Method
@@ -21,7 +21,7 @@ class HashTable{
          *      Key k is inserted
          **/
         __host__ __device__
-        virtual bool HashTable::insert(uint64_t k) = 0;
+        bool HashTable::insert(uint64_t k) { return false; };
 
         /**
          *  Lookup Method
@@ -31,25 +31,25 @@ class HashTable{
          *      Object stored at key k
          **/
         __host__ __device__
-        virtual bool HashTable::lookup(uint64_t k) = 0;
+        bool HashTable::lookup(uint64_t k) { return false; };
 
         /**
          *  Rehash
          **/
         __host__ __device__
-        virtual bool HashTable::rehash() = 0;
+        bool HashTable::rehash() { return false; };
 
         /**
          * Method to clear all values in the table
          **/
         __host__ __device__
-        virtual void HashTable::clear() = 0;
+            void HashTable::clear() {};
 
         /*
          * Method to get the size of the table
          **/
         __host__ __device__
-        virtual int HashTable::getSize() = 0;
+        int HashTable::getSize() { return 0; };
 
         
         /**
@@ -57,5 +57,5 @@ class HashTable{
          * (Mostly for debugging/testing)
          * */
         __host__ __device__
-        virtual void HashTable::print() = 0;
+        void HashTable::print() {};
 };

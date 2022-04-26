@@ -22,7 +22,7 @@
 
 #include "ClearyCuckooEntry.cu"
 
-class ClearyCuckoo{
+class ClearyCuckoo : public HashTable{
 
 /*
 *

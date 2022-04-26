@@ -32,7 +32,7 @@ using keytype = uint64_t;
 enum direction{up, down, here};
 
 
-class Cleary{
+class Cleary : public HashTable{
     //Allows for easy changing of the types
     
     private:

@@ -111,57 +111,50 @@ uint64_t* generateCollidingSet(int size, int N) {
  *
  */
 
-
-//TODO Need to make this abstract
 __global__
-void fillClearyCuckoo(int n, uint64_t* vals, ClearyCuckoo* H)
+void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H)
 {   
     int index = threadIdx.x;
     int stride = blockDim.x;
-    for (int i = index; i < n; i += stride) {
+    for (int i = index; i < N; i += stride) {
         printf("Value %i is %" PRIu64 "\n", i, vals[i]);
         H->insert(vals[i]);
-        if (i == 9) {
-            H->print();
-        }
     }
 }
 
-//TODO Need to make this abstract
 __global__
-void fillCleary(int n, uint64_t* vals, Cleary* H)
+void fillCleary(int N, uint64_t* vals, Cleary* H)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
-    for (int i = index; i < n; i += stride) {
+    for (int i = index; i < N; i += stride) {
         H->insert(vals[i]);
-        if (i == 9) {
-            H->print();
-        }
     }
 }
 
 
-void TestFill(int N, uint64_t* vals) {
+void TestFill(int N, int tablesize, uint64_t* vals) {
 	//Create Table 1
     ClearyCuckoo* cc;
     cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
-    new (cc) ClearyCuckoo(N, 4);
+    new (cc) ClearyCuckoo(tablesize, 4);
 
     printf("Filling ClearyCuckoo\n");
 	fillClearyCuckoo << <1, 256 >> > (N, vals, cc);
     cudaDeviceSynchronize();
     printf("Devices Synced\n");
-    //cc->print();
+    cc->print();
 
 	//Create Table 2
     Cleary* c;
     cudaMallocManaged((void**)&c, sizeof(Cleary));
-    new (c) Cleary(N);
+    new (c) Cleary(tablesize);
 
     printf("Filling Cleary\n");
     fillCleary << <1, 256 >> > (N, vals, c);
     cudaDeviceSynchronize();
+    printf("Devices Synced\n");
+    c->print();
 
     //Destroy Vars
     cudaFree(vals);
@@ -231,12 +224,19 @@ void lockTest() {
 
 int main(void)
 {
-    /*
-    printf("Normal Test\n");
-    TestFill(10, generateTestSet(10));
-    */
-    printf("Collision Test\n");
-    TestFill(10, generateCollidingSet(10, 10));
+    int testSize = 99;
+    
+    printf("==============================================================================================================\n");
+    printf("                              BASIC TEST                              \n");
+    printf("==============================================================================================================\n");
+    uint64_t* testset1 = generateTestSet(testSize);
+    TestFill(testSize, 8, testset1);
+    
+    printf("==============================================================================================================\n");
+    printf("                            COLLISION TEST                            \n");
+    printf("==============================================================================================================\n");
+    uint64_t* testset2 = generateCollidingSet(testSize, 8);
+    TestFill(testSize, 8, testset2);
     
 
     //printf("Lock Test\n");
