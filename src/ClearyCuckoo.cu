@@ -177,6 +177,7 @@ class ClearyCuckoo : public HashTable{
 
         __host__ __device__
         bool rehash(int depth){
+            printf("Rehash\n");
             //Prevent recursion of rehashing
             if(depth >0){return false;}
 
@@ -191,7 +192,7 @@ class ClearyCuckoo : public HashTable{
                     int oldhash = T[i].getH();
 
                     //Delete Entry
-                    T[i] = ClearyCuckooEntry<addtype, remtype>();
+                    new (&T[i]) ClearyCuckooEntry<addtype, remtype>();
 
                     //Insert
                     hashtype h_old = reformKey(i, temp);
