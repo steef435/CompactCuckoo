@@ -86,6 +86,15 @@ class ClearyCuckoo : public HashTable{
         }
 
         __host__ __device__
+            void iterateHashList(int* list) {
+            printf("\tUpdating Hashlist\n");
+            for (int i = 0; i < hn; i++) {
+                list[i] = (list[i]+1)%32;
+            }
+            return;
+        }
+
+        __host__ __device__
         int getNextHash(int* ls, int curr) {
             for (int i = 0; i < hn; i++) {
                 if (ls[i] == curr) {
