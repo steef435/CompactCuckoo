@@ -117,8 +117,8 @@ void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H)
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index; i < N; i += stride) {
-        printf("Value %i is %" PRIu64 "\n", i, vals[i]);
         H->insert(vals[i]);
+        //H->print();
     }
 }
 
@@ -132,18 +132,57 @@ void fillCleary(int N, uint64_t* vals, Cleary* H)
     }
 }
 
+__global__
+void checkClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, bool* res)
+{
+    int index = threadIdx.x;
+    int stride = blockDim.x;
+    for (int i = index; i < N; i += stride) {
+        if (H->lookup(vals[i])) {
+            *res = false;
+        }
+    }
+}
+
+__global__
+void checkCleary(int N, uint64_t* vals, Cleary* H, bool* res)
+{
+    int index = threadIdx.x;
+    int stride = blockDim.x;
+    for (int i = index; i < N; i += stride) {
+        if (H->lookup(vals[i])) {
+            *res = false;
+        }
+    }
+}
+
 
 void TestFill(int N, int tablesize, uint64_t* vals) {
 	//Create Table 1
     ClearyCuckoo* cc;
     cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
-    new (cc) ClearyCuckoo(tablesize, 4);
+    new (cc) ClearyCuckoo(tablesize, 16);
 
     printf("Filling ClearyCuckoo\n");
 	fillClearyCuckoo << <1, 256 >> > (N, vals, cc);
     cudaDeviceSynchronize();
     printf("Devices Synced\n");
     cc->print();
+
+    //Checking 
+    bool* res;
+    cudaMallocManaged(&res, sizeof(bool));
+    *res = true;
+
+    checkClearyCuckoo << <1, 256 >> > (N, vals, cc, res);
+    cudaDeviceSynchronize();
+    printf("Devices Synced\n");
+    if (res) {
+        printf("All still in the table\n");
+    }
+    else {
+        printf("Vals Missing\n");
+    }
 
 	//Create Table 2
     Cleary* c;
@@ -156,11 +195,24 @@ void TestFill(int N, int tablesize, uint64_t* vals) {
     printf("Devices Synced\n");
     c->print();
 
+    //Checking 
+    *res = true;
+    checkCleary << <1, 256 >> > (N, vals, c, res);
+    cudaDeviceSynchronize();
+    printf("Devices Synced\n");
+    if (res) {
+        printf("All still in the table\n");
+    }
+    else {
+        printf("Vals Missing\n");
+    }
+
     //Destroy Vars
     cudaFree(vals);
     cudaFree(cc);
     cudaFree(c);
 }
+
 
 __global__
 void lockTestDevice(ClearyEntry<addtype, remtype>* T){
@@ -224,20 +276,34 @@ void lockTest() {
 
 int main(void)
 {
-    int testSize = 99;
+    int testSize = 150;
+    int addressSize = 8;
     
     printf("==============================================================================================================\n");
     printf("                              BASIC TEST                              \n");
     printf("==============================================================================================================\n");
     uint64_t* testset1 = generateTestSet(testSize);
-    TestFill(testSize, 8, testset1);
+    TestFill(testSize, addressSize, testset1);
     
+
     printf("==============================================================================================================\n");
     printf("                            COLLISION TEST                            \n");
     printf("==============================================================================================================\n");
-    uint64_t* testset2 = generateCollidingSet(testSize, 8);
-    TestFill(testSize, 8, testset2);
+    uint64_t* testset2 = generateCollidingSet(testSize, addressSize);
+    TestFill(testSize, addressSize, testset2);
+
+    /*
+    printf("==============================================================================================================\n");
+    printf("                            FILL AND CHECK TEST                            \n");
+    printf("==============================================================================================================\n");
     
+    int sampleSize = 50;
+    for (int i = 0; i < sampleSize; i++) {
+        printf("\n\tTEST %i\n", i);
+        uint64_t* testset3 = generateCollidingSet((int)pow(2, addressSize), addressSize);
+        TestFillAndCheck(testSize, addressSize, testset3);
+    }
+    */
 
     //printf("Lock Test\n");
     //lockTest();

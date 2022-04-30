@@ -22,7 +22,7 @@
 
 #include "ClearyCuckooEntry.cu"
 
-class ClearyCuckoo : public HashTable{
+class ClearyCuckoo : HashTable{
 
 /*
 *
@@ -171,13 +171,13 @@ class ClearyCuckoo : public HashTable{
                 
                 c++;
             }
-
+            /*
             if(depth>0){return false;}
             //If MAXLOOPS is reached rehash the whole table
             if(!rehash()){
                 //If rehash fails, return
                 return false;
-            }
+            }*/
 
             if(insertIntoTable(x, T, depth)){return true;}
 
@@ -190,12 +190,14 @@ class ClearyCuckoo : public HashTable{
             //Prevent recursion of rehashing
             if(depth >0){return false;}
 
-            createHashList(hashlist);
+            printf("\tCreate Hashlist\n");
+            iterateHashList(hashlist);
 
             //Insert the old values in the new table
+            printf("\tCheck all values for correctness\n");
             for(int i=0; i<tablesize; i++){
-
-                if (!containsHash(hashlist, T[i].getH())) {
+                if ( ( !containsHash(hashlist, T[i].getH()) ) && T[i].getO()) {
+                    printf("\tVal no longer correct\n");
                     //Store the old value
                     remtype temp = T[i].getR();
                     int oldhash = T[i].getH();
@@ -206,9 +208,11 @@ class ClearyCuckoo : public HashTable{
                     //Insert
                     hashtype h_old = reformKey(i, temp);
                     keytype k_old = RHASH_INVERSE(oldhash, h_old);
-                    insertIntoTable(k_old, T, depth);
+                    insertIntoTable(k_old, T, depth+1);
                 }
-            }            
+            }         
+            printf("\tRehash Done\n");
+            print();
             return true;
         };
 
@@ -308,10 +312,11 @@ class ClearyCuckoo : public HashTable{
         }
 
         __host__ __device__
-        void ClearyCuckoo::print(ClearyCuckooEntry<addtype, remtype>* T){
+        void ClearyCuckoo::print(){
             printf("------------------------------------------------------------\n");
             printf("|    i     |     R[i]       | O[i] |      key       |label |\n");
             printf("------------------------------------------------------------\n");
+            printf("Tablesize %i\n", tablesize);
             for(int i=0; i<tablesize; i++){
                 if(T[i].getO()){
                     remtype rem = T[i].getR();
@@ -323,11 +328,6 @@ class ClearyCuckoo : public HashTable{
                 }
             }
             printf("------------------------------------------------------------\n");
-        }
-
-        __host__ __device__
-        void ClearyCuckoo::print(){
-            print(T);
         }
 
         __host__ __device__
