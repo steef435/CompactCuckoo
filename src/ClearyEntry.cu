@@ -18,7 +18,7 @@ private:
 
 public:
     __host__ __device__
-    ClearyEntry(ADD R, bool O, bool V, bool C, int A, bool L, bool onDevice = true) {
+    ClearyEntry(REM R, bool O, bool V, bool C, int A, bool L, bool onDevice = true) {
         val = 0;
         setR(R, onDevice);
         setO(O, onDevice);
@@ -116,7 +116,7 @@ public:
 
         //If Lockbit was set return false
         if (getBits(Lindex[0], Lindex[1], oldval)) {
-            printf("\t\t\tLockbit Already Set\n");
+            //printf("\t\t\tLockbit Already Set\n");
             return false;
         }
 
@@ -125,11 +125,11 @@ public:
 
         //Check if lockbit is now set and wasn't already
         if (getBits(Lindex[0], Lindex[1]) && !getBits(Lindex[0], Lindex[1], res)) {
-            printf("\t\t\tSuccess\n");
+            //printf("\t\t\tSuccess\n");
             return true;
         }
         else {
-            printf("\t\t\tFail\n");
+            //printf("\t\t\tFail\n");
             return false;
         }
     }

@@ -46,6 +46,7 @@ class ClearyCuckoo : HashTable{
         int AS;                    //AdressSize
         int RS;                         //RemainderSize
         int tablesize;
+        int occupancy = 0;
         
         //Hash tables
         ClearyCuckooEntry<addtype, remtype>* T;
@@ -155,7 +156,7 @@ class ClearyCuckoo : HashTable{
                 bool wasoccupied = entry.getO();
                 int oldhash = entry.getH();
 
-                
+                printf("R:%" PRIu64 " O:%i H:%i\n", temp, wasoccupied, oldhash);
 
                 //If the first spot was open return
                 if(!wasoccupied){
@@ -163,10 +164,11 @@ class ClearyCuckoo : HashTable{
                 }
 
                 //Otherwise rebuild the original key
-                hashtype h_old = reformKey(add, temp);
-                keytype k_old = RHASH_INVERSE(oldhash, h_old);
+                hashtype h_old = reformKey(add, temp);                
+                x = RHASH_INVERSE(oldhash, h_old);
+                printf("H_Old:%" PRIu64 " k_old:%" PRIu64 "\n", h_old, x);
 
-                //Hash with the opposite hash value
+                //Hash with the next hash value
                 hash = getNextHash(hashlist, oldhash);
                 
                 c++;
@@ -218,6 +220,7 @@ class ClearyCuckoo : HashTable{
 
         __host__ __device__
         bool lookup(uint64_t k, ClearyCuckooEntry<addtype, remtype>* T){
+            printf("\t\tLookup %" PRIu64 "\n", k);
             for (int i = 0; i < hn; i++) {
                 uint64_t hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1);
@@ -226,6 +229,7 @@ class ClearyCuckoo : HashTable{
                     return true;
                 }
             }
+            printf("\t\tNone Found\n");
             return false;
         };
 
@@ -268,10 +272,10 @@ class ClearyCuckoo : HashTable{
             cudaFree(hashlist);
         }
 
-        __host__ __device__
+        __device__ __host__
         bool ClearyCuckoo::insert(uint64_t k){
             //Succesful Insertion
-            printf("\tInserting %" PRIu64 "\n", k);
+            printf("\tInserting val %i: %" PRIu64 "\n", occupancy, k);
             if(insertIntoTable(k,T,0)){
                 //Reset the Hash Counter
                 hashcounter = 0;
@@ -313,9 +317,9 @@ class ClearyCuckoo : HashTable{
 
         __host__ __device__
         void ClearyCuckoo::print(){
-            printf("------------------------------------------------------------\n");
-            printf("|    i     |     R[i]       | O[i] |      key       |label |\n");
-            printf("------------------------------------------------------------\n");
+            printf("----------------------------------------------------------------\n");
+            printf("|    i     |     R[i]       | O[i] |        key         |label |\n");
+            printf("----------------------------------------------------------------\n");
             printf("Tablesize %i\n", tablesize);
             for(int i=0; i<tablesize; i++){
                 if(T[i].getO()){
@@ -324,7 +328,7 @@ class ClearyCuckoo : HashTable{
                     hashtype h = reformKey(i, rem);
                     keytype k = RHASH_INVERSE(label, h);
 
-                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-16" PRIu64 "|%-6i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
+                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-20" PRIu64 "|%-6i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
                 }
             }
             printf("------------------------------------------------------------\n");
@@ -332,8 +336,7 @@ class ClearyCuckoo : HashTable{
 
         __host__ __device__
         void debug(uint64_t i) {
-            //printf("%" PRIu64, T[0]);
-            printf("%" PRIu64, i);
+
         }
         
         void setMaxRehashes(int x){

@@ -45,6 +45,8 @@ class Cleary : public HashTable{
         int RS;                  //RemainderSize
         int size;                //Allocated Size of Table
         int tablesize;              //Actual size of table with buffer
+        int occupancy = 0;
+
         addtype MAX_ADRESS;
         addtype MIN_ADRESS = 0;
 
@@ -78,7 +80,7 @@ class Cleary : public HashTable{
         addtype findIndex(uint64_t k){
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
-            remtype rem =  getRem(h);
+            remtype rem = getRem(h);
 
             addtype i = j;
             int cnt = 0;
@@ -176,7 +178,7 @@ class Cleary : public HashTable{
 
         __host__ __device__
         bool insertIntoTable(keytype k) {
-            printf("\t\t\tInserting Into Table %" PRIu64 "\n", k);
+            //printf("\t\t\tInserting Into Table %" PRIu64 "\n", k);
 
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
@@ -305,6 +307,10 @@ class Cleary : public HashTable{
 
             //Insert new values
             T[i].setR(rem);
+
+            //printf("\t\tinsertintoTable ");
+            T[i].print();
+
             T[i].setO(true);
             if ((shift == 1) && !setC) {
                 T[i].setC(C_old);
@@ -319,6 +325,9 @@ class Cleary : public HashTable{
             if (shift == 1 && !newgroup) {
                 C_old = setC;
             }
+
+            //printf("\t\beforeShift ");
+            T[i].print();
 
             //If the space was occupied shift mem
             if (wasoccupied) {
@@ -373,6 +382,9 @@ class Cleary : public HashTable{
                 x++;
             }
 
+            //printf("\t\tAfterallupdates");
+            T[i].print();
+
             return true;
         }
 
@@ -386,23 +398,23 @@ class Cleary : public HashTable{
         Cleary() {}
 
         Cleary(int adressSize){
-            printf("Creating Cleary Table\n");
+            //printf("Creating Cleary Table\n");
             AS = adressSize;
             RS = HS-AS;
             tablesize = (int) pow(2,AS) + 2*BUFFER;
             size = (int) pow(2,AS);
             MAX_ADRESS = tablesize - 1;
 
-            printf("\tAllocating Memory\n");
+            //printf("\tAllocating Memory\n");
             cudaMallocManaged(&T, tablesize * sizeof(ClearyEntry<addtype, remtype>));
 
-            printf("\tInitializing Entries\n");
+            //printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
                 new (&T[i]) ClearyEntry<addtype, remtype>();
             }
 
             h1 = 0;
-            printf("\tDone\n");
+            //printf("\tDone\n");
         }
 
         /**
@@ -414,7 +426,7 @@ class Cleary : public HashTable{
 
         __host__ __device__
         bool Cleary::insert(keytype k){
-            printf("\tInserting %" PRIu64 "\n", k);
+            //printf("\tInserting %" PRIu64 "\n", k);
             //Calculate Hash
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
@@ -428,7 +440,7 @@ class Cleary : public HashTable{
 
                 //If not locked + not occupied then success
                 if ((!old.getL()) && (!old.getO())) {
-                    printf("\t\tInsertion Success\n");
+                    //printf("\t\tInsertion Success\n");
                     return true;
                 }
 
@@ -448,7 +460,7 @@ class Cleary : public HashTable{
                 //Do a read
                 if (lookup(k)) {
                     //Val already exists
-                    printf("\t\tVal Already Exists\n");
+                    //printf("\t\tVal Already Exists\n");
                     T[left].unlock();
                     T[right].unlock();
                     return false;
@@ -458,14 +470,16 @@ class Cleary : public HashTable{
                 bool res = insertIntoTable(k);
                 T[left].unlock();
                 T[right].unlock();
-                printf("\t\tInsertion Success\n");
+                //printf("\t\tInsertion Success\n");
+                //printf("\tAfterInsertion");
+                T[j].print();
                 return res;
             }
         };
 
         __host__ __device__
         bool Cleary::lookup(uint64_t k){
-            printf("\t\t\tLookup\n");
+            //printf("\t\tLookup %" PRIu64 "\n", k);
             //Hash Key
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
@@ -473,6 +487,7 @@ class Cleary : public HashTable{
 
             //If no values with add exist, return
             if(T[j].getV() == 0){
+                //printf("\t\t\tV not set\n");
                 return false;
             };
 
@@ -480,6 +495,10 @@ class Cleary : public HashTable{
 
             if(T[i].getR() == rem){
                 return true;
+            }
+            else {
+                //printf("\t\t\tOriginalIndex:%" PRIu32 " FoundIndex:%" PRIu32 "\n",j, i);
+                //printf("\t\t\tFoundR:%" PRIu64 " ActualR:%" PRIu64 "\n", T[i].getR(), rem);
             }
 
             return false;

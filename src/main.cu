@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <fstream>
 #include <inttypes.h>
+#include <chrono>
+#include <vector>
 
 #ifndef HASHTABLE
 #define HASHTABLE
@@ -105,6 +107,26 @@ uint64_t* generateCollidingSet(int size, int N) {
     return res;
 }
 
+template <typename T>
+void exportToCSV(std::vector<std::vector<T>>* matrix, std::string name) {
+    std::ofstream myfile;
+    std::string filename = "../results/benchmark/" + name + ".csv";
+    myfile.open(filename);
+    if (myfile.is_open()) {
+        for (int i = 0; i < matrix->size(); i++) {
+            for (int j = 0; j < matrix->at(0).size(); j++) {
+                myfile << (*matrix)[i][j] << ",";
+            }
+            myfile << "\n";
+        }
+        myfile.close();
+    }
+    else {
+        std::cout << "Failed to open file : \n";
+    }
+}
+
+
 /*
  *
  * Main Functions
@@ -112,23 +134,29 @@ uint64_t* generateCollidingSet(int size, int N) {
  */
 
 __global__
-void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H)
+void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype begin=0)
 {   
     int index = threadIdx.x;
     int stride = blockDim.x;
-    for (int i = index; i < N; i += stride) {
-        H->insert(vals[i]);
-        //H->print();
+    for (int i = index+begin; i < N+begin; i += stride) {
+        if (!(H->insert(vals[i]))) {
+            printf("!------------ Insertion Failure ------------!\n");
+            break;
+        }
+        H->print();
     }
 }
 
 __global__
-void fillCleary(int N, uint64_t* vals, Cleary* H)
+void fillCleary(int N, uint64_t* vals, Cleary* H, addtype begin = 0)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
-    for (int i = index; i < N; i += stride) {
-        H->insert(vals[i]);
+    for (int i = index+begin; i < N+begin; i += stride) {
+        if (!(H->insert(vals[i]))) {
+            printf("!------------ Insertion Failure ------------!\n");
+            break;
+        }
     }
 }
 
@@ -138,8 +166,9 @@ void checkClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, bool* res)
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index; i < N; i += stride) {
-        if (H->lookup(vals[i])) {
-            *res = false;
+        if (!(H->lookup(vals[i]))) {
+            printf("\tSetting Res:Val %" PRIu64 " Missing\n", vals[i]);
+            res[0] = false;
         }
     }
 }
@@ -150,34 +179,39 @@ void checkCleary(int N, uint64_t* vals, Cleary* H, bool* res)
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index; i < N; i += stride) {
-        if (H->lookup(vals[i])) {
-            *res = false;
+        if (!(H->lookup(vals[i]))) {
+            printf("\tSetting Res:Val %" PRIu64 " Missing\n", vals[i]);
+            res[0] = false;
         }
     }
 }
 
 
 void TestFill(int N, int tablesize, uint64_t* vals) {
+    //Init Var
+    printf("Making Check Bool\n");
+    bool* res;
+    cudaMallocManaged((void**)&res, sizeof(bool));
+    printf("Assigning Value\n");
+
 	//Create Table 1
     ClearyCuckoo* cc;
     cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
     new (cc) ClearyCuckoo(tablesize, 16);
 
     printf("Filling ClearyCuckoo\n");
-	fillClearyCuckoo << <1, 256 >> > (N, vals, cc);
+	fillClearyCuckoo << <1, 1 >> > (N, vals, cc);
     cudaDeviceSynchronize();
     printf("Devices Synced\n");
     cc->print();
 
-    //Checking 
-    bool* res;
-    cudaMallocManaged(&res, sizeof(bool));
-    *res = true;
-
-    checkClearyCuckoo << <1, 256 >> > (N, vals, cc, res);
+    //Check Table
+    res[0] = true;
+    printf("Checking Cleary-Cuckoo\n");
+    checkClearyCuckoo << <1, 1 >> > (N, vals, cc, res);
     cudaDeviceSynchronize();
     printf("Devices Synced\n");
-    if (res) {
+    if (res[0]) {
         printf("All still in the table\n");
     }
     else {
@@ -190,17 +224,17 @@ void TestFill(int N, int tablesize, uint64_t* vals) {
     new (c) Cleary(tablesize);
 
     printf("Filling Cleary\n");
-    fillCleary << <1, 256 >> > (N, vals, c);
+    fillCleary << <1, 1 >> > (N, vals, c);
     cudaDeviceSynchronize();
     printf("Devices Synced\n");
     c->print();
 
     //Checking 
     *res = true;
-    checkCleary << <1, 256 >> > (N, vals, c, res);
+    checkCleary << <1, 1 >> > (N, vals, c, res);
     cudaDeviceSynchronize();
     printf("Devices Synced\n");
-    if (res) {
+    if (res[0]) {
         printf("All still in the table\n");
     }
     else {
@@ -208,7 +242,7 @@ void TestFill(int N, int tablesize, uint64_t* vals) {
     }
 
     //Destroy Vars
-    cudaFree(vals);
+    cudaFree(res);
     cudaFree(cc);
     cudaFree(c);
 }
@@ -273,40 +307,170 @@ void lockTest() {
     cudaFree(T);
 }
 
+void entryTest() {
+    ClearyEntry<addtype, remtype> c = ClearyEntry<addtype, remtype>();
+    c.setR(351629921636382);
+    c.print();
+    printf("Entry After R %" PRIu64 "\n", c.getR());
+}
 
-int main(void)
-{
-    int testSize = 150;
-    int addressSize = 8;
+void Test() {
+    const int addressSize = 8;
+    //const int testSize = std::pow(2, addressSize);
+    const int testSize = 5;
     
+
+    //printf("Lock Test\n");
+    //lockTest();
+
     printf("==============================================================================================================\n");
     printf("                              BASIC TEST                              \n");
     printf("==============================================================================================================\n");
     uint64_t* testset1 = generateTestSet(testSize);
     TestFill(testSize, addressSize, testset1);
-    
+    cudaFree(testset1);
+
 
     printf("==============================================================================================================\n");
     printf("                            COLLISION TEST                            \n");
     printf("==============================================================================================================\n");
     uint64_t* testset2 = generateCollidingSet(testSize, addressSize);
     TestFill(testSize, addressSize, testset2);
+    cudaFree(testset2);
 
-    /*
-    printf("==============================================================================================================\n");
-    printf("                            FILL AND CHECK TEST                            \n");
-    printf("==============================================================================================================\n");
-    
-    int sampleSize = 50;
-    for (int i = 0; i < sampleSize; i++) {
-        printf("\n\tTEST %i\n", i);
-        uint64_t* testset3 = generateCollidingSet((int)pow(2, addressSize), addressSize);
-        TestFillAndCheck(testSize, addressSize, testset3);
+    printf("\nTESTING DONE\n");
+}
+
+
+/* ================================================================================================================
+ *
+ *  Benchmark Methods
+ * 
+ * ================================================================================================================ 
+*/
+
+void BenchmarkFilling() {
+    const int INTERVAL = (int)16;
+    const int NUM_SAMPLES = 20;
+
+    //Tablesizes
+    for (int N = 8; N < 9; N++) {
+
+        int size = std::pow(2, N);
+        int setsize = (int)(size / INTERVAL);
+
+        //Table to store the results for this size
+        std::vector<std::vector<long long int>>* insTimes_c = new std::vector<std::vector<long long int>>(setsize, std::vector<long long int>(NUM_SAMPLES, 0));
+        std::vector<std::vector<long long int>>* insTimes_cc = new std::vector<std::vector<long long int>>(setsize, std::vector<long long int>(NUM_SAMPLES, 0));
+
+        //Number of samples
+        for (int S = 0; S < NUM_SAMPLES; S++) {
+            uint64_t* vals = generateTestSet(N);
+
+            //Init Cleary Cuckoo
+            ClearyCuckoo* cc;
+            cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
+            new (cc) ClearyCuckoo(N, 16);
+
+            //Init Cleary
+            Cleary* c;
+            cudaMallocManaged((void**)&c, sizeof(Cleary));
+            new (c) Cleary(N);
+
+            //Loop over intervals
+            
+            for (int j = 0; j < setsize; j++) {
+                //Fill the table
+                printf("Filling ClearyCuckoo\n");
+                //Start the Timer
+                std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+                fillClearyCuckoo << <1, 256 >> > (setsize, vals, cc, setsize*j);
+                cudaDeviceSynchronize();
+                //End the timer
+                std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+                (*insTimes_cc)[j][S] = std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count();
+
+
+
+                //Fill the table
+                printf("Filling Cleary\n");
+                //Start the Timer
+                begin = std::chrono::steady_clock::now();
+                fillCleary << <1, 256 >> > (setsize, vals, c, setsize * j);
+                cudaDeviceSynchronize();
+                //End the timer
+                end = std::chrono::steady_clock::now();
+                (*insTimes_c)[j][S] = std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count();
+            }
+            printf("Loops Done\n");
+
+        }
+
+        printf("Printing Results\n");
+        std::string num = std::to_string(N);
+        exportToCSV(insTimes_c, "InsertionC" + num);
+        exportToCSV(insTimes_cc, "InsertionCC" + num);
+
+        cudaFree(insTimes_c);
+        cudaFree(insTimes_cc);
     }
-    */
+}
 
-    //printf("Lock Test\n");
-    //lockTest();
+void BenchmarkMaxOccupancy() {
+    const int INTERVAL = (int)16;
+    const int NUM_SAMPLES = 20;
+
+    //Tablesizes
+    for (int N = 8; N < 9; N++) {
+
+        int size = std::pow(2, N);
+        int setsize = (int)(size / INTERVAL);
+
+        //Table to store the results for this size
+        std::vector<std::vector<long long int>>* max_cc = new std::vector<std::vector<long long int>>(setsize, std::vector<long long int>(NUM_SAMPLES, 0));
+
+        //Number of samples
+        for (int S = 0; S < NUM_SAMPLES; S++) {
+            uint64_t* vals = generateTestSet(N);
+
+            //Init Cleary Cuckoo
+            ClearyCuckoo* cc;
+            cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
+            new (cc) ClearyCuckoo(N, 16);
+
+            //Init Cleary
+            Cleary* c;
+            cudaMallocManaged((void**)&c, sizeof(Cleary));
+            new (c) Cleary(N);
+
+            //Loop over intervals
+
+            for (int j = 0; j < setsize; j++) {
+                //Fill the table
+                printf("Filling ClearyCuckoo\n");
+                fillClearyCuckoo << <1, 256 >> > (setsize, vals, cc, setsize * j);
+                cudaDeviceSynchronize();
+            }
+            printf("Loops Done\n");
+
+        }
+
+        printf("Printing Results\n");
+        std::string num = std::to_string(N);
+        exportToCSV(max_cc, "MaxFillC" + num);
+
+        cudaFree(max_cc);
+    }
+}
+
+
+int main(void)
+{
+    
+    Test();
+    //BenchmarkFilling();
+    //entryTest();
 
     return 0;
 }

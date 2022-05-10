@@ -104,7 +104,8 @@ public:
 
     __host__ __device__
     void print() {
-        std::cout << std::bitset<64>(val) << "\n";
+        //std::cout << std::bitset<64>(val) << "\n";
+        printf("EntryVal:%" PRIu64 "\n", val);
     }
 
 };

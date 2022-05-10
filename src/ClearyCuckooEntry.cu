@@ -14,7 +14,7 @@ private:
 
 public:
     __host__ __device__
-    ClearyCuckooEntry(ADD R, int H, bool O, bool onDevice=true) {
+    ClearyCuckooEntry(REM R, int H, bool O, bool onDevice=true) {
         val = 0;
         setR(R, onDevice);
         setH(H, onDevice);
@@ -42,6 +42,7 @@ public:
     __host__ __device__
     void setR(REM x, bool onDevice=true) {
         setBits(Rindex[0], Rindex[1], x, onDevice);
+        
     }
 
     __host__ __device__
