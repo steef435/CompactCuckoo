@@ -143,7 +143,6 @@ void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype begin=0)
             printf("!------------ Insertion Failure ------------!\n");
             break;
         }
-        H->print();
     }
 }
 
@@ -215,7 +214,7 @@ void TestFill(int N, int tablesize, uint64_t* vals) {
         printf("All still in the table\n");
     }
     else {
-        printf("Vals Missing\n");
+        printf("!---------------------Vals Missing---------------------!\n");
     }
 
 	//Create Table 2
@@ -238,7 +237,7 @@ void TestFill(int N, int tablesize, uint64_t* vals) {
         printf("All still in the table\n");
     }
     else {
-        printf("Vals Missing\n");
+        printf("!---------------------Vals Missing---------------------!\n");
     }
 
     //Destroy Vars
@@ -316,8 +315,8 @@ void entryTest() {
 
 void Test() {
     const int addressSize = 8;
-    //const int testSize = std::pow(2, addressSize);
-    const int testSize = 5;
+    const int testSize = std::pow(2, addressSize);
+    //const int testSize = 5;
     
 
     //printf("Lock Test\n");

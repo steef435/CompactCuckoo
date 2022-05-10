@@ -309,7 +309,6 @@ class Cleary : public HashTable{
             T[i].setR(rem);
 
             //printf("\t\tinsertintoTable ");
-            T[i].print();
 
             T[i].setO(true);
             if ((shift == 1) && !setC) {

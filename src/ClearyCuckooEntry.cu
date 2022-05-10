@@ -30,11 +30,11 @@ public:
     __host__ __device__
     void exchValue(ClearyCuckooEntry* x) {
         //Atomically set this value to the new one
-        printf("\t\tBefore: %" PRIu64 ", %" PRIu64 "\n", val, x->getValue());
+        //printf("\t\tBefore: %" PRIu64 ", %" PRIu64 "\n", val, x->getValue());
         uint64_t old = atomicExch(&val, x->getValue());
         //Return an entry with prev val
         x->setValue(old);
-        printf("\t\tAfter: %" PRIu64 ", %" PRIu64 "\n", val, x->getValue());
+        //printf("\t\tAfter: %" PRIu64 ", %" PRIu64 "\n", val, x->getValue());
         return;
     }
 
