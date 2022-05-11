@@ -179,7 +179,7 @@ class ClearyCuckoo : HashTable{
                 return false;
             }*/
 
-            if(insertIntoTable(x, T, depth)){return true;}
+            //if(insertIntoTable(x, T, depth)){return true;}
 
             return false;
         };

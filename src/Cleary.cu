@@ -379,6 +379,9 @@ class Cleary : public HashTable{
                 }
                 T[x].setA(A_old);
                 x++;
+                if (x > MAX_ADRESS) {
+                    break;
+                }
             }
 
             //printf("\t\tAfterallupdates");
