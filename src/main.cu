@@ -134,16 +134,12 @@ void exportToCSV(std::vector<std::vector<std::vector<T>>>* matrix, std::string n
     if (myfile.is_open()) {
         for (int i = 0; i < matrix->size(); i++) {
             for (int j = 0; j < matrix->at(0).size(); j++) {
-                for (int k = 0; k < (matrix->at(0))->at(0).size(); k++) {
-                    myfile << "[" << k << "," << (*matrix)[i][j][k] << "]" << ",";
+                for (int k = 0; k < (matrix->at(0)).at(0).size(); k++) {
+                    myfile << i << "," << j << "," << k << "," << ((*matrix)[i][j])[k] << "\n";
                 }
             }
-            myfile << "\n";
         }
         myfile.close();
-    }
-    else {
-        std::cout << "Failed to open file : \n";
     }
 }
 
@@ -173,9 +169,7 @@ void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype* occupancy
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index; i < N; i += stride) {
-            printf("\tInserting\n")
         if (!(H->insert(vals[i]))) {
-            printf("!------------ Insertion Failure ------------!\n");
             break;
         }
         atomicAdd(&occupancy[0], 1);
@@ -192,20 +186,6 @@ void fillCleary(int N, uint64_t* vals, Cleary* H, addtype begin = 0)
             printf("!------------ Insertion Failure ------------!\n");
             break;
         }
-    }
-}
-
-__global__
-void fillCleary(int N, uint64_t* vals, Cleary* H, addtype* occupancy)
-{
-    int index = threadIdx.x;
-    int stride = blockDim.x;
-    for (int i = index; i < N; i += stride) {
-        if (!(H->insert(vals[i]))) {
-            printf("!------------ Insertion Failure ------------!\n");
-            break;
-        }
-        atomicAdd(&occupancy[0], 1);
     }
 }
 
@@ -398,13 +378,10 @@ void Test() {
  * ================================================================================================================ 
 */
 
-void BenchmarkFilling() {
-    const int INTERVAL = (int)16;
-    const int NUM_SAMPLES = 20;
-    const int NUM_THREADS = 48;
+void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS = 48) {
 
     //Tablesizes
-    for (int N = 8; N < 9; N++) {
+    for (int N = 8; N < NUM_TABLES; N++) {
 
         int size = std::pow(2, N);
         int setsize = (int)(size / INTERVAL);
@@ -469,42 +446,44 @@ void BenchmarkFilling() {
     }
 }
 
-void BenchmarkMaxOccupancy() {
-    const int TABLESIZES = 1;
-    const int NUM_SAMPLES = 20;
-    const int NUM_HASHES = 16;
+void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NUM_SAMPLES) {
 
+    printf("=====================================================================\n");
+    printf("                   Starting MAX Occupancy Benchmark                  \n");
+    printf("=====================================================================\n");
 
     //MAX_LOOPS
     for (int N = 8; N < 8 + TABLESIZES; N++) {
         //Table to store the results for this size
-        std::vector<std::vector<addtype>>* max_cc = new std::vector<std::vector<addtype>>(NUM_HASHES, std::vector<addtype>(NUM_SAMPLES, 0));
-
+        std::vector<std::vector<std::vector<addtype>>>* max_cc = new std::vector<std::vector<std::vector<addtype>>>(NUM_HASHES, std::vector<std::vector<addtype>>(NUM_LOOPS, std::vector<addtype>(NUM_SAMPLES, 0)));
+        printf("Table Size:%i\n", N);
         int size = std::pow(2, N);
-        //Number of samples
-        for (int S = 0; S < NUM_SAMPLES; S++) {
-            uint64_t* vals = generateTestSet(N);
+        for (int j = 1; j < NUM_HASHES; j++) {
+            printf("\tNum of Hashes:%i\n", j);
+            for (int k = 0; k < NUM_LOOPS; k++) {
+                printf("\t\tNum of Loops:%i\n", k);
+                for (int S = 0; S < NUM_SAMPLES; S++) {
+                    //printf("\t\t\tTest %i\n", S);
+                    uint64_t* vals = generateTestSet(size);
+                    //Init Cleary Cuckoo
+                    ClearyCuckoo* cc;
+                    cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
+                    new (cc) ClearyCuckoo(N, j);
 
-            for (int j = 1; j < NUM_HASHES; j++) {
-                //Init Cleary Cuckoo
-                ClearyCuckoo* cc;
-                cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
-                new (cc) ClearyCuckoo(N, j);
+                    //Var to store num of inserted values
+                    addtype* occ;
+                    cudaMallocManaged(&occ, sizeof(addtype));
+                    occ[0] = 0;
 
-                //Var to store num of inserted values
-                addtype* occ;
-                cudaMallocManaged(&occ, sizeof(addtype));
-                occ[0] = 0;
+                    //Fill the table
+                    fillClearyCuckoo << <1, 256 >> > (size, vals, cc, occ);
+                    cudaDeviceSynchronize();
 
-                //Fill the table
-                printf("Filling ClearyCuckoo\n");
-                fillClearyCuckoo << <1, 256 >> > (size, vals, cc, occ);
-                cudaDeviceSynchronize();
+                    (*max_cc)[j][k][S] = occ[0];
 
-                (*max_cc)[j][S] = occ[0];
-
-                cudaFree(cc);
-                cudaFree(occ);
+                    cudaFree(cc);
+                    cudaFree(occ);
+                }
             }
         }
 
@@ -518,13 +497,29 @@ void BenchmarkMaxOccupancy() {
 }
 
 
-int main(void)
+int main(int argc, char* argv[])
 {
-    
-    //Test();
-    //BenchmarkFilling();
-    BenchmarkMaxOccupancy();
-    //entryTest();
+    if (argc == 1) {
+        printf("No Arguments Passed\n");
+    }
+
+    if (strcmp(argv[1], "test") == 0) {
+        Test();
+    }
+    else if (strcmp(argv[1], "benchmax") == 0) {
+        if (argc < 6) {
+            printf("Not Enough Arguments Passed\n");
+            printf("Required: TABLESIZES, NUM_HASHES, NUM_LOOPS, NUM_SAMPLES\n");
+        }
+        BenchmarkMaxOccupancy(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]));
+    }
+    else if (strcmp(argv[1], "benchfill") == 0) {
+        if (argc < 6) {
+            printf("Not Enough Arguments Passed\n");
+            printf("Required: NUM_TABLES, INTERVAL, NUM_SAMPLES, NUM_THREADS\n");
+        }
+        BenchmarkFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]));
+    }
 
     return 0;
 }
