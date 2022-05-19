@@ -143,7 +143,6 @@ void exportToCSV(std::vector<std::vector<std::vector<T>>>* matrix, std::string n
     }
 }
 
-
 /*
  *
  * Main Functions
@@ -152,24 +151,30 @@ void exportToCSV(std::vector<std::vector<std::vector<T>>>* matrix, std::string n
 
 __global__
 void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype begin=0)
-{   
+{  
     int index = threadIdx.x;
     int stride = blockDim.x;
+    //printf("\t\t\t\tStarting Thread:%i\n", index + begin);
     for (int i = index+begin; i < N+begin; i += stride) {
+        //printf("\t\t\t\tCC Index:%i\n", i);
         if (!(H->insert(vals[i]))) {
-            printf("!------------ Insertion Failure ------------!\n");
+            //printf("!------------ Insertion Failure ------------!\n");
             break;
         }
     }
 }
 
 __global__
-void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype* occupancy)
+void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype* occupancy, int* failFlag)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index; i < N; i += stride) {
+        if (failFlag[0]) {
+            break;
+        }
         if (!(H->insert(vals[i]))) {
+            atomicCAS(&(failFlag[0]), 0, 1);
             break;
         }
         atomicAdd(&occupancy[0], 1);
@@ -177,13 +182,13 @@ void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype* occupancy
 }
 
 __global__
-void fillCleary(int N, uint64_t* vals, Cleary* H, addtype begin = 0)
+void fillCleary(int N, uint64_t* vals, Cleary* H, addtype begin=0)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index+begin; i < N+begin; i += stride) {
         if (!(H->insert(vals[i]))) {
-            printf("!------------ Insertion Failure ------------!\n");
+            //printf("!------------ Insertion Failure ------------!\n");
             break;
         }
     }
@@ -378,72 +383,93 @@ void Test() {
  * ================================================================================================================ 
 */
 
-void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS = 48) {
+void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS) {
+
+    const int WARMUP = 2;
+
+    printf("=====================================================================\n");
+    printf("                     Starting INSERTION BENCHMARK                    \n");
+    printf("=====================================================================\n");
+
+    std::ofstream myfile;
+    std::string filename = "../results/benchmark/benchfill.csv";
+    myfile.open(filename);
+    if (!myfile.is_open()) {
+        printf("File Failed to Open\n");
+        return;
+    }
+    printf("File Opened\n");
+
+    myfile << "tablesize,numthreads,samples,type,interval,time\n";
 
     //Tablesizes
-    for (int N = 8; N < NUM_TABLES; N++) {
-
+    for (int N = 8; N < 8+NUM_TABLES; N++) {
+        printf("Table Size:%i\n", N);
+        
         int size = std::pow(2, N);
         int setsize = (int)(size / INTERVAL);
 
-        //Table to store the results for this size
-        std::vector<std::vector<long long int>>* insTimes_c = new std::vector<std::vector<long long int>>(setsize, std::vector<long long int>(NUM_SAMPLES, 0));
-        std::vector<std::vector<long long int>>* insTimes_cc = new std::vector<std::vector<long long int>>(setsize, std::vector<long long int>(NUM_SAMPLES, 0));
+        //Number of Threads
+        for (int T = 0; T < NUM_THREADS; T++) {
+            printf("\tNumber of Threads:%i\n", T);
 
-        //Number of samples
-        for (int S = 0; S < NUM_SAMPLES; S++) {
-            uint64_t* vals = generateTestSet(N);
+            //Number of samples
+            for (int S = 0; S < NUM_SAMPLES; S++) {
+                printf("\t\tSample:%i\n", S);
+                uint64_t* vals = generateTestSet(size);
 
-            //Init Cleary Cuckoo
-            ClearyCuckoo* cc;
-            cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
-            new (cc) ClearyCuckoo(N, 16);
+                //Init Cleary Cuckoo
+                ClearyCuckoo* cc;
+                cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
+                new (cc) ClearyCuckoo(N, 16);
 
-            //Init Cleary
-            Cleary* c;
-            cudaMallocManaged((void**)&c, sizeof(Cleary));
-            new (c) Cleary(N);
+                //Init Cleary
+                Cleary* c;
+                cudaMallocManaged((void**)&c, sizeof(Cleary));
+                new (c) Cleary(N);
 
-            //Loop over intervals
-            
-            for (int j = 0; j < setsize; j++) {
-                //Fill the table
-                printf("Filling ClearyCuckoo\n");
-                //Start the Timer
-                std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-                fillClearyCuckoo << <1, NUM_THREADS >> > (setsize, vals, cc, setsize*j);
-                cudaDeviceSynchronize();
-                //End the timer
-                std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+                //Loop over intervals
 
-                (*insTimes_cc)[j][S] = std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count();
+                for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                    //Fill the table
+                    //printf("Filling ClearyCuckoo\n");
+                    //Start the Timer
+                    std::chrono::steady_clock::time_point begin;
+                    std::chrono::steady_clock::time_point end;
+
+                    if (j >= WARMUP) {
+                        //printf("\t\tBegin: %i End:%i\n", setsize * j, setsize * (j+1));
+                        fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
+                        cudaDeviceSynchronize();
+                        //End the timer
+                        end = std::chrono::steady_clock::now();
+
+                        myfile << N << "," << std::pow(2, T) << "," << S << ",cuc," << (j - WARMUP) << "," << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << ",\n";
+                    }
 
 
 
-                //Fill the table
-                printf("Filling Cleary\n");
-                //Start the Timer
-                begin = std::chrono::steady_clock::now();
-                fillCleary << <1, NUM_THREADS >> > (setsize, vals, c, setsize * j);
-                cudaDeviceSynchronize();
-                //End the timer
-                end = std::chrono::steady_clock::now();
-                (*insTimes_c)[j][S] = std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count();
+                    //Fill the table
+                    //printf("Filling Cleary\n");
+                    //Start the Timer
+                    begin = std::chrono::steady_clock::now();
+                    if (j >= WARMUP) {
+                        fillCleary << <1, std::pow(2, T) >> > (setsize, vals, c, setsize * (j - WARMUP));
+                        cudaDeviceSynchronize();
+                        //End the timer
+                        end = std::chrono::steady_clock::now();
+
+                        myfile << N << "," << std::pow(2, T) << "," << S << ",cle," << (j - WARMUP) << "," << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << ",\n";
+                    }
+                }
+                cudaFree(cc);
+                cudaFree(c);
             }
-            printf("Loops Done\n");
-
-            cudaFree(cc);
-            cudaFree(c);
         }
-
-        printf("Printing Results\n");
-        std::string num = std::to_string(N);
-        exportToCSV(insTimes_c, "InsertionC" + num);
-        exportToCSV(insTimes_cc, "InsertionCC" + num);
-
-        delete insTimes_c;
-        delete insTimes_cc;
     }
+
+    myfile.close();
+    printf("\t\t\tBenchmark Done\n");
 }
 
 void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NUM_SAMPLES) {
@@ -452,10 +478,19 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
     printf("                   Starting MAX Occupancy Benchmark                  \n");
     printf("=====================================================================\n");
 
+    std::ofstream myfile;
+    std::string filename = "../results/benchmark/benchmax.csv";
+    myfile.open(filename);
+    if (!myfile.is_open()) {
+        printf("File Failed to Open\n");
+        return;
+    }
+    printf("File Opened");
+
+    myfile << "tablesize,numhashes,numloops,samples,max\n";
+
     //MAX_LOOPS
     for (int N = 8; N < 8 + TABLESIZES; N++) {
-        //Table to store the results for this size
-        std::vector<std::vector<std::vector<addtype>>>* max_cc = new std::vector<std::vector<std::vector<addtype>>>(NUM_HASHES, std::vector<std::vector<addtype>>(NUM_LOOPS, std::vector<addtype>(NUM_SAMPLES, 0)));
         printf("Table Size:%i\n", N);
         int size = std::pow(2, N);
         for (int j = 1; j < NUM_HASHES; j++) {
@@ -463,12 +498,17 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
             for (int k = 0; k < NUM_LOOPS; k++) {
                 printf("\t\tNum of Loops:%i\n", k);
                 for (int S = 0; S < NUM_SAMPLES; S++) {
-                    //printf("\t\t\tTest %i\n", S);
                     uint64_t* vals = generateTestSet(size);
+
+                    int* failFlag;
+                    cudaMallocManaged(&failFlag, sizeof(int));
+                    failFlag[0] = false;
+
                     //Init Cleary Cuckoo
                     ClearyCuckoo* cc;
                     cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
                     new (cc) ClearyCuckoo(N, j);
+                    cc->setMaxLoops(k);
 
                     //Var to store num of inserted values
                     addtype* occ;
@@ -476,10 +516,10 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
                     occ[0] = 0;
 
                     //Fill the table
-                    fillClearyCuckoo << <1, 256 >> > (size, vals, cc, occ);
+                    fillClearyCuckoo << <1, 256 >> > (size, vals, cc, occ, failFlag);
                     cudaDeviceSynchronize();
 
-                    (*max_cc)[j][k][S] = occ[0];
+                    myfile << N << "," << j << "," << k << "," << S << "," << occ[0] << ",\n";
 
                     cudaFree(cc);
                     cudaFree(occ);
@@ -487,13 +527,11 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
             }
         }
 
-        printf("Printing Results\n");
-        std::string num = std::to_string(N);
-        exportToCSV(max_cc, "MaxFillC" + num);
-
-        delete max_cc;
     }
+
+    myfile.close();
     
+    printf("\t\t\tStarting MAX Occupancy Benchmark\n");
 }
 
 

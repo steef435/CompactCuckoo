@@ -212,7 +212,6 @@ class ClearyCuckoo : HashTable{
                 }
             }         
             //printf("\tRehash Done\n");
-            print();
             return true;
         };
 
@@ -273,7 +272,7 @@ class ClearyCuckoo : HashTable{
         __device__ __host__
         bool ClearyCuckoo::insert(uint64_t k){
             //Succesful Insertion
-            //printf("\tInserting val %i: %" PRIu64 "\n", occupancy, k);
+            //printf("\tInserting val %" PRIu64 "\n", k);
             if(insertIntoTable(k,T,0)){
                 //Reset the Hash Counter
                 hashcounter = 0;

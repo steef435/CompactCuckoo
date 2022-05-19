@@ -326,7 +326,6 @@ class Cleary : public HashTable{
             }
 
             //printf("\t\beforeShift ");
-            T[i].print();
 
             //If the space was occupied shift mem
             if (wasoccupied) {
@@ -385,7 +384,6 @@ class Cleary : public HashTable{
             }
 
             //printf("\t\tAfterallupdates");
-            T[i].print();
 
             return true;
         }
@@ -474,7 +472,6 @@ class Cleary : public HashTable{
                 T[right].unlock();
                 //printf("\t\tInsertion Success\n");
                 //printf("\tAfterInsertion");
-                T[j].print();
                 return res;
             }
         };
