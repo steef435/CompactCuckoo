@@ -383,7 +383,7 @@ void Test() {
  * ================================================================================================================ 
 */
 
-void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS) {
+void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES) {
 
     const int WARMUP = 2;
 
@@ -400,7 +400,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
     }
     printf("File Opened\n");
 
-    myfile << "tablesize,numthreads,samples,type,interval,time\n";
+    myfile << "tablesize,numthreads,loops,hashes,samples,type,interval,time\n";
 
     //Tablesizes
     for (int N = 8; N < 8+NUM_TABLES; N++) {
@@ -413,57 +413,65 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
         for (int T = 0; T < NUM_THREADS; T++) {
             printf("\tNumber of Threads:%i\n", T);
 
-            //Number of samples
-            for (int S = 0; S < NUM_SAMPLES; S++) {
-                printf("\t\tSample:%i\n", S);
-                uint64_t* vals = generateTestSet(size);
+            for (int L = 0; L < NUM_LOOPS; L++) {
+                printf("\t\tNumber of Loops:%i\n", L);
 
-                //Init Cleary Cuckoo
-                ClearyCuckoo* cc;
-                cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
-                new (cc) ClearyCuckoo(N, 16);
+                for (int H = 1; H < NUM_HASHES; H++) {
+                    printf("\t\t\tNumber of Hashes:%i\n", H);
+                    //Number of samples
+                    for (int S = 0; S < NUM_SAMPLES; S++) {
+                        printf("\t\t\t\tSample:%i\n", S);
+                        uint64_t* vals = generateTestSet(size);
 
-                //Init Cleary
-                Cleary* c;
-                cudaMallocManaged((void**)&c, sizeof(Cleary));
-                new (c) Cleary(N);
+                        //Init Cleary Cuckoo
+                        ClearyCuckoo* cc;
+                        cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
+                        new (cc) ClearyCuckoo(N, H);
+                        cc->setMaxLoops(L);
 
-                //Loop over intervals
+                        //Init Cleary
+                        Cleary* c;
+                        cudaMallocManaged((void**)&c, sizeof(Cleary));
+                        new (c) Cleary(N);
 
-                for (int j = 0; j < INTERVAL + WARMUP; j++) {
-                    //Fill the table
-                    //printf("Filling ClearyCuckoo\n");
-                    //Start the Timer
-                    std::chrono::steady_clock::time_point begin;
-                    std::chrono::steady_clock::time_point end;
+                        //Loop over intervals
 
-                    if (j >= WARMUP) {
-                        //printf("\t\tBegin: %i End:%i\n", setsize * j, setsize * (j+1));
-                        fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
-                        cudaDeviceSynchronize();
-                        //End the timer
-                        end = std::chrono::steady_clock::now();
+                        for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                            //Fill the table
+                            //printf("Filling ClearyCuckoo\n");
+                            //Start the Timer
+                            std::chrono::steady_clock::time_point begin;
+                            std::chrono::steady_clock::time_point end;
 
-                        myfile << N << "," << std::pow(2, T) << "," << S << ",cuc," << (j - WARMUP) << "," << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << ",\n";
-                    }
+                            if (j >= WARMUP) {
+                                //printf("\t\tBegin: %i End:%i\n", setsize * j, setsize * (j+1));
+                                fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
+                                cudaDeviceSynchronize();
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cuc," << (j - WARMUP) << "," << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << ",\n";
+                            }
 
 
 
-                    //Fill the table
-                    //printf("Filling Cleary\n");
-                    //Start the Timer
-                    begin = std::chrono::steady_clock::now();
-                    if (j >= WARMUP) {
-                        fillCleary << <1, std::pow(2, T) >> > (setsize, vals, c, setsize * (j - WARMUP));
-                        cudaDeviceSynchronize();
-                        //End the timer
-                        end = std::chrono::steady_clock::now();
+                            //Fill the table
+                            //printf("Filling Cleary\n");
+                            //Start the Timer
+                            begin = std::chrono::steady_clock::now();
+                            if (j >= WARMUP) {
+                                fillCleary << <1, std::pow(2, T) >> > (setsize, vals, c, setsize * (j - WARMUP));
+                                cudaDeviceSynchronize();
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
 
-                        myfile << N << "," << std::pow(2, T) << "," << S << ",cle," << (j - WARMUP) << "," << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << ",\n";
+                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cle," << (j - WARMUP) << "," << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << ",\n";
+                            }
+                        }
+                        cudaFree(cc);
+                        cudaFree(c);
                     }
                 }
-                cudaFree(cc);
-                cudaFree(c);
             }
         }
     }
@@ -554,9 +562,9 @@ int main(int argc, char* argv[])
     else if (strcmp(argv[1], "benchfill") == 0) {
         if (argc < 6) {
             printf("Not Enough Arguments Passed\n");
-            printf("Required: NUM_TABLES, INTERVAL, NUM_SAMPLES, NUM_THREADS\n");
+            printf("Required: NUM_TABLES, INTERVAL, NUM_SAMPLES, NUM_THREADS, NUM_LOOPS, NUM_HASHES\n");
         }
-        BenchmarkFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]));
+        BenchmarkFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]));
     }
 
     return 0;
