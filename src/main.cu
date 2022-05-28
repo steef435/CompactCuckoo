@@ -5,6 +5,9 @@
 #include <inttypes.h>
 #include <chrono>
 #include <vector>
+#include <string>
+#include <iomanip>
+#include <sstream>
 
 #ifndef HASHTABLE
 #define HASHTABLE
@@ -141,6 +144,57 @@ void exportToCSV(std::vector<std::vector<std::vector<T>>>* matrix, std::string n
         }
         myfile.close();
     }
+}
+
+
+//Sources: https://stackoverflow.com/questions/1894886/parsing-a-comma-delimited-stdstring
+//         https://stackoverflow.com/questions/11876290/c-fastest-way-to-read-only-last-line-of-text-file
+std::vector<std::string>* getLastArgs(std::string filename) {
+    std::string line;
+    std::ifstream infile;
+    infile.open(filename);
+
+    if (infile.is_open())
+    {
+        char ch;
+        infile.seekg(-1, std::ios::end);        // move to location 65 
+        infile.get(ch);                         // get next char at loc 66
+        if (ch == '\n')
+        {
+            infile.seekg(-2, std::ios::cur);    // move to loc 64 for get() to read loc 65 
+            infile.seekg(-1, std::ios::cur);    // move to loc 63 to avoid reading loc 65
+            infile.get(ch);                     // get the char at loc 64 ('5')
+            while (ch != '\n')                   // read each char backward till the next '\n'
+            {
+                infile.seekg(-2, std::ios::cur);
+                infile.get(ch);
+            }
+            std::string lastLine;
+            std::getline(infile, lastLine);
+            std::cout << "The last line : " << lastLine << '\n';
+            line = lastLine;
+        }
+        else
+            throw std::exception("check .csv file format\n");
+    }
+    else {
+        printf("File failed to open\n");
+        return nullptr;
+    }
+ 
+    std::vector<std::string>* vect = new  std::vector<std::string>;
+    std::stringstream ss(line);
+    std::string field;
+
+    while (getline(ss, field, ',')) {
+        vect->push_back(field);
+    }
+
+    for (std::size_t i = 0; i < vect->size(); i++){
+        std::cout << vect->at(i) << std::endl;
+    }
+
+    return vect;
 }
 
 /*
@@ -348,8 +402,8 @@ void entryTest() {
     printf("Entry After R %" PRIu64 "\n", c.getR());
 }
 
-void Test() {
-    const int addressSize = 8;
+void Test(int N) {
+    const int addressSize = N;
     const int testSize = std::pow(2, addressSize);
     //const int testSize = 5;
     
@@ -383,7 +437,7 @@ void Test() {
  * ================================================================================================================ 
 */
 
-void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES) {
+void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES, std::vector<std::string>* params = nullptr) {
 
     const int WARMUP = 2;
 
@@ -393,17 +447,32 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
     std::ofstream myfile;
     std::string filename = "../results/benchmark/benchfill.csv";
-    myfile.open(filename);
+
+    if (params) {
+        printf("Opening\n");
+        myfile.open(filename, std::ios_base::app);
+        printf("Maybe\n");
+    }
+    else {
+        myfile.open(filename);
+    }
+
     if (!myfile.is_open()) {
         printf("File Failed to Open\n");
         return;
     }
     printf("File Opened\n");
 
-    myfile << "tablesize,numthreads,loops,hashes,samples,type,interval,time\n";
+    if (!params) {
+        myfile << "tablesize,numthreads,loops,hashes,samples,type,interval,time\n";
+    }
 
     //Tablesizes
-    for (int N = 8; N < 8+NUM_TABLES; N++) {
+    bool setup = true;
+    for (int N = 5; N < 5+NUM_TABLES; N++) {
+        if (params && setup) {
+            N = std::stoi(params->at(0));
+        }
         printf("Table Size:%i\n", N);
         
         int size = std::pow(2, N);
@@ -411,16 +480,29 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
         //Number of Threads
         for (int T = 0; T < NUM_THREADS; T++) {
+            if (params && setup) {
+                T = std::stoi(params->at(1));
+            }
             printf("\tNumber of Threads:%i\n", T);
 
             for (int L = 0; L < NUM_LOOPS; L++) {
+                if (params && setup) {
+                    L = std::stoi(params->at(2));
+                }
                 printf("\t\tNumber of Loops:%i\n", L);
 
                 for (int H = 1; H < NUM_HASHES; H++) {
+                    if (params && setup) {
+                        H = std::stoi(params->at(3));
+                    }
                     printf("\t\t\tNumber of Hashes:%i\n", H);
                     //Number of samples
                     for (int S = 0; S < NUM_SAMPLES; S++) {
-                        printf("\t\t\t\tSample:%i\n", S);
+                        if (params && setup) {
+                            S = std::stoi(params->at(4));
+                        }
+                        setup = false;
+
                         uint64_t* vals = generateTestSet(size);
 
                         //Init Cleary Cuckoo
@@ -450,7 +532,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cuc," << (j - WARMUP) << "," << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << ",\n";
+                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count())/setsize << ",\n";
                             }
 
 
@@ -465,11 +547,12 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cle," << (j - WARMUP) << "," << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << ",\n";
+                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
                             }
                         }
                         cudaFree(cc);
                         cudaFree(c);
+                        cudaFree(vals);
                     }
                 }
             }
@@ -498,7 +581,7 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
     myfile << "tablesize,numhashes,numloops,samples,max\n";
 
     //MAX_LOOPS
-    for (int N = 8; N < 8 + TABLESIZES; N++) {
+    for (int N = 5; N < 5 + TABLESIZES; N++) {
         printf("Table Size:%i\n", N);
         int size = std::pow(2, N);
         for (int j = 1; j < NUM_HASHES; j++) {
@@ -529,8 +612,10 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
 
                     myfile << N << "," << j << "," << k << "," << S << "," << occ[0] << ",\n";
 
+                    cudaFree(failFlag);
                     cudaFree(cc);
                     cudaFree(occ);
+                    cudaFree(vals);
                 }
             }
         }
@@ -538,7 +623,7 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
     }
 
     myfile.close();
-    
+
     printf("\t\t\tStarting MAX Occupancy Benchmark\n");
 }
 
@@ -550,12 +635,13 @@ int main(int argc, char* argv[])
     }
 
     if (strcmp(argv[1], "test") == 0) {
-        Test();
+        Test(std::stoi(argv[2]));
     }
     else if (strcmp(argv[1], "benchmax") == 0) {
         if (argc < 6) {
             printf("Not Enough Arguments Passed\n");
             printf("Required: TABLESIZES, NUM_HASHES, NUM_LOOPS, NUM_SAMPLES\n");
+            return;
         }
         BenchmarkMaxOccupancy(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]));
     }
@@ -563,7 +649,17 @@ int main(int argc, char* argv[])
         if (argc < 6) {
             printf("Not Enough Arguments Passed\n");
             printf("Required: NUM_TABLES, INTERVAL, NUM_SAMPLES, NUM_THREADS, NUM_LOOPS, NUM_HASHES\n");
+            return;
         }
+        else if (strcmp(argv[2], "continue") == 0) {
+            printf("Continuing from Last Position\n");
+            std::vector<std::string>* lastargs = getLastArgs("../results/benchmark/benchfill.csv");
+
+            BenchmarkFilling(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), lastargs);
+            delete lastargs;
+            return;
+        }
+
         BenchmarkFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]));
     }
 
