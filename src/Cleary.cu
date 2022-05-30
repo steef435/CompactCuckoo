@@ -40,6 +40,8 @@ class Cleary : public HashTable{
         const static int HS = 59;       //HashSize
         const static int BUFFER = 0; //Space assigned for overflow
         const static int MAXLOOPS = 24;
+        const static int A_UNDEFINED = 2;
+
         //Vars assigned at construction
         int AS;                  //AdressSize
         int RS;                  //RemainderSize
@@ -353,22 +355,23 @@ class Cleary : public HashTable{
                 }
             }
 
-            addtype x = (startloc < i) ? startloc : i;
-            if (newgroup) {
-                x = (j < x) ? j : x;
+            //Find the start of the group
+            addtype x = startloc;
+            while (T[x].getO() && x>= MIN_ADRESS) {
+                x--;
+                if (x == MIN_ADRESS) {
+                    break;
+                }
+            }
+            if (x != MAX_ADRESS && !T[x].getO()) {
+                x++;
             }
 
             //Update the A values
-            while (T[x].getO() && x <= MAX_ADRESS) {
-                int A_old;
-                //Starting Value for A
-                if (((int)x - 1) >= 0) {
-                    A_old = T[x - 1].getA();
-                }
-                else {
-                    A_old = 0;
-                }
+            printf("\tUpdating A from:%" PRIu32 "\n",x);
+            int A_old = 0;
 
+            while (T[x].getO() && x <= MAX_ADRESS) {
                 //Update Based on C and V
                 if (T[x].getC()) {
                     A_old += 1;
