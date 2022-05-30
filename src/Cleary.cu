@@ -86,7 +86,7 @@ class Cleary : public HashTable{
             int cnt = 0;
 
             //Find first well defined A value
-            while(T[i].getA() == 64 && i!=MIN_ADRESS){
+            while(T[i].getA() == A_UNDEFINED && i!=MIN_ADRESS){
                 cnt = cnt - (T[i].getV() ? 1 : 0);
                 i=i-1;
             };

@@ -2,6 +2,7 @@
 #define ENTRYINCLUDED
 #include "TableEntry.h"
 #endif
+#include <math.h>
 
 
 template <class ADD, class REM>
@@ -87,6 +88,18 @@ public:
 
     __host__ __device__
     void setA(int x, bool onDevice = true) {
+        int Amin = -pow(2, (Aindex[1] - Aindex[0]) - 1);
+        int Amax = pow(2, (Aindex[1] - Aindex[0]) - 1);
+
+        //printf("Amin:%i Amax:%i", Amin, Amax);
+
+        if (x > Amax-1) {
+            x = Amax;
+        }
+        if (x < Amin) {
+            x = Amax;
+        }
+
         setBits(Aindex[0], Aindex[1], signed_to_unsigned(x, Aindex[1]-Aindex[0]), onDevice);
     }
 
