@@ -357,7 +357,7 @@ class Cleary : public HashTable{
 
             //Find the start of the group
             addtype x = startloc;
-            while (T[x].getO() && x>= MIN_ADRESS) {
+            while (T[x].getO() && x> MIN_ADRESS) {
                 x--;
                 if (x == MIN_ADRESS) {
                     break;
