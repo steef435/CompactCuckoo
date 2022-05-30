@@ -119,31 +119,32 @@ class Cleary : public HashTable{
             }
 
             //Look inside of the group
-            switch (dir)
-            {
+            switch (dir){
                 case here:
                     break;
 
                 case down:
-                    while(dir != here){
-                        if(T[i].getC() == 1 || i==MIN_ADRESS){dir = here;}
-                        else{
-                            i=i-1;
-                            if(T[i].getR() <= rem){
+                    while (dir != here) {
+                        if (T[i].getC() == 1 || i == MIN_ADRESS) { dir = here; }
+                        else {
+                            i = i - 1;
+                            if (T[i].getR() <= rem) {
                                 dir = here;
                             }
                         }
                     };
 
                 case up:
-                    while(dir != here){
-                        if(i == MAX_ADRESS){
-                          dir = here;
-                        }else if(T[i+1].getC() == 1){
+                    while (dir != here) {
+                        if (i == MAX_ADRESS) {
                             dir = here;
-                        }else{
-                            i = i+1;
-                            if(T[i].getR() >= rem){
+                        }
+                        else if (T[i + 1].getC() == 1) {
+                            dir = here;
+                        }
+                        else {
+                            i = i + 1;
+                            if (T[i].getR() >= rem) {
                                 dir = here;
                             }
                         }
@@ -188,14 +189,14 @@ class Cleary : public HashTable{
 
             bool newgroup = false;
 
+            //Find insertion index
+            addtype i = findIndex(k);
+
             //Check virgin bit and set
             if (!T[j].getV()) {
                 T[j].setV(true);
                 newgroup = true;
             }
-
-            //Find insertion index
-            addtype i = findIndex(k);
 
             bool groupstart = T[i].getC() == 1 && T[i].getO() != false;
             bool groupend;
@@ -321,13 +322,10 @@ class Cleary : public HashTable{
             }
 
             if (setC && shift == -1) { T[i].setC(true); }
-
             //Update C Value
             if (shift == 1 && !newgroup) {
                 C_old = setC;
             }
-
-            //printf("\t\beforeShift ");
 
             //If the space was occupied shift mem
             if (wasoccupied) {
@@ -359,16 +357,13 @@ class Cleary : public HashTable{
             addtype x = startloc;
             while (T[x].getO() && x> MIN_ADRESS) {
                 x--;
-                if (x == MIN_ADRESS) {
-                    break;
-                }
             }
             if (x != MAX_ADRESS && !T[x].getO()) {
                 x++;
             }
 
             //Update the A values
-            printf("\tUpdating A from:%" PRIu32 "\n",x);
+            //printf("\tUpdating A from:%" PRIu32 "\n",x);
             int A_old = 0;
 
             while (T[x].getO() && x <= MAX_ADRESS) {

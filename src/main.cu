@@ -38,6 +38,19 @@ std::mt19937 g(rd());
  * 
  */
 
+__host__ __device__
+addtype getAdd(keytype key, int AS) {
+    hashtype mask = ((hashtype)1 << AS) - 1;
+    addtype add = key & mask;
+    return add;
+}
+
+__host__ __device__
+remtype getRem(keytype key, int AS) {
+    remtype rem = key >> AS;
+    return rem;
+}
+
 bool contains(uint64_t* arr, uint64_t val, int index) {
     for (int i = 0; i < index; i++) {
         if (val == arr[i]) {
@@ -212,7 +225,7 @@ void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype begin=0)
     for (int i = index+begin; i < N+begin; i += stride) {
         //printf("\t\t\t\tCC Index:%i\n", i);
         if (!(H->insert(vals[i]))) {
-            //printf("!------------ Insertion Failure ------------!\n");
+            printf("!------------ Insertion Failure ------------!\n");
             break;
         }
     }
@@ -241,8 +254,9 @@ void fillCleary(int N, uint64_t* vals, Cleary* H, addtype begin=0)
     int index = threadIdx.x;
     int stride = blockDim.x;
     for (int i = index+begin; i < N+begin; i += stride) {
+        //printf("Inserting %" PRIu64 "\n", vals[i]);
         if (!(H->insert(vals[i]))) {
-            //printf("!------------ Insertion Failure ------------!\n");
+            printf("!------------ Insertion Failure ------------!\n");
             break;
         }
     }
@@ -269,6 +283,9 @@ void checkCleary(int N, uint64_t* vals, Cleary* H, bool* res)
     for (int i = index; i < N; i += stride) {
         if (!(H->lookup(vals[i]))) {
             printf("\tSetting Res:Val %" PRIu64 " Missing\n", vals[i]);
+            printf("\t\tHashed Val:%" PRIu64 "\n", RHASH(0,vals[i]));
+            printf("\t\tAdd:%" PRIu32 "\n", getAdd(RHASH(0,vals[i]), 7));
+            printf("\t\tRes:%" PRIu64 "\n", getRem(RHASH(0,vals[i]), 7));
             res[0] = false;
         }
     }
@@ -418,14 +435,14 @@ void Test(int N) {
     TestFill(testSize, addressSize, testset1);
     cudaFree(testset1);
 
-
+    
     printf("==============================================================================================================\n");
     printf("                            COLLISION TEST                            \n");
     printf("==============================================================================================================\n");
     uint64_t* testset2 = generateCollidingSet(testSize, addressSize);
     TestFill(testSize, addressSize, testset2);
     cudaFree(testset2);
-
+    
     printf("\nTESTING DONE\n");
 }
 
@@ -661,6 +678,12 @@ int main(int argc, char* argv[])
         }
 
         BenchmarkFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]));
+    }
+
+    else if (strcmp(argv[1], "debug") == 0) {
+        ClearyEntry<addtype, remtype> c = ClearyEntry<addtype, remtype>();
+        c.setA(std::stoi(argv[2]));
+        printf("A:%i\n",c.getA());
     }
 
     return 0;
