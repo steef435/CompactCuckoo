@@ -1,26 +1,28 @@
 #include <stdint.h>
-using nodetype = uint64_t;
+#include "int_cu.h"
+
+using nodetype = uint64_cu;
 
 
 // Bit right shift function.
-inline __host__ __device__ uint64_t rshft(const uint64_t x, uint8_t i) {
+inline __host__ __device__ uint64_cu rshft(const uint64_cu x, uint8_t i) {
 	return (x >> i);
 }
 
 // Bit left shift function for 58 bits.
-inline __host__ __device__ uint64_t lshft_58(const uint64_t x, uint8_t i) {
-	uint64_t y = (x << i);
+inline __host__ __device__ uint64_cu lshft_58(const uint64_cu x, uint8_t i) {
+	uint64_cu y = (x << i);
 	return y & 0x3ffffffffffffff;
 }
 
 // Multiplication modulo 2^58.
-inline __host__ __device__ uint64_t mult_58(const uint64_t x, uint64_t a) {
+inline __host__ __device__ uint64_cu mult_58(const uint64_cu x, uint64_cu a) {
 	return ((x * a) & 0x3ffffffffffffff);
 }
 
 // XOR two times bit shift function for 58 bits.
-inline __host__ __device__ uint64_t xor_shft2_58(const uint64_t x, uint8_t a, uint8_t b) {
-	uint64_t y = (x ^ lshft_58(x,a));
+inline __host__ __device__ uint64_cu xor_shft2_58(const uint64_cu x, uint8_t a, uint8_t b) {
+	uint64_cu y = (x ^ lshft_58(x,a));
 	y = (y ^ rshft(y,b));
 	return y;
 }

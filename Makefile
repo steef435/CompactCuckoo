@@ -9,7 +9,11 @@ SRC_DIR = src
 OBJ_DIR = obj
 BIN_DIR = bin
 
-EXECUTABLE = $(BIN_DIR)/main.exe
+ifeq ($(OS),Windows_NT)
+	EXECUTABLE = $(BIN_DIR)/main.exe
+else
+	EXECUTABLE = $(BIN_DIR)/main
+endif
 
 CPP_FILES = $(wildcard $(SRC_DIR)/*.cpp)
 CU_FILES  = $(wildcard $(SRC_DIR)/*.cu)

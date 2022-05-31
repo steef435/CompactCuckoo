@@ -8,20 +8,20 @@ template <class ADD, class REM>
 class TableEntry {
 
 protected:
-    uint64_t val;
+    uint64_cu val;
 
     __host__ __device__
-    void setBits(int start, int end, uint64_t ins, bool onDevice=true) {
+    void setBits(int start, int end, uint64_cu ins, bool onDevice=true) {
         setBits(start, end, ins, &val, onDevice);
     }
 
     __host__ __device__
-    void setBits(int start, int end, uint64_t ins, uint64_t* loc, bool onDevice = true) {
-    uint64_t mask = ((((uint64_t)1) << end) - 1) ^ ((((uint64_t)1) << (start - 1)) - 1);
-    uint64_t tempval = *loc & ~mask;      //Remove all of the bits currently in the positions
+    void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
+    uint64_cu mask = ((((uint64_cu)1) << end) - 1) ^ ((((uint64_cu)1) << (start - 1)) - 1);
+    uint64_cu tempval = *loc & ~mask;      //Remove all of the bits currently in the positions
     ins = ins << (start - 1);   //Shift new val to correct position
     ins = ins & mask;       //Mask the new val to prevent overflow
-    uint64_t newval = tempval | ins;        //Place the new val
+    uint64_cu newval = tempval | ins;        //Place the new val
     //In devices, atomically exchange
     #ifdef  __CUDA_ARCH__
     if (onDevice) {
@@ -36,16 +36,16 @@ protected:
     }
 
     __host__ __device__
-        uint64_t getBits(int start, int end, uint64_t x) {
-        uint64_t res = x;
-        uint64_t mask = ((((uint64_t)1) << end) - ((uint64_t)1)) ^ ((((uint64_t)1) << (start - 1)) - ((uint64_t)1));
+        uint64_cu getBits(int start, int end, uint64_cu x) {
+        uint64_cu res = x;
+        uint64_cu mask = ((((uint64_cu)1) << end) - ((uint64_cu)1)) ^ ((((uint64_cu)1) << (start - 1)) - ((uint64_cu)1));
         res = res & mask;
         res = res >> (start - 1);
         return res;
     }
 
     __host__ __device__
-    uint64_t getBits(int start, int end) {
+    uint64_cu getBits(int start, int end) {
         return getBits(start, end, val);
     }
 
@@ -62,9 +62,9 @@ protected:
     }
 
     __host__ __device__
-    int unsigned_to_signed(unsigned n, int size)
+    int unsigned_to_signed(uint64_cu n, int size)
     {
-        uint64_t mask = ((((uint64_t)1) << size) - 1) ^ ((((uint64_t)1) << (1 - 1)) - 1);
+        uint64_cu mask = ((((uint64_cu)1) << size) - 1) ^ ((((uint64_cu)1) << (1 - 1)) - 1);
         int res = n & mask;
         if (n >> size == 1) {
             res = -res;
@@ -73,13 +73,18 @@ protected:
     }
 
     __host__ __device__
-    uint64_t getValue() {
+    uint64_cu getValue() {
         return val;
     }
 
     __host__ __device__
-    void setValue(uint64_t x) {
+    void setValue(uint64_cu x) {
         val = x;
+    }
+
+    __host__ __device__
+    uint64_cu* getValPtr(){
+      return &val;
     }
 
 public:
@@ -89,14 +94,14 @@ public:
     }
 
     __host__ __device__
-        TableEntry(uint64_t x) {
+        TableEntry(uint64_cu x) {
         val = x;
     }
 
-    __host__ __device__
+    __device__
     void exchValue(TableEntry* x) {
         //Atomically set this value to the new one
-        uint64_t old =  atomicExch(&val, x->getValue());
+        uint64_cu old =  atomicExch(&val, x->getValue());
         //Return an entry with prev val
         x->setValue(old);
         return;

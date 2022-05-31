@@ -9,6 +9,9 @@
 #include <iomanip>
 #include <sstream>
 
+#include "int_cu.h"
+
+
 #ifndef HASHTABLE
 #define HASHTABLE
 #include "HashTable.h"
@@ -35,7 +38,7 @@ std::mt19937 g(rd());
 /*
  *
  *	Helper Functions
- * 
+ *
  */
 
 __host__ __device__
@@ -51,7 +54,7 @@ remtype getRem(keytype key, int AS) {
     return rem;
 }
 
-bool contains(uint64_t* arr, uint64_t val, int index) {
+bool contains(uint64_cu* arr, uint64_cu val, int index) {
     for (int i = 0; i < index; i++) {
         if (val == arr[i]) {
             return true;
@@ -60,15 +63,15 @@ bool contains(uint64_t* arr, uint64_t val, int index) {
     return false;
 }
 
-uint64_t* generateTestSet(int size) {
+uint64_cu* generateTestSet(int size) {
     //Random Number generator
     std::uniform_int_distribution<long long int> dist(0, std::llround(std::pow(2, 58)));
 
-    uint64_t* res;
-    cudaMallocManaged(&res, size * sizeof(uint64_t));
+    uint64_cu* res;
+    cudaMallocManaged(&res, size * sizeof(uint64_cu));
 
     for (int n = 0; n < size; ++n) {
-        uint64_t rand = dist(e2);
+        uint64_cu rand = dist(e2);
         if (!contains(res, rand, n)) {
             res[n] = rand;
         }
@@ -82,21 +85,21 @@ uint64_t* generateTestSet(int size) {
 }
 
 __host__ __device__
-uint64_t reformKey(addtype add, remtype rem, int N) {
+uint64_cu reformKey(addtype add, remtype rem, int N) {
     rem = rem << N;
     rem += add;
     return rem;
 }
 
-uint64_t* generateCollidingSet(int size, int N) {
-    uint64_t* res;
-    cudaMallocManaged(&res, size * sizeof(uint64_t));
+uint64_cu* generateCollidingSet(int size, int N) {
+    uint64_cu* res;
+    cudaMallocManaged(&res, size * sizeof(uint64_cu));
 
-    uint64_t add = 7;
+    uint64_cu add = 7;
 
     for (int n = 0; n < (int) size/2; ++n) {
-        uint64_t num = reformKey(add, n, N);
-        uint64_t nval = RHASH_INVERSE(0, num);
+        uint64_cu num = reformKey(add, n, N);
+        uint64_cu nval = RHASH_INVERSE(0, num);
         if (!contains(res, nval, n)) {
             res[n] = nval;
         }
@@ -109,8 +112,8 @@ uint64_t* generateCollidingSet(int size, int N) {
     add = 10;
 
     for (int n = ((int)size / 2); n < size; ++n) {
-        uint64_t num = reformKey(add, n, N);
-        uint64_t nval = RHASH_INVERSE(0, num);
+        uint64_cu num = reformKey(add, n, N);
+        uint64_cu nval = RHASH_INVERSE(0, num);
         if (!contains(res, nval, n)) {
             res[n] = nval;
         }
@@ -170,11 +173,11 @@ std::vector<std::string>* getLastArgs(std::string filename) {
     if (infile.is_open())
     {
         char ch;
-        infile.seekg(-1, std::ios::end);        // move to location 65 
+        infile.seekg(-1, std::ios::end);        // move to location 65
         infile.get(ch);                         // get next char at loc 66
         if (ch == '\n')
         {
-            infile.seekg(-2, std::ios::cur);    // move to loc 64 for get() to read loc 65 
+            infile.seekg(-2, std::ios::cur);    // move to loc 64 for get() to read loc 65
             infile.seekg(-1, std::ios::cur);    // move to loc 63 to avoid reading loc 65
             infile.get(ch);                     // get the char at loc 64 ('5')
             while (ch != '\n')                   // read each char backward till the next '\n'
@@ -188,13 +191,14 @@ std::vector<std::string>* getLastArgs(std::string filename) {
             line = lastLine;
         }
         else
-            throw std::exception("check .csv file format\n");
+            printf("Exception:Check CSV format\n");
+            throw std::exception();
     }
     else {
         printf("File failed to open\n");
         return nullptr;
     }
- 
+
     std::vector<std::string>* vect = new  std::vector<std::string>;
     std::stringstream ss(line);
     std::string field;
@@ -217,8 +221,8 @@ std::vector<std::string>* getLastArgs(std::string filename) {
  */
 
 __global__
-void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype begin=0)
-{  
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin=0)
+{
     int index = threadIdx.x;
     int stride = blockDim.x;
     //printf("\t\t\t\tStarting Thread:%i\n", index + begin);
@@ -232,7 +236,7 @@ void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype begin=0)
 }
 
 __global__
-void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype* occupancy, int* failFlag)
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupancy, int* failFlag)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
@@ -249,7 +253,7 @@ void fillClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, addtype* occupancy
 }
 
 __global__
-void fillCleary(int N, uint64_t* vals, Cleary* H, addtype begin=0)
+void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
@@ -263,7 +267,7 @@ void fillCleary(int N, uint64_t* vals, Cleary* H, addtype begin=0)
 }
 
 __global__
-void checkClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, bool* res)
+void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
@@ -276,7 +280,7 @@ void checkClearyCuckoo(int N, uint64_t* vals, ClearyCuckoo* H, bool* res)
 }
 
 __global__
-void checkCleary(int N, uint64_t* vals, Cleary* H, bool* res)
+void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
@@ -292,7 +296,7 @@ void checkCleary(int N, uint64_t* vals, Cleary* H, bool* res)
 }
 
 
-void TestFill(int N, int tablesize, uint64_t* vals) {
+void TestFill(int N, int tablesize, uint64_cu* vals) {
     //Init Var
     printf("Making Check Bool\n");
     bool* res;
@@ -334,7 +338,7 @@ void TestFill(int N, int tablesize, uint64_t* vals) {
     printf("Devices Synced\n");
     c->print();
 
-    //Checking 
+    //Checking
     *res = true;
     checkCleary << <1, 1 >> > (N, vals, c, res);
     cudaDeviceSynchronize();
@@ -423,7 +427,7 @@ void Test(int N) {
     const int addressSize = N;
     const int testSize = std::pow(2, addressSize);
     //const int testSize = 5;
-    
+
 
     //printf("Lock Test\n");
     //lockTest();
@@ -431,18 +435,18 @@ void Test(int N) {
     printf("==============================================================================================================\n");
     printf("                              BASIC TEST                              \n");
     printf("==============================================================================================================\n");
-    uint64_t* testset1 = generateTestSet(testSize);
+    uint64_cu* testset1 = generateTestSet(testSize);
     TestFill(testSize, addressSize, testset1);
     cudaFree(testset1);
 
-    
+
     printf("==============================================================================================================\n");
     printf("                            COLLISION TEST                            \n");
     printf("==============================================================================================================\n");
-    uint64_t* testset2 = generateCollidingSet(testSize, addressSize);
+    uint64_cu* testset2 = generateCollidingSet(testSize, addressSize);
     TestFill(testSize, addressSize, testset2);
     cudaFree(testset2);
-    
+
     printf("\nTESTING DONE\n");
 }
 
@@ -450,8 +454,8 @@ void Test(int N) {
 /* ================================================================================================================
  *
  *  Benchmark Methods
- * 
- * ================================================================================================================ 
+ *
+ * ================================================================================================================
 */
 
 void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES, std::vector<std::string>* params = nullptr) {
@@ -491,7 +495,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
             N = std::stoi(params->at(0));
         }
         printf("Table Size:%i\n", N);
-        
+
         int size = std::pow(2, N);
         int setsize = (int)(size / INTERVAL);
 
@@ -520,7 +524,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                         }
                         setup = false;
 
-                        uint64_t* vals = generateTestSet(size);
+                        uint64_cu* vals = generateTestSet(size);
 
                         //Init Cleary Cuckoo
                         ClearyCuckoo* cc;
@@ -606,7 +610,7 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
             for (int k = 0; k < NUM_LOOPS; k++) {
                 printf("\t\tNum of Loops:%i\n", k);
                 for (int S = 0; S < NUM_SAMPLES; S++) {
-                    uint64_t* vals = generateTestSet(size);
+                    uint64_cu* vals = generateTestSet(size);
 
                     int* failFlag;
                     cudaMallocManaged(&failFlag, sizeof(int));

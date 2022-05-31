@@ -2,11 +2,13 @@
 #include <iomanip>
 #include <stdlib.h>
 #include <math.h>
-#include <string> 
+#include <string>
 #include <math.h>
 
 #include <bitset>
 #include <inttypes.h>
+
+#include "int_cu.h"
 
 #ifndef HASHTABLE
 #define HASHTABLE
@@ -23,9 +25,9 @@
 //Types to allow for changes
 
 using addtype = uint32_t;
-using remtype = uint64_t;
-using hashtype = uint64_t;
-using keytype = uint64_t;
+using remtype = uint64_cu;
+using hashtype = uint64_cu;
+using keytype = uint64_cu;
 
 //Enum for searching
 
@@ -34,7 +36,7 @@ enum direction{up, down, here};
 
 class Cleary : public HashTable{
     //Allows for easy changing of the types
-    
+
     private:
         //Constant Vars
         const static int HS = 59;       //HashSize
@@ -72,14 +74,14 @@ class Cleary : public HashTable{
         }
 
         __host__ __device__
-            uint64_t reformKey(addtype add, remtype rem) {
+            uint64_cu reformKey(addtype add, remtype rem) {
             rem = rem << AS;
             rem += add;
             return rem;
         }
 
         __host__ __device__
-        addtype findIndex(uint64_t k){
+        addtype findIndex(uint64_cu k){
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
             remtype rem = getRem(h);
@@ -423,7 +425,7 @@ class Cleary : public HashTable{
         }
 
         __host__ __device__
-        bool Cleary::insert(keytype k){
+        bool insert(keytype k){
             //printf("\tInserting %" PRIu64 "\n", k);
             //Calculate Hash
             hashtype h = RHASH(h1, k);
@@ -475,7 +477,7 @@ class Cleary : public HashTable{
         };
 
         __host__ __device__
-        bool Cleary::lookup(uint64_t k){
+        bool lookup(uint64_cu k){
             //printf("\t\tLookup %" PRIu64 "\n", k);
             //Hash Key
             hashtype h = RHASH(h1, k);
@@ -502,19 +504,19 @@ class Cleary : public HashTable{
         };
 
         __host__ __device__
-        void Cleary::clear(){
+        void clear(){
             for(int i=0; i<tablesize; i++){
                 T[i] = ClearyEntry<addtype, remtype>();
             }
         }
 
         __host__ __device__
-        int Cleary::getSize(){
+        int getSize(){
             return size;
         }
 
         __host__ __device__
-        void Cleary::print(){
+        void print(){
             printf("----------------------------------------------------------------\n");
             printf("|    i     |     R[i]       | C[i] | V[i] | O[i] | A[i] | L[i] |\n");
             printf("----------------------------------------------------------------\n");
@@ -528,6 +530,6 @@ class Cleary : public HashTable{
 
         //No rehash
         __host__ __device__
-        bool Cleary::rehash(){return true;}
+        bool rehash(){return true;}
 
 };

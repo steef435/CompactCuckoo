@@ -21,7 +21,7 @@ class HashTable{
          *      Key k is inserted
          **/
         __host__ __device__
-        bool HashTable::insert(uint64_t k) { return false; };
+        bool insert(uint64_cu k) { return false; };
 
         /**
          *  Lookup Method
@@ -31,31 +31,31 @@ class HashTable{
          *      Object stored at key k
          **/
         __host__ __device__
-        bool HashTable::lookup(uint64_t k) { return false; };
+        bool lookup(uint64_cu k) { return false; };
 
         /**
          *  Rehash
          **/
         __host__ __device__
-        bool HashTable::rehash() { return false; };
+        bool rehash() { return false; };
 
         /**
          * Method to clear all values in the table
          **/
         __host__ __device__
-            void HashTable::clear() {};
+            void clear() {};
 
         /*
          * Method to get the size of the table
          **/
         __host__ __device__
-        int HashTable::getSize() { return 0; };
+        int getSize() { return 0; };
 
-        
+
         /**
          * Method to print
          * (Mostly for debugging/testing)
          * */
         __host__ __device__
-        void HashTable::print() {};
+        void print() {};
 };
