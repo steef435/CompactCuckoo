@@ -3,7 +3,6 @@ CXXFLAGS = -g -O2 -Wall -Wno-sign-compare -I$(INC) -Iinclude -DHAVE_CONFIG_H -pe
 CXX = g++
 
 NVCC = nvcc
-NVCCFLAGS = -arch=compute_50 -g -G -I$(INC)
 
 SRC_DIR = src
 OBJ_DIR = obj
@@ -11,8 +10,12 @@ BIN_DIR = bin
 
 ifeq ($(OS),Windows_NT)
 	EXECUTABLE = $(BIN_DIR)/main.exe
+	NVCCFLAGS = -arch=compute_50 -g -G -I$(INC)
+
 else
 	EXECUTABLE = $(BIN_DIR)/main
+	NVCCFLAGS = -arch=compute_75 -g -G -I$(INC)
+
 endif
 
 CPP_FILES = $(wildcard $(SRC_DIR)/*.cpp)
@@ -38,10 +41,10 @@ $(OBJ_DIR)/%.cu.o : $(SRC_DIR)/%.cu $(CUH_FILES)
 
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(H_FILES)
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c -o $@ $<
-	
+
 $(EXECUTABLE): $(OBJS)
 	$(NVCC) -g -G $(OBJS) -o  $@
-	
+
 clean:
 	@$(RM) $(OBJ_DIR)/*
 	@$(RM) $(BIN_DIR)/*exe

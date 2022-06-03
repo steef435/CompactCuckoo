@@ -249,8 +249,8 @@ class ClearyCuckoo : HashTable{
             hn = hashNumber;
 
             //printf("\tAllocating Memory\n");
-            cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>));
-            cudaMallocManaged(&hashlist, hn * sizeof(int));
+            gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>)));
+            gpuErrchk(cudaMallocManaged(&hashlist, hn * sizeof(int)));
 
             //printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
@@ -268,8 +268,8 @@ class ClearyCuckoo : HashTable{
         ~ClearyCuckoo(){
             //printf("Destroying Table\n");
 
-            cudaFree(T);
-            cudaFree(hashlist);
+            gpuErrchk(cudaFree(T));
+            gpuErrchk(cudaFree(hashlist));
         }
 
         __device__ __host__

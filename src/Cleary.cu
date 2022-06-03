@@ -406,7 +406,7 @@ class Cleary : public HashTable{
             MAX_ADRESS = tablesize - 1;
 
             //printf("\tAllocating Memory\n");
-            cudaMallocManaged(&T, tablesize * sizeof(ClearyEntry<addtype, remtype>));
+            gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyEntry<addtype, remtype>)));
 
             //printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
@@ -421,7 +421,7 @@ class Cleary : public HashTable{
          * Destructor
          */
         ~Cleary(){
-            cudaFree(T);
+            gpuErrchk(cudaFree(T));
         }
 
         __host__ __device__

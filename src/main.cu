@@ -66,13 +66,13 @@ bool contains(uint64_cu* arr, uint64_cu val, int index) {
 uint64_cu* generateTestSet(int size) {
     //Random Number generator
     std::uniform_int_distribution<long long int> dist(0, std::llround(std::pow(2, 58)));
-
     uint64_cu* res;
-    cudaMallocManaged(&res, size * sizeof(uint64_cu));
+    gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
 
-    for (int n = 0; n < size; ++n) {
+    for (int n = 0; n < size; n++) {
         uint64_cu rand = dist(e2);
         if (!contains(res, rand, n)) {
+
             res[n] = rand;
         }
         else {
@@ -80,7 +80,6 @@ uint64_cu* generateTestSet(int size) {
             n--;
         }
     }
-
     return res;
 }
 
@@ -93,7 +92,7 @@ uint64_cu reformKey(addtype add, remtype rem, int N) {
 
 uint64_cu* generateCollidingSet(int size, int N) {
     uint64_cu* res;
-    cudaMallocManaged(&res, size * sizeof(uint64_cu));
+    gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
 
     uint64_cu add = 7;
 
@@ -129,7 +128,7 @@ uint64_cu* generateCollidingSet(int size, int N) {
 template <typename T>
 void exportToCSV(std::vector<std::vector<T>>* matrix, std::string name) {
     std::ofstream myfile;
-    std::string filename = "../results/benchmark/" + name + ".csv";
+    std::string filename = "results/" + name + ".csv";
     myfile.open(filename);
     if (myfile.is_open()) {
         for (int i = 0; i < matrix->size(); i++) {
@@ -148,7 +147,7 @@ void exportToCSV(std::vector<std::vector<T>>* matrix, std::string name) {
 template <typename T>
 void exportToCSV(std::vector<std::vector<std::vector<T>>>* matrix, std::string name) {
     std::ofstream myfile;
-    std::string filename = "../results/benchmark/" + name + ".csv";
+    std::string filename = "results/" + name + ".csv";
     myfile.open(filename);
     if (myfile.is_open()) {
         for (int i = 0; i < matrix->size(); i++) {
@@ -229,7 +228,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin=0)
     for (int i = index+begin; i < N+begin; i += stride) {
         //printf("\t\t\t\tCC Index:%i\n", i);
         if (!(H->insert(vals[i]))) {
-            printf("!------------ Insertion Failure ------------!\n");
+            //printf("!------------ Insertion Failure ------------!\n");
             break;
         }
     }
@@ -260,7 +259,7 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0)
     for (int i = index+begin; i < N+begin; i += stride) {
         //printf("Inserting %" PRIu64 "\n", vals[i]);
         if (!(H->insert(vals[i]))) {
-            printf("!------------ Insertion Failure ------------!\n");
+            //printf("!------------ Insertion Failure ------------!\n");
             break;
         }
     }
@@ -286,10 +285,6 @@ void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res)
     int stride = blockDim.x;
     for (int i = index; i < N; i += stride) {
         if (!(H->lookup(vals[i]))) {
-            printf("\tSetting Res:Val %" PRIu64 " Missing\n", vals[i]);
-            printf("\t\tHashed Val:%" PRIu64 "\n", RHASH(0,vals[i]));
-            printf("\t\tAdd:%" PRIu32 "\n", getAdd(RHASH(0,vals[i]), 7));
-            printf("\t\tRes:%" PRIu64 "\n", getRem(RHASH(0,vals[i]), 7));
             res[0] = false;
         }
     }
@@ -298,19 +293,18 @@ void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res)
 
 void TestFill(int N, int tablesize, uint64_cu* vals) {
     //Init Var
-    printf("Making Check Bool\n");
     bool* res;
-    cudaMallocManaged((void**)&res, sizeof(bool));
-    printf("Assigning Value\n");
+    gpuErrchk(cudaMallocManaged((void**)&res, sizeof(bool)));
 
 	//Create Table 1
     ClearyCuckoo* cc;
-    cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
+    gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
     new (cc) ClearyCuckoo(tablesize, 16);
 
     printf("Filling ClearyCuckoo\n");
-	fillClearyCuckoo << <1, 1 >> > (N, vals, cc);
-    cudaDeviceSynchronize();
+    fillClearyCuckoo << <1, 1 >> > (N, vals, cc);
+    gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
     printf("Devices Synced\n");
     cc->print();
 
@@ -318,7 +312,8 @@ void TestFill(int N, int tablesize, uint64_cu* vals) {
     res[0] = true;
     printf("Checking Cleary-Cuckoo\n");
     checkClearyCuckoo << <1, 1 >> > (N, vals, cc, res);
-    cudaDeviceSynchronize();
+    gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
     printf("Devices Synced\n");
     if (res[0]) {
         printf("All still in the table\n");
@@ -329,19 +324,21 @@ void TestFill(int N, int tablesize, uint64_cu* vals) {
 
 	//Create Table 2
     Cleary* c;
-    cudaMallocManaged((void**)&c, sizeof(Cleary));
+    gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
     new (c) Cleary(tablesize);
 
     printf("Filling Cleary\n");
     fillCleary << <1, 1 >> > (N, vals, c);
-    cudaDeviceSynchronize();
+    gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
     printf("Devices Synced\n");
     c->print();
 
     //Checking
     *res = true;
     checkCleary << <1, 1 >> > (N, vals, c, res);
-    cudaDeviceSynchronize();
+    gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
     printf("Devices Synced\n");
     if (res[0]) {
         printf("All still in the table\n");
@@ -351,9 +348,9 @@ void TestFill(int N, int tablesize, uint64_cu* vals) {
     }
 
     //Destroy Vars
-    cudaFree(res);
-    cudaFree(cc);
-    cudaFree(c);
+    gpuErrchk(cudaFree(res));
+    gpuErrchk(cudaFree(cc));
+    gpuErrchk(cudaFree(c));
 }
 
 
@@ -402,7 +399,7 @@ void lockTestDevice(ClearyEntry<addtype, remtype>* T){
 void lockTest() {
     int tablesize = 256;
     ClearyEntry<addtype, remtype>* T;
-    cudaMallocManaged(&T, tablesize * sizeof(ClearyEntry<addtype, remtype>));
+    gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyEntry<addtype, remtype>)));
 
     printf("\tInitializing Entries\n");
     for (int i = 0; i < tablesize; i++) {
@@ -411,9 +408,10 @@ void lockTest() {
 
     printf("\tStarting Lock Test\n");
     lockTestDevice << <1, 10 >> > (T);
-    cudaDeviceSynchronize();
+    gpuErrchk( cudaPeekAtLastError() );
+    gpuErrchk( cudaDeviceSynchronize() );
 
-    cudaFree(T);
+    gpuErrchk(cudaFree(T));
 }
 
 void entryTest() {
@@ -437,7 +435,7 @@ void Test(int N) {
     printf("==============================================================================================================\n");
     uint64_cu* testset1 = generateTestSet(testSize);
     TestFill(testSize, addressSize, testset1);
-    cudaFree(testset1);
+    gpuErrchk(cudaFree(testset1));
 
 
     printf("==============================================================================================================\n");
@@ -445,7 +443,7 @@ void Test(int N) {
     printf("==============================================================================================================\n");
     uint64_cu* testset2 = generateCollidingSet(testSize, addressSize);
     TestFill(testSize, addressSize, testset2);
-    cudaFree(testset2);
+    gpuErrchk(cudaFree(testset2));
 
     printf("\nTESTING DONE\n");
 }
@@ -467,7 +465,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
     printf("=====================================================================\n");
 
     std::ofstream myfile;
-    std::string filename = "../results/benchmark/benchfill.csv";
+    std::string filename = "results/benchfill.csv";
 
     if (params) {
         printf("Opening\n");
@@ -480,6 +478,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
     if (!myfile.is_open()) {
         printf("File Failed to Open\n");
+
         return;
     }
     printf("File Opened\n");
@@ -528,13 +527,13 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
                         //Init Cleary Cuckoo
                         ClearyCuckoo* cc;
-                        cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
+                        gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
                         new (cc) ClearyCuckoo(N, H);
                         cc->setMaxLoops(L);
 
                         //Init Cleary
                         Cleary* c;
-                        cudaMallocManaged((void**)&c, sizeof(Cleary));
+                        gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
                         new (c) Cleary(N);
 
                         //Loop over intervals
@@ -549,7 +548,8 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                             if (j >= WARMUP) {
                                 //printf("\t\tBegin: %i End:%i\n", setsize * j, setsize * (j+1));
                                 fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
-                                cudaDeviceSynchronize();
+                                gpuErrchk( cudaPeekAtLastError() );
+                                gpuErrchk( cudaDeviceSynchronize() );
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
@@ -564,16 +564,17 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                             begin = std::chrono::steady_clock::now();
                             if (j >= WARMUP) {
                                 fillCleary << <1, std::pow(2, T) >> > (setsize, vals, c, setsize * (j - WARMUP));
-                                cudaDeviceSynchronize();
+                                gpuErrchk( cudaPeekAtLastError() );
+                                gpuErrchk( cudaDeviceSynchronize() );
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
                                 myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
                             }
                         }
-                        cudaFree(cc);
-                        cudaFree(c);
-                        cudaFree(vals);
+                        gpuErrchk(cudaFree(cc));
+                        gpuErrchk(cudaFree(c));
+                        gpuErrchk(cudaFree(vals));
                     }
                 }
             }
@@ -591,7 +592,7 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
     printf("=====================================================================\n");
 
     std::ofstream myfile;
-    std::string filename = "../results/benchmark/benchmax.csv";
+    std::string filename = "results/benchmax.csv";
     myfile.open(filename);
     if (!myfile.is_open()) {
         printf("File Failed to Open\n");
@@ -613,30 +614,31 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
                     uint64_cu* vals = generateTestSet(size);
 
                     int* failFlag;
-                    cudaMallocManaged(&failFlag, sizeof(int));
+                    gpuErrchk(cudaMallocManaged(&failFlag, sizeof(int)));
                     failFlag[0] = false;
 
                     //Init Cleary Cuckoo
                     ClearyCuckoo* cc;
-                    cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
+                    gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
                     new (cc) ClearyCuckoo(N, j);
                     cc->setMaxLoops(k);
 
                     //Var to store num of inserted values
                     addtype* occ;
-                    cudaMallocManaged(&occ, sizeof(addtype));
+                    gpuErrchk(cudaMallocManaged(&occ, sizeof(addtype)));
                     occ[0] = 0;
 
                     //Fill the table
                     fillClearyCuckoo << <1, 256 >> > (size, vals, cc, occ, failFlag);
-                    cudaDeviceSynchronize();
+                    gpuErrchk( cudaPeekAtLastError() );
+                    gpuErrchk( cudaDeviceSynchronize() );
 
                     myfile << N << "," << j << "," << k << "," << S << "," << occ[0] << ",\n";
 
-                    cudaFree(failFlag);
-                    cudaFree(cc);
-                    cudaFree(occ);
-                    cudaFree(vals);
+                    gpuErrchk(cudaFree(failFlag));
+                    gpuErrchk(cudaFree(cc));
+                    gpuErrchk(cudaFree(occ));
+                    gpuErrchk(cudaFree(vals));
                 }
             }
         }
@@ -662,7 +664,7 @@ int main(int argc, char* argv[])
         if (argc < 6) {
             printf("Not Enough Arguments Passed\n");
             printf("Required: TABLESIZES, NUM_HASHES, NUM_LOOPS, NUM_SAMPLES\n");
-            return;
+            return 0;
         }
         BenchmarkMaxOccupancy(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]));
     }
@@ -670,15 +672,15 @@ int main(int argc, char* argv[])
         if (argc < 6) {
             printf("Not Enough Arguments Passed\n");
             printf("Required: NUM_TABLES, INTERVAL, NUM_SAMPLES, NUM_THREADS, NUM_LOOPS, NUM_HASHES\n");
-            return;
+            return 0;
         }
         else if (strcmp(argv[2], "continue") == 0) {
             printf("Continuing from Last Position\n");
-            std::vector<std::string>* lastargs = getLastArgs("../results/benchmark/benchfill.csv");
+            std::vector<std::string>* lastargs = getLastArgs("results/benchfill.csv");
 
             BenchmarkFilling(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), lastargs);
             delete lastargs;
-            return;
+            return 0;
         }
 
         BenchmarkFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]));
