@@ -4,6 +4,7 @@
 #include <math.h>
 #include <string>
 #include <math.h>
+#include <assert.h>
 
 #include <bitset>
 #include <inttypes.h>
@@ -82,6 +83,7 @@ class Cleary : public HashTable{
 
         __host__ __device__
         addtype findIndex(uint64_cu k){
+            printf("\t\t\t\t\t\t\t\t\t\t\tFinding Index\n");
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
             remtype rem = getRem(h);
@@ -90,6 +92,7 @@ class Cleary : public HashTable{
             int cnt = 0;
 
             //Find first well defined A value
+            printf("\t\t\t\t\t\t\t\t\t\t\tFirst well defined\n");
             while(T[i].getA() == A_UNDEFINED && i!=MIN_ADRESS){
                 cnt = cnt - (T[i].getV() ? 1 : 0);
                 i=i-1;
@@ -97,6 +100,7 @@ class Cleary : public HashTable{
             cnt = cnt + T[i].getA();
 
             //Look for the relevant group
+            printf("\t\t\t\t\t\t\t\t\t\t\tFind relevant group\n");
             direction dir = up;
             if(cnt < 0){
                 dir = up;
@@ -121,12 +125,15 @@ class Cleary : public HashTable{
             }
 
             //Look inside of the group
+            printf("\t\t\t\t\t\t\t\t\t\t\tLook inside group\n");
             switch (dir){
                 case here:
                     break;
 
                 case down:
                     while (dir != here) {
+                        assert(i <= MAX_ADRESS);
+                        printf("\t\t\t\t\t\t\t\t\t\t\t\tGoing Down" PRIu32 "\n", i);
                         if (T[i].getC() == 1 || i == MIN_ADRESS) { dir = here; }
                         else {
                             i = i - 1;
@@ -134,10 +141,13 @@ class Cleary : public HashTable{
                                 dir = here;
                             }
                         }
-                    };
+                    }
+                    break;
 
                 case up:
                     while (dir != here) {
+                        assert(i <= MAX_ADRESS);
+                        printf("\t\t\t\t\t\t\t\t\t\t\t\tGoing Up" PRIu32 "\n", i);
                         if (i == MAX_ADRESS) {
                             dir = here;
                         }
@@ -151,6 +161,7 @@ class Cleary : public HashTable{
                             }
                         }
                     }
+                    break;
 
                 default:
                     break;
@@ -183,7 +194,7 @@ class Cleary : public HashTable{
 
         __host__ __device__
         bool insertIntoTable(keytype k) {
-            //printf("\t\t\tInserting Into Table %" PRIu64 "\n", k);
+            printf("\t\t\t\t\t\t\tInserting Into Table \n");
 
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
@@ -205,7 +216,8 @@ class Cleary : public HashTable{
             if (i != MAX_ADRESS) { groupend = T[i + 1].getC() == 1 && T[i].getO() != false; }
             else { groupend = true; }
 
-            //Check whether i should be 0 (Check all smaller Vs)
+            //Check whether i should be 0 (Check all smaller Vs
+            printf("\t\t\t\t\t\t\t\t\t\tCheck if i is 0 \n");
             bool setStart = false;
             if (i == MIN_ADRESS && j != MIN_ADRESS && !T[MIN_ADRESS].getV()) {
                 setStart = true;
@@ -216,6 +228,7 @@ class Cleary : public HashTable{
                     }
                 }
             }
+            printf("\t\t\t\t\t\t\t\t\t\tLook for new group\n");
             //If a new group needs to be formed, look for the end of the group
             if (newgroup && T[i].getO() && !setStart) {
                 direction dir = up;
@@ -236,7 +249,7 @@ class Cleary : public HashTable{
             //Decide to shift mem up or down
             //TODO: Maybe randomize
             int shift = 1;
-
+            printf("\t\t\t\t\t\t\t\t\t\tPrevent Overflows %" PRIu32 "\n", i);
             //Prevent Overflows
             if (T[MAX_ADRESS].getO() && !T[MIN_ADRESS].getO()) {
                 shift = -1;
@@ -261,17 +274,22 @@ class Cleary : public HashTable{
             }
 
             //Edge cases where the location must be shifted
+            printf("\t\t\t\t\t\t\t\t\t\tEdge Cases %" PRIu32 "\n", i);
             bool setC = false;
             if (shift == -1) {
+                printf("\t\t\t\t\t\t\t\t\t\tShift -1\n");
                 if (groupstart && (!newgroup) && (T[i].getR() > rem) && T[i].getO() && (i != MIN_ADRESS)) {
+                    printf("\t\t\t\t\t\t\t\t\t\tShift Case 1\n");
                     T[i].setC(false);
                     setC = true;
                     i--;
                 }
                 else if (!newgroup && T[i].getR() > rem && T[i].getO() && i != MIN_ADRESS) {
+                    printf("\t\t\t\t\t\t\t\t\t\tShift Case 2\n");
                     i--;
                 }
                 else if (newgroup && T[i].getO() && i != MIN_ADRESS) {
+                    printf("\t\t\t\t\t\t\t\t\t\tShift Case 3\n");
                     if (i == MAX_ADRESS && j != MAX_ADRESS) {
                         bool checkPos = true;
                         for (int m = j + 1; m <= MAX_ADRESS; m++) {
@@ -282,38 +300,45 @@ class Cleary : public HashTable{
                         }
                     }
                     else if (i != MAX_ADRESS) {
+                        printf("\t\t\t\t\t\t\t\t\t\tShift Case 4\n");
                         i--;
                     }
                 }
             }
             if (shift == 1) {
+                printf("\t\t\t\t\t\t\t\t\t\tShift 1\n");
                 if (groupend && (!newgroup) && (T[i].getR() < rem) && T[i].getO() && (i != MAX_ADRESS)) {
+                    printf("\t\t\t\t\t\t\t\t\t\tShift Case 5\n");
                     i++;
                     T[i].setC(false);
                     setC = true;
                 }
                 else if (!newgroup && T[i].getR() < rem && T[i].getO() && i != MAX_ADRESS) {
+                    printf("\t\t\t\t\t\t\t\t\t\tShift Case 6\n");
                     i++;
                 }
                 else if (j == MIN_ADRESS && newgroup) {
+                    printf("\t\t\t\t\t\t\t\t\t\tShift Case 7\n");
                     i = MIN_ADRESS;
                 }
             }
 
             //Store where the search started for later
             addtype startloc = i;
+            assert(0<=i && i<=MAX_ADRESS);
+
             //Check whether location is empty
             bool wasoccupied = T[i].getO();
 
+            printf("\t\t\t\t\t\t\t\t\t\tStoring old Values at %" PRIu32 "\n", i);
             //Store values at found location
             remtype R_old = T[i].getR();
             bool C_old = T[i].getC();
             bool O_old = T[i].getO();
 
             //Insert new values
+            printf("\t\t\t\t\t\t\t\t\t\tSetting new Values at %" PRIu32 "\n", i);
             T[i].setR(rem);
-
-            //printf("\t\tinsertintoTable ");
 
             T[i].setO(true);
             if ((shift == 1) && !setC) {
@@ -323,6 +348,7 @@ class Cleary : public HashTable{
                 T[i].setC(newgroup);
             }
 
+            printf("\t\t\t\t\t\t\t\t\t\tUpdate C %" PRIu32 "\n", i);
             if (setC && shift == -1) { T[i].setC(true); }
             //Update C Value
             if (shift == 1 && !newgroup) {
@@ -330,9 +356,11 @@ class Cleary : public HashTable{
             }
 
             //If the space was occupied shift mem
+            printf("\t\t\t\t\t\t\t\t\t\tShifting Mem from %" PRIu32 "\n", i);
             if (wasoccupied) {
                 while (O_old) {
                     i += shift;
+                    assert(0<=i && i<=MAX_ADRESS);
                     //Store the values
                     remtype R_temp = T[i].getR();
                     bool C_temp = T[i].getC();
@@ -365,10 +393,11 @@ class Cleary : public HashTable{
             }
 
             //Update the A values
-            //printf("\tUpdating A from:%" PRIu32 "\n",x);
+            printf("\t\t\t\t\t\t\t\t\t\tUpdating A from %" PRIu32 "\n", x);
             int A_old = 0;
-
             while (T[x].getO() && x <= MAX_ADRESS) {
+                printf("\t\t\t\t\t\t\t\t\t\t\tSetting A %" PRIu32 "\n", x);
+                assert(0<=x && x<=MAX_ADRESS);
                 //Update Based on C and V
                 if (T[x].getC()) {
                     A_old += 1;
@@ -432,9 +461,14 @@ class Cleary : public HashTable{
             addtype j = getAdd(h);
             remtype rem = getRem(h);
 
-            while (true) {
+            int counter =0;
 
+            while (true) {
+                counter++;
+                assert(0<=j && j<=MAX_ADRESS);
+                assert(counter < 750);
                 //Try Non-Exclusive Write
+                printf("\t\t\t\t\t\t\t\tTrying Non-Exclusive Write at %" PRIu32 "\n", j);
                 ClearyEntry<addtype, remtype> old =
                     T[j].compareAndSwap(ClearyEntry<addtype, remtype>(0, false, false, true, 0, false, false), ClearyEntry<addtype, remtype>(rem, true, true, true, 0, false, false));
 
@@ -447,8 +481,11 @@ class Cleary : public HashTable{
                 //Else Need Exclusivity
                 addtype left = leftLock(j);
                 addtype right = rightLock(j);
+                assert(0<=left && left<=MAX_ADRESS);
+                assert(0<=right && right<=MAX_ADRESS);
 
                 if (!T[left].lock()) {
+                    printf("\t\t\t\t\t\t\t\tGot Left at%" PRIu32 "\n", left);
                     continue;
                 }
 
@@ -458,6 +495,7 @@ class Cleary : public HashTable{
                 }
 
                 //Do a read
+                printf("\t\t\t\t\t\t\t\tGot Right at%" PRIu32 "\n", right);
                 if (lookup(k)) {
                     //Val already exists
                     //printf("\t\tVal Already Exists\n");
@@ -467,10 +505,11 @@ class Cleary : public HashTable{
                 }
 
                 //Write
+                printf("\t\t\t\t\t\t\t\tExclusive Write\n");
                 bool res = insertIntoTable(k);
                 T[left].unlock();
                 T[right].unlock();
-                //printf("\t\tInsertion Success\n");
+                printf("\t\t\t\t\t\t\t\tInsertion Success\n");
                 //printf("\tAfterInsertion");
                 return res;
             }
@@ -491,6 +530,7 @@ class Cleary : public HashTable{
             };
 
             addtype i = findIndex(k);
+            assert(0<=i && i<=MAX_ADRESS);
 
             if(T[i].getR() == rem){
                 return true;

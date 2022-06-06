@@ -224,6 +224,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin=0)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
+    //printf("\t\t\t\t\t\tStarting Thread %i\n", index);
     //printf("\t\t\t\tStarting Thread:%i\n", index + begin);
     for (int i = index+begin; i < N+begin; i += stride) {
         //printf("\t\t\t\tCC Index:%i\n", i);
@@ -232,6 +233,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin=0)
             break;
         }
     }
+    //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
 }
 
 __global__
@@ -239,6 +241,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupanc
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
+    //printf("\t\t\t\t\t\tStarting Thread %i\n", index);
     for (int i = index; i < N; i += stride) {
         if (failFlag[0]) {
             break;
@@ -246,9 +249,11 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupanc
         if (!(H->insert(vals[i]))) {
             atomicCAS(&(failFlag[0]), 0, 1);
             break;
+            //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
         }
         atomicAdd(&occupancy[0], 1);
     }
+    //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
 }
 
 __global__
@@ -256,13 +261,16 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0)
 {
     int index = threadIdx.x;
     int stride = blockDim.x;
+    //printf("\t\t\t\t\t\tStarting Thread %i\n", index);
     for (int i = index+begin; i < N+begin; i += stride) {
         //printf("Inserting %" PRIu64 "\n", vals[i]);
         if (!(H->insert(vals[i]))) {
             //printf("!------------ Insertion Failure ------------!\n");
             break;
+            //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
         }
     }
+    //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
 }
 
 __global__
@@ -518,29 +526,30 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                     printf("\t\t\tNumber of Hashes:%i\n", H);
                     //Number of samples
                     for (int S = 0; S < NUM_SAMPLES; S++) {
+                        printf("\t\t\t\tSample Number:%i\n", S);
                         if (params && setup) {
                             S = std::stoi(params->at(4));
                         }
                         setup = false;
-
+                        printf("\t\t\t\t\tGenVals\n");
                         uint64_cu* vals = generateTestSet(size);
-
+                        printf("\t\t\t\t\tInitCC\n");
                         //Init Cleary Cuckoo
                         ClearyCuckoo* cc;
                         gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
                         new (cc) ClearyCuckoo(N, H);
                         cc->setMaxLoops(L);
-
+                        printf("\t\t\t\t\tInitC\n");
                         //Init Cleary
                         Cleary* c;
                         gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
                         new (c) Cleary(N);
 
                         //Loop over intervals
-
+                        //printf("\t\t\t\t\tFilling\n");
                         for (int j = 0; j < INTERVAL + WARMUP; j++) {
                             //Fill the table
-                            //printf("Filling ClearyCuckoo\n");
+                            printf("\t\t\t\t\t\tFilling ClearyCuckoo\n");
                             //Start the Timer
                             std::chrono::steady_clock::time_point begin;
                             std::chrono::steady_clock::time_point end;
@@ -559,7 +568,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
 
                             //Fill the table
-                            //printf("Filling Cleary\n");
+                            printf("\t\t\t\t\t\tFilling Cleary\n");
                             //Start the Timer
                             begin = std::chrono::steady_clock::now();
                             if (j >= WARMUP) {
@@ -568,10 +577,10 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                                 gpuErrchk( cudaDeviceSynchronize() );
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
-
                                 myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
                             }
                         }
+                        printf("\t\t\t\t\tFreeVals\n");
                         gpuErrchk(cudaFree(cc));
                         gpuErrchk(cudaFree(c));
                         gpuErrchk(cudaFree(vals));
@@ -611,6 +620,7 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
             for (int k = 0; k < NUM_LOOPS; k++) {
                 printf("\t\tNum of Loops:%i\n", k);
                 for (int S = 0; S < NUM_SAMPLES; S++) {
+                    //printf("\t\t'tSample Number:%i\n", S);
                     uint64_cu* vals = generateTestSet(size);
 
                     int* failFlag;
