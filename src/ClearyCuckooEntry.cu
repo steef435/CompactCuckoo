@@ -21,11 +21,13 @@ public:
         setR(R, onDevice);
         setH(H, onDevice);
         setO(O, onDevice);
+        return;
     }
 
     __host__ __device__
     ClearyCuckooEntry() {
         TableEntry<ADD, REM>::val = 0;
+        return;
     }
 
 
@@ -44,6 +46,7 @@ public:
     __host__ __device__
     void setR(REM x, bool onDevice=true) {
         TableEntry<ADD, REM>::setBits(Rindex[0], Rindex[1], x, onDevice);
+        return;
 
     }
 
@@ -55,6 +58,7 @@ public:
     __host__ __device__
     void setH(int x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Hindex[0], Hindex[1], x, onDevice);
+        return;
     }
 
     __host__ __device__
@@ -65,6 +69,7 @@ public:
     __host__ __device__
     void setO(bool x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Oindex[0], Oindex[1], x, onDevice);
+        return;
     }
 
     __host__ __device__
@@ -75,6 +80,7 @@ public:
     __host__ __device__
     void print() {
         printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val);
+        return;
     }
 
 };

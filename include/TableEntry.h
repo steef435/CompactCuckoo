@@ -31,8 +31,11 @@ protected:
           uint64_cu res = atomicCAS(loc, oldval, newval);
           //Make sure the value hasn't changed in the meantime
           if(res == oldval){
+            printf("\t\t\t\t\t\t\t\t\t\t%i: Write Success\n", threadIdx.x);
             return;
           }
+          printf("\t\t\t\t\t\t\t\t\t\t%i: Write Failed\n", threadIdx.x);
+          continue;
       }
       else {
           *loc = newval;
@@ -46,7 +49,10 @@ protected:
     }
 
     __host__ __device__
-        uint64_cu getBits(int start, int end, uint64_cu x) {
+    uint64_cu getBits(int start, int end, uint64_cu x) {
+        if(start == -1){
+          return 0;
+        }
         uint64_cu res = x;
         uint64_cu mask = ((((uint64_cu)1) << end) - ((uint64_cu)1)) ^ ((((uint64_cu)1) << (start - 1)) - ((uint64_cu)1));
         res = res & mask;

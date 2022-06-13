@@ -17,7 +17,7 @@ private:
     int Vindex[2] = { 58, 58 };
     int Cindex[2] = { 59, 59 };
     int Lindex[2] = { 60, 60 };
-    int Aindex[2] = { 61, 63 };
+    int Aindex[2] = { -1, -1 };
 
 
 public:
@@ -30,11 +30,13 @@ public:
         setC(C, onDevice);
         setA(A, onDevice);
         setL(L, onDevice);
+        return;
     }
 
     __host__ __device__
     ClearyEntry(uint64_cu x) {
         TableEntry<ADD, REM>::val = x;
+        return;
     }
 
     __host__ __device__
@@ -52,6 +54,7 @@ public:
     __host__ __device__
     void setR(REM x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Rindex[0], Rindex[1], x, onDevice);
+        return;
     }
 
     __host__ __device__
@@ -62,6 +65,7 @@ public:
     __host__ __device__
     void setO(bool x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Oindex[0], Oindex[1], x, onDevice);
+        return;
     }
 
     __host__ __device__
@@ -72,6 +76,8 @@ public:
     __host__ __device__
     void setV(bool x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Vindex[0], Vindex[1], x, onDevice);
+        printf("\t\t\t\t\t\t\t\t\t\tV is Set\n");
+        return;
     }
 
     __host__ __device__
@@ -82,6 +88,7 @@ public:
     __host__ __device__
     void setC(bool x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Cindex[0], Cindex[1], x, onDevice);
+        return;
     }
 
     __host__ __device__
@@ -104,6 +111,8 @@ public:
         }
 
         TableEntry<ADD, REM>::setBits(Aindex[0], Aindex[1], TableEntry<ADD, REM>::signed_to_unsigned(x, Aindex[1]-Aindex[0]), onDevice);
+
+        return;
     }
 
     __host__ __device__
@@ -114,6 +123,7 @@ public:
     __host__ __device__
     void setL(bool x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], x, onDevice);
+        return;
     }
 
     __host__ __device__
@@ -126,6 +136,7 @@ public:
     bool lock() {
         //Store old TableEntry<ADD, REM>::value
         uint64_cu oldval = TableEntry<ADD, REM>::val;
+        printf("\t\t\t\t\t\t\t\t\t%i: Lock-Creating new Val\n", threadIdx.x);
         //Make the new value with lock locked
         uint64_cu newval = TableEntry<ADD, REM>::val;
         TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], ((uint64_cu) 1), &newval, false);
@@ -135,49 +146,49 @@ public:
             //printf("\t\t\tLockbit Already Set\n");
             return false;
         }
-
+        printf("\t\t\t\t\t\t\t\t\t%i: Lock-Swapping\n", threadIdx.x);
         //Swap if the old value hasn't changed
         uint64_cu res = atomicCAS(TableEntry<ADD, REM>::getValPtr(), oldval, newval);
 
-        //Check if lockbit is now set and wasn't already
-        if (TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1]) && !TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1], res)) {
-            //printf("\t\t\tSuccess\n");
-            return true;
+        if(res == oldval){
+          printf("\t\t\t\t\t\t\t\t\t%i: Lock-Success\n", threadIdx.x);
+          return true;
         }
         else {
-            //printf("\t\t\tFail\n");
+            printf("\t\t\t\t\t\t\t\t\t%i: Lock-Fail\n", threadIdx.x);
             return false;
         }
     }
 
     __host__ __device__
     bool unlock() {
-        //Store old Value
-        uint64_cu oldval = TableEntry<ADD, REM>::val;
-        //Make the new value with lock unlocked
-        uint64_cu newval = TableEntry<ADD, REM>::val;
-        TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], ((uint64_cu) 0), &newval, false);
-
-        //If Lockbit was already free return
-        if (!TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1], oldval)) {
-            return true;
-        }
-
         //Swap if the old value hasn't changed
-        uint64_cu res = atomicCAS(TableEntry<ADD, REM>::getValPtr(), oldval, newval);
+        while(true){
+          //Store old Value
+          uint64_cu oldval = TableEntry<ADD, REM>::val;
+          //Make the new value with lock unlocked
+          uint64_cu newval = TableEntry<ADD, REM>::val;
+          TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], ((uint64_cu) 0), &newval, false);
 
-        //Check if lockbit is now not set
-        if (!TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1])) {
-            return true;
-        }
-        else {
-            return false;
+          //If Lockbit was already free return
+          if (!TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1], oldval)) {
+              return true;
+          }
+
+
+          uint64_cu res = atomicCAS(TableEntry<ADD, REM>::getValPtr(), oldval, newval);
+
+          //Check if lockbit is now not set
+          if (res == oldval) {
+              return true;
+          }
         }
     }
 
     __host__ __device__
     void print() {
         printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val);
+        return;
     }
 
     __host__ __device__
