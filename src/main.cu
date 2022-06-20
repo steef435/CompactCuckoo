@@ -526,7 +526,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                     printf("\t\t\tNumber of Hashes:%i\n", H);
                     //Number of samples
                     for (int S = 0; S < NUM_SAMPLES; S++) {
-                        printf("\t\t\t\tSample Number:%i\n", S);
+                        //printf("\t\t\t\tSample Number:%i\n", S);
                         if (params && setup) {
                             S = std::stoi(params->at(4));
                         }
@@ -539,12 +539,6 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                         gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
                         new (cc) ClearyCuckoo(N, H);
                         cc->setMaxLoops(L);
-
-                        printf("\t\t\t\t\tInitC\n");
-                        //Init Cleary
-                        Cleary* c;
-                        gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
-                        new (c) Cleary(N);
 
                         //Loop over intervals
                         //printf("\t\t\t\t\tFilling\n");
@@ -567,29 +561,60 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                                 myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count())/setsize << ",\n";
                             }
 
-
-
-                            //Fill the table
-                            printf("\t\t\t\t\t\tFilling Cleary\n");
-                            //Start the Timer
-
-                            begin = std::chrono::steady_clock::now();
-                            if (j >= WARMUP) {
-                                fillCleary << <1, std::pow(2, T) >> > (setsize, vals, c, setsize * (j - WARMUP));
-                                gpuErrchk( cudaPeekAtLastError() );
-                                gpuErrchk( cudaDeviceSynchronize() );
-                                //End the timer
-                                end = std::chrono::steady_clock::now();
-                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
-                            }
-
                         }
                         //printf("\t\t\t\t\tFreeVals\n");
                         gpuErrchk(cudaFree(cc));
-                        gpuErrchk(cudaFree(c));
                         gpuErrchk(cudaFree(vals));
                     }
                 }
+            }
+        }
+
+    for (int N = 5; N < 5+NUM_TABLES; N++) {
+        if (params && setup) {
+            N = std::stoi(params->at(0));
+        }
+        printf("Table Size:%i\n", N);
+
+        int size = std::pow(2, N);
+        int setsize = (int)(size / INTERVAL);
+        for (int T = 0; T < NUM_THREADS; T++) {
+            printf("\tNumber of Threads:%i\n", T);
+            for (int S = 0; S < NUM_SAMPLES; S++) {
+                printf("\t\t\t\tSample Number:%i\n", S);
+                //printf("\t\t\t\t\tGenVals\n");
+                uint64_cu* vals = generateTestSet(size);
+
+                //printf("\t\t\t\t\tInitC\n");
+                //Init Cleary
+                Cleary* c;
+                gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
+                new (c) Cleary(N);
+
+                //Loop over intervals
+                //printf("\t\t\t\t\tFilling\n");
+                for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                  std::chrono::steady_clock::time_point begin;
+                  std::chrono::steady_clock::time_point end;
+
+                    //Fill the table
+                    //printf("\t\t\t\t\t\tFilling Cleary\n");
+                    //Start the Timer
+
+                    begin = std::chrono::steady_clock::now();
+                    if (j >= WARMUP) {
+                        fillCleary << <1, std::pow(2, T) >> > (setsize, vals, c, setsize * (j - WARMUP));
+                        gpuErrchk( cudaPeekAtLastError() );
+                        gpuErrchk( cudaDeviceSynchronize() );
+                        //End the timer
+                        end = std::chrono::steady_clock::now();
+                        myfile << N << "," << std::pow(2, T) << "," << -1 << "," << -1 << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
+                    }
+
+                }
+                //printf("\t\t\t\t\tFreeVals\n");
+                gpuErrchk(cudaFree(c));
+                gpuErrchk(cudaFree(vals));
             }
         }
     }
