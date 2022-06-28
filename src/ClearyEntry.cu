@@ -19,11 +19,9 @@ private:
     int Lindex[2] = { 60, 60 };
     int Aindex[2] = { -1, -1 };
 
-
 public:
-    __host__ __device__
-    ClearyEntry(REM R, bool O, bool V, bool C, int A, bool L, bool onDevice = true) {
-        TableEntry<ADD, REM>::val = 0;
+    GPUHEADER
+    ClearyEntry(REM R, bool O, bool V, bool C, int A, bool L, bool onDevice = true) noexcept : TableEntry<ADD, REM>() {
         setR(R, onDevice);
         setO(O, onDevice);
         setV(V, onDevice);
@@ -33,70 +31,71 @@ public:
         return;
     }
 
-    __host__ __device__
-    ClearyEntry(uint64_cu x) {
-        TableEntry<ADD, REM>::val = x;
-        return;
-    }
+    GPUHEADER
+    ClearyEntry (uint64_cu x) noexcept : TableEntry< ADD, REM >(x) {}
 
-    __host__ __device__
-    ClearyEntry() : ClearyEntry(0, false, false, true, 0, false) {}
+    GPUHEADER
+    ClearyEntry() noexcept : ClearyEntry(0, false, false, true, 0, false) {}
 
-    __host__ __device__
+    GPUHEADER
     void exchValue(ClearyEntry* x) {
         //Atomically set this value to the new one
-        uint64_cu old = atomicExch(TableEntry<ADD, REM>::getValPtr(), x->getValue());
+        #ifdef GPUCODE
+            uint64_cu old = atomicExch(TableEntry<ADD, REM>::getValPtr(), x->getValue());
+        #else
+            old = *(TableEntry<ADD, REM>::getValPtr()).exchange(getValue());
+        #endif  
         //Return an entry with prev val
         x->setValue(old);
         return;
     }
 
-    __host__ __device__
+    GPUHEADER
     void setR(REM x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Rindex[0], Rindex[1], x, onDevice);
         return;
     }
 
-    __host__ __device__
+    GPUHEADER
     REM getR() {
         return (REM)TableEntry<ADD, REM>::getBits(Rindex[0], Rindex[1]);
     }
 
-    __host__ __device__
+    GPUHEADER
     void setO(bool x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Oindex[0], Oindex[1], x, onDevice);
         return;
     }
 
-    __host__ __device__
+    GPUHEADER
     bool getO() {
         return (bool)TableEntry<ADD, REM>::getBits(Oindex[0], Oindex[1]);
     }
 
-    __host__ __device__
+    GPUHEADER
     void setV(bool x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Vindex[0], Vindex[1], x, onDevice);
-        printf("\t\t\t\t\t\t\t\t\t\tV is Set\n");
+        //printf("\t\t\t\t\t\t\t\t\t\tV is Set\n");
         return;
     }
 
-    __host__ __device__
+    GPUHEADER
     bool getV() {
         return (bool)TableEntry<ADD, REM>::getBits(Vindex[0], Vindex[1]);
     }
 
-    __host__ __device__
+    GPUHEADER
     void setC(bool x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Cindex[0], Cindex[1], x, onDevice);
         return;
     }
 
-    __host__ __device__
+    GPUHEADER
     bool getC() {
         return (bool)TableEntry<ADD, REM>::getBits(Cindex[0], Cindex[1]);
     }
 
-    __host__ __device__
+    GPUHEADER
     void setA(int x, bool onDevice = true) {
         int Amin = -pow(2, (Aindex[1] - Aindex[0]) - 1);
         int Amax = pow(2, (Aindex[1] - Aindex[0]) - 1);
@@ -115,86 +114,125 @@ public:
         return;
     }
 
-    __host__ __device__
+    GPUHEADER
     int getA() {
         return TableEntry<ADD, REM>::unsigned_to_signed(TableEntry<ADD, REM>::getBits(Aindex[0], Aindex[1]), Aindex[1] - Aindex[0]);
     }
 
-    __host__ __device__
+    GPUHEADER
     void setL(bool x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], x, onDevice);
         return;
     }
 
-    __host__ __device__
+    GPUHEADER
     bool getL() {
         return TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1]);
     }
 
     //Need to do with CAS
-    __host__ __device__
+    GPUHEADER
     bool lock() {
+#ifdef GPUCODE
         //Store old TableEntry<ADD, REM>::value
         uint64_cu oldval = TableEntry<ADD, REM>::val;
-        printf("\t\t\t\t\t\t\t\t\t%i: Lock-Creating new Val\n", threadIdx.x);
+        //printf("\t\t\t\t\t\t\t\t\t%i: Lock-Creating new Val\n", threadIdx.x);
         //Make the new value with lock locked
         uint64_cu newval = TableEntry<ADD, REM>::val;
         TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], ((uint64_cu) 1), &newval, false);
+#else
+        //Store old TableEntry<ADD, REM>::value
+        uint64_cu oldval = TableEntry<ADD, REM>::val.load();
+        //printf("\t\t\t\t\t\t\t\t\t Lock-Creating new Val\n");
+        //Make the new value with lock locked
+        uint64_cu newval = TableEntry<ADD, REM>::val.load();
+        TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], 1, &newval, false);
+#endif
 
         //If Lockbit was set return false
-        if (TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1], oldval)) {
+        if (TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1], &oldval)) {
             //printf("\t\t\tLockbit Already Set\n");
             return false;
         }
-        printf("\t\t\t\t\t\t\t\t\t%i: Lock-Swapping\n", threadIdx.x);
+        //printf("\t\t\t\t\t\t\t\t\t Lock-Swapping\n");
         //Swap if the old value hasn't changed
-        uint64_cu res = atomicCAS(TableEntry<ADD, REM>::getValPtr(), oldval, newval);
+        
+        #ifdef GPUCODE
+            uint64_cu res = atomicCAS(TableEntry<ADD, REM>::getValPtr(), oldval, newval);
 
-        if(res == oldval){
-          printf("\t\t\t\t\t\t\t\t\t%i: Lock-Success\n", threadIdx.x);
-          return true;
-        }
-        else {
-            printf("\t\t\t\t\t\t\t\t\t%i: Lock-Fail\n", threadIdx.x);
-            return false;
-        }
+            if (res == oldval) {
+                //printf("\t\t\t\t\t\t\t\t\t%i: Lock-Success\n", threadIdx.x);
+                return true;
+            }
+            else {
+                //printf("\t\t\t\t\t\t\t\t\t%i: Lock-Fail\n", threadIdx.x);
+                return false;
+            }
+        #else
+            bool res = std::atomic_compare_exchange_weak(TableEntry<ADD, REM>::getAtomValPtr(), &oldval, newval);
+            return res;
+        #endif
     }
 
-    __host__ __device__
+    GPUHEADER
     bool unlock() {
         //Swap if the old value hasn't changed
         while(true){
-          //Store old Value
-          uint64_cu oldval = TableEntry<ADD, REM>::val;
-          //Make the new value with lock unlocked
-          uint64_cu newval = TableEntry<ADD, REM>::val;
-          TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], ((uint64_cu) 0), &newval, false);
+#ifdef GPUCODE
+            //Store old Value
+            uint64_cu oldval = TableEntry<ADD, REM>::val;
+            //Make the new value with lock unlocked
+            uint64_cu newval = TableEntry<ADD, REM>::val;
+            TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], ((uint64_cu)0), &newval, false);
+#else
+            //Store old Value
+            uint64_cu oldval = TableEntry<ADD, REM>::val.load();
+            //Make the new value with lock unlocked
+            uint64_cu newval = TableEntry<ADD, REM>::val.load();
+            TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], 0, &newval, false);
+#endif
 
           //If Lockbit was already free return
-          if (!TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1], oldval)) {
+          if (!TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1], &oldval)) {
               return true;
           }
 
+          #ifdef GPUCODE
+            uint64_cu res = atomicCAS(TableEntry<ADD, REM>::getValPtr(), oldval, newval);
+            //Check if lockbit is now not set
+            if (res == oldval) {
+                return true;
+            }
+          #else
+              bool res = std::atomic_compare_exchange_weak(TableEntry<ADD, REM>::getAtomValPtr(), &oldval, newval);
+              return res;
+          #endif
 
-          uint64_cu res = atomicCAS(TableEntry<ADD, REM>::getValPtr(), oldval, newval);
-
-          //Check if lockbit is now not set
-          if (res == oldval) {
-              return true;
-          }
+          
         }
     }
 
-    __host__ __device__
+    GPUHEADER
     void print() {
-        printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val);
+#ifdef GPUCODE
+        //printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val);
+#else
+        //printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val.load());
+#endif
         return;
     }
 
-    __host__ __device__
-    ClearyEntry<ADD, REM> compareAndSwap(ClearyEntry<ADD, REM> comp, ClearyEntry<ADD, REM> swap) {
-        uint64_cu newVal = atomicCAS(TableEntry<ADD, REM>::getValPtr(), comp.getValue(), swap.getValue());
-        return ClearyEntry(newVal);
+    GPUHEADER
+    uint64_cu compareAndSwap(ClearyEntry<ADD, REM>* comp, ClearyEntry<ADD, REM>* swap) {
+        #ifdef GPUCODE
+            uint64_cu newVal = atomicCAS(TableEntry<ADD, REM>::getValPtr(), (*comp).getValue(), (*swap).getValue());
+        #else
+        uint64_cu oldval = (*comp).getValue();
+        uint64_cu newval = (*swap).getValue();
+        bool res = std::atomic_compare_exchange_weak(TableEntry<ADD, REM>::getAtomValPtr(), &oldval, newval);
+        newval = oldval;
+        #endif
+        return newval;
     }
 
 };

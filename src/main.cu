@@ -8,6 +8,7 @@
 #include <string>
 #include <iomanip>
 #include <sstream>
+#include <thread>
 
 #include "int_cu.h"
 
@@ -66,8 +67,13 @@ bool contains(uint64_cu* arr, uint64_cu val, int index) {
 uint64_cu* generateTestSet(int size) {
     //Random Number generator
     std::uniform_int_distribution<long long int> dist(0, std::llround(std::pow(2, 58)));
+    
+    #ifdef GPUCODE
     uint64_cu* res;
     gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
+    #else
+    uint64_cu* res = new uint64_cu[size];
+    #endif
 
     for (int n = 0; n < size; n++) {
         uint64_cu rand = dist(e2);
@@ -91,8 +97,13 @@ uint64_cu reformKey(addtype add, remtype rem, int N) {
 }
 
 uint64_cu* generateCollidingSet(int size, int N) {
-    uint64_cu* res;
-    gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
+    
+    #ifdef GPUCODE
+        uint64_cu* res;
+        gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
+    #else
+        uint64_cu* res = new uint64_cu[size];
+    #endif
 
     uint64_cu add = 7;
 
@@ -219,65 +230,90 @@ std::vector<std::string>* getLastArgs(std::string filename) {
  *
  */
 
-__global__
-void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin=0)
+GPUHEADER_G
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin=0, int i=0, int s=0)
 {
-    int index = threadIdx.x;
+#ifdef GPUCODE
+    int index = getThreadID();
     int stride = blockDim.x;
-    //printf("\t\t\t\t\t\tStarting Thread %i\n", threadIdx.x);
-    //printf("\t\t\t\tStarting Thread:%i\n", index + begin);
+#else
+    int index = i;
+    int stride = s;
+#endif
+    
+    //printf("\t\t\t\t\t\tStarting Thread %i\n", getThreadID());
     for (int i = index+begin; i < N+begin; i += stride) {
         //printf("\t\t\t\tCC Index:%i\n", i);
         if (!(H->insert(vals[i]))) {
-            //printf("\t\t\t\t\t\tStopping Thread %i\n", threadIdx.x);
+            //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
             break;
         }
     }
-    //printf("\t\t\t\t\t\tStopping Thread %i\n", threadIdx.x);
+    //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
 }
 
-__global__
-void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupancy, int* failFlag)
+#ifdef GPUCODE
+GPUHEADER_G
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupancy, int* failFlag, int i = 0, int s = 0)
 {
-    int index = threadIdx.x;
+#ifdef GPUCODE
+    int index = getThreadID();
     int stride = blockDim.x;
-    //printf("\t\t\t\t\t\tStarting Thread %i\n", threadIdx.x);
+#else
+    int index = i;
+    int stride = s;
+#endif
+
+    //printf("\t\t\t\t\t\tStarting Thread %i\n", getThreadID());
     for (int i = index; i < N; i += stride) {
         if (failFlag[0]) {
             break;
         }
         if (!(H->insert(vals[i]))) {
             atomicCAS(&(failFlag[0]), 0, 1);
-            //printf("\t\t\t\t\t\tStopping Thread %i\n", threadIdx.x);
+            //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
             break;
         }
         atomicAdd(&occupancy[0], 1);
     }
-    //printf("\t\t\t\t\t\tStopping Thread %i\n", threadIdx.x);
+    //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
 }
+#endif
 
-__global__
-void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0)
+GPUHEADER_G
+void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0, int i = 0, int s = 0)
 {
-    int index = threadIdx.x;
+#ifdef GPUCODE
+    int index = getThreadID();
     int stride = blockDim.x;
-    //printf("\t\t\t\t\t\tStarting Thread %i\n", threadIdx.x);
+#else
+    int index = i;
+    int stride = s;
+#endif
+
+    //printf("\t\t\t\t\t\tStarting Thread %i\n", getThreadID());
     for (int i = index+begin; i < N+begin; i += stride) {
         //printf("Inserting %" PRIu64 "\n", vals[i]);
         if (!(H->insert(vals[i]))) {
-            //printf("\t\t\t\t\t\tStopping Thread %i\n", threadIdx.x);
+            //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
             break;
             //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
         }
     }
-    //printf("\t\t\t\t\t\tStopping Thread %i\n", threadIdx.x);
+    //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
 }
 
-__global__
-void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res)
+GPUHEADER_G
+void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res, int i = 0, int s = 0)
 {
-    int index = threadIdx.x;
+#ifdef GPUCODE
+    int index = getThreadID();
     int stride = blockDim.x;
+#else
+    int index = i;
+    int stride = s;
+#endif
+
     for (int i = index; i < N; i += stride) {
         if (!(H->lookup(vals[i]))) {
             printf("\tSetting Res:Val %" PRIu64 " Missing\n", vals[i]);
@@ -286,11 +322,17 @@ void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res)
     }
 }
 
-__global__
-void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res)
+GPUHEADER_G
+void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int i = 0, int s = 0)
 {
-    int index = threadIdx.x;
+#ifdef GPUCODE
+    int index = getThreadID();
     int stride = blockDim.x;
+#else
+    int index = i;
+    int stride = s;
+#endif
+
     for (int i = index; i < N; i += stride) {
         if (!(H->lookup(vals[i]))) {
             res[0] = false;
@@ -301,27 +343,43 @@ void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res)
 
 void TestFill(int N, int tablesize, uint64_cu* vals) {
     //Init Var
+    #ifdef GPUCODE
     bool* res;
     gpuErrchk(cudaMallocManaged((void**)&res, sizeof(bool)));
+    #else
+    bool* res = new bool;
+    #endif
 
 	//Create Table 1
+    #ifdef GPUCODE
     ClearyCuckoo* cc;
     gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
     new (cc) ClearyCuckoo(tablesize, 16);
+    #else
+    ClearyCuckoo* cc = new ClearyCuckoo(tablesize, 16);
+    #endif
 
     printf("Filling ClearyCuckoo\n");
-    fillClearyCuckoo << <1, 1 >> > (N, vals, cc);
-    gpuErrchk( cudaPeekAtLastError() );
-    gpuErrchk( cudaDeviceSynchronize() );
+    #ifdef GPUCODE
+        fillClearyCuckoo << <1, 1 >> > (N, vals, cc);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+    #else
+        fillClearyCuckoo(N, vals, cc);
+    #endif
     printf("Devices Synced\n");
     cc->print();
 
     //Check Table
     res[0] = true;
     printf("Checking Cleary-Cuckoo\n");
-    checkClearyCuckoo << <1, 1 >> > (N, vals, cc, res);
-    gpuErrchk( cudaPeekAtLastError() );
-    gpuErrchk( cudaDeviceSynchronize() );
+    #ifdef GPUCODE
+        checkClearyCuckoo << <1, 1 >> > (N, vals, cc, res);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+    #else
+        checkClearyCuckoo(N, vals, cc, res);
+    #endif
     printf("Devices Synced\n");
     if (res[0]) {
         printf("All still in the table\n");
@@ -331,22 +389,34 @@ void TestFill(int N, int tablesize, uint64_cu* vals) {
     }
 
 	//Create Table 2
-    Cleary* c;
-    gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
-    new (c) Cleary(tablesize);
+    #ifdef GPUCODE
+        Cleary* c;
+        gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
+        new (c) Cleary(tablesize);
+    #else
+        Cleary* c = new Cleary(tablesize);
+    #endif
 
     printf("Filling Cleary\n");
-    fillCleary << <1, 1 >> > (N, vals, c);
-    gpuErrchk( cudaPeekAtLastError() );
-    gpuErrchk( cudaDeviceSynchronize() );
+    #ifdef GPUCODE
+        fillCleary << <1, 1 > >> (N, vals, c);
+        gpuErrchk( cudaPeekAtLastError() );
+        gpuErrchk( cudaDeviceSynchronize() );
+    #else
+        fillCleary(N, vals, c);
+    #endif
     printf("Devices Synced\n");
     c->print();
 
     //Checking
     *res = true;
-    checkCleary << <1, 1 >> > (N, vals, c, res);
-    gpuErrchk( cudaPeekAtLastError() );
-    gpuErrchk( cudaDeviceSynchronize() );
+    #ifdef GPUCODE
+        checkCleary << <1, 1 >> > (N, vals, c, res);
+        gpuErrchk( cudaPeekAtLastError() );
+        gpuErrchk( cudaDeviceSynchronize() );
+    #else
+        checkCleary(N, vals, c, res);
+    #endif
     printf("Devices Synced\n");
     if (res[0]) {
         printf("All still in the table\n");
@@ -356,13 +426,19 @@ void TestFill(int N, int tablesize, uint64_cu* vals) {
     }
 
     //Destroy Vars
-    gpuErrchk(cudaFree(res));
-    gpuErrchk(cudaFree(cc));
-    gpuErrchk(cudaFree(c));
+    #ifdef GPUCODE
+        gpuErrchk(cudaFree(res));
+        gpuErrchk(cudaFree(cc));
+        gpuErrchk(cudaFree(c));
+    #else
+        delete res;
+        delete cc;
+        delete c;
+    #endif
 }
 
 
-__global__
+GPUHEADER_G
 void lockTestDevice(ClearyEntry<addtype, remtype>* T){
     addtype left = 1;
     addtype right = 4;
@@ -415,7 +491,11 @@ void lockTest() {
     }
 
     printf("\tStarting Lock Test\n");
+#ifdef GPUCODE
     lockTestDevice << <1, 10 >> > (T);
+#else
+
+#endif
     gpuErrchk( cudaPeekAtLastError() );
     gpuErrchk( cudaDeviceSynchronize() );
 
@@ -423,7 +503,7 @@ void lockTest() {
 }
 
 void entryTest() {
-    ClearyEntry<addtype, remtype> c = ClearyEntry<addtype, remtype>();
+    ClearyEntry<addtype, remtype> c{};
     c.setR(351629921636382);
     c.print();
     printf("Entry After R %" PRIu64 "\n", c.getR());
@@ -443,15 +523,22 @@ void Test(int N) {
     printf("==============================================================================================================\n");
     uint64_cu* testset1 = generateTestSet(testSize);
     TestFill(testSize, addressSize, testset1);
-    gpuErrchk(cudaFree(testset1));
-
+    #ifdef GPUCODE
+        gpuErrchk(cudaFree(testset1));
+    #else
+        delete[] testset1;
+    #endif
 
     printf("==============================================================================================================\n");
     printf("                            COLLISION TEST                            \n");
     printf("==============================================================================================================\n");
     uint64_cu* testset2 = generateCollidingSet(testSize, addressSize);
     TestFill(testSize, addressSize, testset2);
-    gpuErrchk(cudaFree(testset2));
+    #ifdef GPUCODE
+        gpuErrchk(cudaFree(testset1));
+    #else
+        delete[] testset2;
+    #endif
 
     printf("\nTESTING DONE\n");
 }
@@ -497,7 +584,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
     //Tablesizes
     bool setup = true;
-    for (int N = 5; N < 5+NUM_TABLES; N++) {
+    for (int N = 5; N < 5 + NUM_TABLES; N++) {
         if (params && setup) {
             N = std::stoi(params->at(0));
         }
@@ -535,9 +622,15 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                         uint64_cu* vals = generateTestSet(size);
                         //printf("\t\t\t\t\tInitCC\n");
                         //Init Cleary Cuckoo
+
+#ifdef GPUCODE
                         ClearyCuckoo* cc;
                         gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
                         new (cc) ClearyCuckoo(N, H);
+#else
+                        ClearyCuckoo* cc = new ClearyCuckoo(N, H);
+#endif
+
                         cc->setMaxLoops(L);
 
                         //Loop over intervals
@@ -552,23 +645,42 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                             begin = std::chrono::steady_clock::now();
                             if (j >= WARMUP) {
                                 //printf("\t\tBegin: %i End:%i\n", setsize * j, setsize * (j+1));
+#ifdef GPUCODE
                                 fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
-                                gpuErrchk( cudaPeekAtLastError() );
-                                gpuErrchk( cudaDeviceSynchronize() );
+                                gpuErrchk(cudaPeekAtLastError());
+                                gpuErrchk(cudaDeviceSynchronize());
+#else
+                                std::vector<std::thread> vecThread(size);
+                                int numThreads = std::pow(2, T);
+                                for (int i = 0; i < numThreads; i++) {
+                                    vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, setsize * (j - WARMUP), i, numThreads);
+                                }
+
+                                //Join Threads
+                                for (int i = 0; i < numThreads; i++) {
+                                    vecThread.at(i).join();
+                                }
+#endif
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count())/setsize << ",\n";
+                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
                             }
 
                         }
                         //printf("\t\t\t\t\tFreeVals\n");
+#ifdef GPUCODE
                         gpuErrchk(cudaFree(cc));
                         gpuErrchk(cudaFree(vals));
+#else       
+                        delete cc;
+                        delete[] vals;
+#endif
                     }
                 }
             }
         }
+    }
 
     for (int N = 5; N < 5+NUM_TABLES; N++) {
         if (params && setup) {
@@ -587,9 +699,13 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
                 //printf("\t\t\t\t\tInitC\n");
                 //Init Cleary
+                #ifdef GPUCODE
                 Cleary* c;
                 gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
                 new (c) Cleary(N);
+                #else
+                Cleary* c = new Cleary(N);
+                #endif
 
                 //Loop over intervals
                 //printf("\t\t\t\t\tFilling\n");
@@ -603,9 +719,22 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
                     begin = std::chrono::steady_clock::now();
                     if (j >= WARMUP) {
-                        fillCleary << <1, std::pow(2, T) >> > (setsize, vals, c, setsize * (j - WARMUP));
-                        gpuErrchk( cudaPeekAtLastError() );
-                        gpuErrchk( cudaDeviceSynchronize() );
+                        #ifdef GPUCODE
+                            fillCleary << <1, std::pow(2, T) >> > (setsize, vals, c, setsize* (j - WARMUP));
+                            gpuErrchk(cudaPeekAtLastError());
+                            gpuErrchk(cudaDeviceSynchronize());
+                        #else
+                            std::vector<std::thread> vecThread(size);
+                            int numThreads = std::pow(2, T);
+                            for (int i = 0; i < numThreads; i++) {
+                                vecThread.at(i) = std::thread(fillCleary, setsize, vals, c, setsize * (j - WARMUP), i, numThreads);
+                            }
+
+                            //Join Threads
+                            for (int i = 0; i < numThreads; i++) {
+                                vecThread.at(i).join();
+                            }
+                        #endif
                         //End the timer
                         end = std::chrono::steady_clock::now();
                         myfile << N << "," << std::pow(2, T) << "," << -1 << "," << -1 << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
@@ -613,8 +742,13 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
                 }
                 //printf("\t\t\t\t\tFreeVals\n");
+                #ifdef GPUCODE
                 gpuErrchk(cudaFree(c));
                 gpuErrchk(cudaFree(vals));
+                #else       
+                delete c;
+                delete[] vals;
+                #endif
             }
         }
     }
@@ -668,6 +802,7 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
                     occ[0] = 0;
 
                     //Fill the table
+#ifdef GPUCODE
                     fillClearyCuckoo << <1, 256 >> > (size, vals, cc, occ, failFlag);
                     gpuErrchk( cudaPeekAtLastError() );
                     gpuErrchk( cudaDeviceSynchronize() );
@@ -678,6 +813,9 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
                     gpuErrchk(cudaFree(cc));
                     gpuErrchk(cudaFree(occ));
                     gpuErrchk(cudaFree(vals));
+#else
+
+#endif
                 }
             }
         }
@@ -725,9 +863,7 @@ int main(int argc, char* argv[])
     }
 
     else if (strcmp(argv[1], "debug") == 0) {
-        ClearyEntry<addtype, remtype> c = ClearyEntry<addtype, remtype>();
-        c.setA(std::stoi(argv[2]));
-        printf("A:%i\n",c.getA());
+
     }
 
     return 0;

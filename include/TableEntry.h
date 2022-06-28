@@ -2,70 +2,127 @@
 #include <iostream>
 #include <bitset>
 #include <inttypes.h>
+#include <atomic>
 
 
 template <class ADD, class REM>
 class TableEntry {
 
 protected:
+    #ifdef  GPUCODE
     uint64_cu val;
+    #else
+    std::atomic<uint64_cu> val;
+    #endif
 
-    __host__ __device__
+    GPUHEADER
+    uint64_cu setValBits(int start, int end, uint64_cu ins, uint64_cu* loc) {
+        uint64_cu mask = ((((uint64_cu)1) << end) - 1) ^ ((((uint64_cu)1) << (start - 1)) - 1);
+        uint64_cu oldval = *loc;
+        uint64_cu tempval = oldval & ~mask;      //Remove all of the bits currently in the positions
+        ins = ins << (start - 1);   //Shift new val to correct position
+        ins = ins & mask;       //Mask the new val to prevent overflow
+        return tempval | ins;        //Place the new val
+    }
+
+    GPUHEADER
+    uint64_cu setValBits(int start, int end, uint64_cu ins, std::atomic<uint64_cu>* loc) {
+        uint64_cu mask = ((((uint64_cu)1) << end) - 1) ^ ((((uint64_cu)1) << (start - 1)) - 1);
+        uint64_cu oldval = (*loc).load();
+        uint64_cu tempval = oldval & ~mask;      //Remove all of the bits currently in the positions
+        ins = ins << (start - 1);   //Shift new val to correct position
+        ins = ins & mask;       //Mask the new val to prevent overflow
+        return tempval | ins;        //Place the new val
+    }
+
+    GPUHEADER
     void setBits(int start, int end, uint64_cu ins, bool onDevice=true) {
+#ifdef GPUCODE
         setBits(start, end, ins, &val, onDevice);
+#else
+        setBits(start, end, ins, &val, onDevice);
+#endif
     }
 
-    __host__ __device__
+    GPUHEADER
     void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
-    while( true ){
-      uint64_cu mask = ((((uint64_cu)1) << end) - 1) ^ ((((uint64_cu)1) << (start - 1)) - 1);
-      uint64_cu oldval = *loc;
-      uint64_cu tempval = oldval & ~mask;      //Remove all of the bits currently in the positions
-      ins = ins << (start - 1);   //Shift new val to correct position
-      ins = ins & mask;       //Mask the new val to prevent overflow
-      uint64_cu newval = tempval | ins;        //Place the new val
-      //In devices, atomically exchange
-      #ifdef  __CUDA_ARCH__
-      if (onDevice) {
-          printf("\t\t\t\t\t\t\t\t\t\t%i: Trying to write\n", threadIdx.x);
-          uint64_cu res = atomicCAS(loc, oldval, newval);
-          //Make sure the value hasn't changed in the meantime
-          if(res == oldval){
-            printf("\t\t\t\t\t\t\t\t\t\t%i: Write Success\n", threadIdx.x);
+            uint64_cu newval = setValBits(start, end, ins, loc);
+            *loc = newval;
             return;
-          }
-          printf("\t\t\t\t\t\t\t\t\t\t%i: Write Failed\n", threadIdx.x);
-          continue;
-      }
-      else {
-          *loc = newval;
-          return;
-      }
-      #else
-          *loc = newval;
-          return;
-      #endif
-      }
+    }
+    
+    GPUHEADER
+        void setBits(int start, int end, uint64_cu ins, std::atomic<uint64_cu>* loc, bool onDevice = true) {
+        while (true) {
+
+            uint64_cu oldval = (*loc).load();
+            uint64_cu newval = setValBits(start, end, ins, loc);
+
+            if (std::atomic_compare_exchange_weak(loc, &oldval, newval)) {
+                break;
+            }
+            return;
+        }
     }
 
-    __host__ __device__
-    uint64_cu getBits(int start, int end, uint64_cu x) {
+#ifdef GPUCODE
+    GPUHEADER
+    void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
+        while (true) {
+
+            uint64_cu oldval = *loc;
+            uint64_cu newval = setValBits(start, end, ins, loc);
+
+            //In devices, atomically exchange
+            if (onDevice) {
+                printf("\t\t\t\t\t\t\t\t\t\t%i: Trying to write\n", threadIdx.x);
+                uint64_cu res = atomicCAS(loc, oldval, newval);
+                //Make sure the value hasn't changed in the meantime
+                if (res == oldval) {
+                    printf("\t\t\t\t\t\t\t\t\t\t%i: Write Success\n", threadIdx.x);
+                    return;
+                }
+                printf("\t\t\t\t\t\t\t\t\t\t%i: Write Failed\n", threadIdx.x);
+                continue;
+            }
+            else {
+                *loc = newval;
+                return;
+            }
+        }
+    }
+#endif
+
+    GPUHEADER
+    uint64_cu getBits(int start, int end, uint64_cu* x) {
         if(start == -1){
           return 0;
         }
-        uint64_cu res = x;
+        uint64_cu res = (*x);
         uint64_cu mask = ((((uint64_cu)1) << end) - ((uint64_cu)1)) ^ ((((uint64_cu)1) << (start - 1)) - ((uint64_cu)1));
         res = res & mask;
         res = res >> (start - 1);
         return res;
     }
 
-    __host__ __device__
-    uint64_cu getBits(int start, int end) {
-        return getBits(start, end, val);
+    GPUHEADER
+        uint64_cu getBits(int start, int end, std::atomic<uint64_cu>* x) {
+        if (start == -1) {
+            return 0;
+        }
+        uint64_cu res = (*x).load();
+        uint64_cu mask = ((((uint64_cu)1) << end) - ((uint64_cu)1)) ^ ((((uint64_cu)1) << (start - 1)) - ((uint64_cu)1));
+        res = res & mask;
+        res = res >> (start - 1);
+        return res;
     }
 
-    __host__ __device__
+    GPUHEADER
+    uint64_cu getBits(int start, int end) {
+        return getBits(start, end, &val);
+    }
+
+    GPUHEADER
     int signed_to_unsigned(int n, int size) {
         int res = 0;
         if (n < 0) {
@@ -77,7 +134,7 @@ protected:
         return res;
     }
 
-    __host__ __device__
+    GPUHEADER
     int unsigned_to_signed(uint64_cu n, int size)
     {
         uint64_cu mask = ((((uint64_cu)1) << size) - 1) ^ ((((uint64_cu)1) << (1 - 1)) - 1);
@@ -88,42 +145,73 @@ protected:
         return res;
     }
 
-    __host__ __device__
+    GPUHEADER
     uint64_cu getValue() {
+#ifdef GPUCODE
         return val;
+#else
+        return val.load();
+#endif
+        
     }
 
-    __host__ __device__
+    GPUHEADER
     void setValue(uint64_cu x) {
+#ifdef GPUCODE
         val = x;
+#else
+        val.store(x);
+#endif
+    }
+
+    GPUHEADER
+    uint64_cu* getValPtr(){
+#ifdef GPUCODE
+        return &val;
+#else
+        return nullptr;
+#endif
     }
 
     __host__ __device__
-    uint64_cu* getValPtr(){
-      return &val;
+    std::atomic<uint64_cu>* getAtomValPtr() {
+        return &val;
     }
 
 public:
-    __host__ __device__
-    TableEntry() {
+    GPUHEADER
+    TableEntry() noexcept {
+#ifdef GPUCODE
         val = 0;
+#else
+        std::atomic_init(&val, 0);
+#endif
+        
     }
 
-    __host__ __device__
-        TableEntry(uint64_cu x) {
+    GPUHEADER
+    TableEntry(uint64_cu x) noexcept {
+#ifdef GPUCODE
         val = x;
+#else
+        std::atomic_init(&val, x);
+#endif
     }
 
-    __device__
+    GPUHEADER
     void exchValue(TableEntry* x) {
         //Atomically set this value to the new one
+        #ifdef  GPUCODE
         uint64_cu old =  atomicExch(&val, x->getValue());
+        #else
+        val.exchange(x->getValue());
+        #endif
         //Return an entry with prev val
         x->setValue(old);
         return;
     }
 
-    __host__ __device__
+    GPUHEADER
     void print() {
         //std::cout << std::bitset<64>(val) << "\n";
         printf("EntryVal:%" PRIu64 "\n", val);
