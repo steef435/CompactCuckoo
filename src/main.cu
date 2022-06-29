@@ -231,13 +231,13 @@ std::vector<std::string>* getLastArgs(std::string filename) {
  */
 
 GPUHEADER_G
-void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin=0, int i=0, int s=0)
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin=0, int id=0, int s=1)
 {
 #ifdef GPUCODE
     int index = getThreadID();
     int stride = blockDim.x;
 #else
-    int index = i;
+    int index = id;
     int stride = s;
 #endif
     
@@ -254,13 +254,13 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin=0, 
 
 #ifdef GPUCODE
 GPUHEADER_G
-void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupancy, int* failFlag, int i = 0, int s = 0)
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupancy, int* failFlag, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
     int index = getThreadID();
     int stride = blockDim.x;
 #else
-    int index = i;
+    int index = id;
     int stride = s;
 #endif
 
@@ -281,13 +281,13 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupanc
 #endif
 
 GPUHEADER_G
-void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0, int i = 0, int s = 0)
+void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
     int index = getThreadID();
     int stride = blockDim.x;
 #else
-    int index = i;
+    int index = id;
     int stride = s;
 #endif
 
@@ -299,18 +299,19 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0, int i = 0, i
             break;
             //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
         }
+        H->print();
     }
     //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
 }
 
 GPUHEADER_G
-void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res, int i = 0, int s = 0)
+void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
     int index = getThreadID();
     int stride = blockDim.x;
 #else
-    int index = i;
+    int index = id;
     int stride = s;
 #endif
 
@@ -323,18 +324,19 @@ void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res, int i
 }
 
 GPUHEADER_G
-void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int i = 0, int s = 0)
+void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
     int index = getThreadID();
     int stride = blockDim.x;
 #else
-    int index = i;
+    int index = id;
     int stride = s;
 #endif
 
     for (int i = index; i < N; i += stride) {
         if (!(H->lookup(vals[i]))) {
+            printf("\tVal %" PRIu64 " Missing\n", vals[i]);
             res[0] = false;
         }
     }

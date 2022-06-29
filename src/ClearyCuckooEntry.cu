@@ -38,7 +38,7 @@ public:
         #ifdef  __CUDA_ARCH__
         uint64_cu old = atomicExch(TableEntry<ADD, REM>::getValPtr(), x->getValue());
         #else
-        uint64_cu old = (*(TableEntry<ADD, REM>::getAtomValPtr())).exchange(getValue());
+        uint64_cu old = (*(TableEntry<ADD, REM>::getAtomValPtr())).exchange(x->getValue());
         #endif
         //Return an entry with prev TableEntry<ADD, REM>::val
         x->setValue(old);
@@ -83,7 +83,11 @@ public:
 
     GPUHEADER
     void print() {
+#ifdef GPUCODE
         printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val);
+#else
+        printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val.load());
+#endif
         return;
     }
 
