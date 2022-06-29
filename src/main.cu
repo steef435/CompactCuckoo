@@ -497,7 +497,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
     //Tablesizes
     bool setup = true;
-    for (int N = 5; N < 5+NUM_TABLES; N++) {
+    for (int N = 5; N < 5 + NUM_TABLES; N++) {
         if (params && setup) {
             N = std::stoi(params->at(0));
         }
@@ -553,12 +553,12 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                             if (j >= WARMUP) {
                                 //printf("\t\tBegin: %i End:%i\n", setsize * j, setsize * (j+1));
                                 fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
-                                gpuErrchk( cudaPeekAtLastError() );
-                                gpuErrchk( cudaDeviceSynchronize() );
+                                gpuErrchk(cudaPeekAtLastError());
+                                gpuErrchk(cudaDeviceSynchronize());
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count())/setsize << ",\n";
+                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
                             }
 
                         }
@@ -569,6 +569,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                 }
             }
         }
+    }
 
     for (int N = 5; N < 5+NUM_TABLES; N++) {
         if (params && setup) {

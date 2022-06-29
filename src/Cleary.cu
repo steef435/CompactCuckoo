@@ -489,7 +489,7 @@ class Cleary : public HashTable{
                 assert(counter < 30000);
                 float sleeptime = (curand_uniform(&state) * pow(2,counter));
                 printf("\t\t\t\t\t\t\t\t%i: Sleeping %.6f \n", threadIdx.x, sleeptime);
-                __nanosleep((unsigned int) sleeptime);
+                //__nanosleep((unsigned int) sleeptime);
 
                 //Try Non-Exclusive Write
                 printf("\t\t\t\t\t\t\t\t%i: Trying Non-Exclusive Write at %" PRIu32 "\n", threadIdx.x, j);
