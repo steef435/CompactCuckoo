@@ -299,7 +299,7 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0, int id = 0, 
             break;
             //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
         }
-        H->print();
+        //H->print();
     }
     //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
 }
@@ -343,7 +343,7 @@ void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int id = 0, int s
 }
 
 
-void TestFill(int N, int tablesize, uint64_cu* vals) {
+void TestFill(int N, int T, int tablesize, uint64_cu* vals) {
     //Init Var
     #ifdef GPUCODE
     bool* res;
@@ -367,7 +367,17 @@ void TestFill(int N, int tablesize, uint64_cu* vals) {
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
     #else
-        fillClearyCuckoo(N, vals, cc);
+        int numThreads = std::pow(2, T);
+        std::vector<std::thread> vecThread1(numThreads);
+
+        for (int i = 0; i < numThreads; i++) {
+            vecThread1.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, addtype, int, int)>(fillClearyCuckoo), N, vals, cc, 0, i, numThreads);
+        }
+
+        //Join Threads
+        for (int i = 0; i < numThreads; i++) {
+            vecThread1.at(i).join();
+        }
     #endif
     printf("Devices Synced\n");
     cc->print();
@@ -405,7 +415,16 @@ void TestFill(int N, int tablesize, uint64_cu* vals) {
         gpuErrchk( cudaPeekAtLastError() );
         gpuErrchk( cudaDeviceSynchronize() );
     #else
-        fillCleary(N, vals, c);
+        std::vector<std::thread> vecThread2(numThreads);
+
+        for (int i = 0; i < numThreads; i++) {
+            vecThread2.at(i) = std::thread(fillCleary, N, vals, c, 0, i, numThreads);
+        }
+
+        //Join Threads
+        for (int i = 0; i < numThreads; i++) {
+            vecThread2.at(i).join();
+        }
     #endif
     printf("Devices Synced\n");
     c->print();
@@ -511,7 +530,7 @@ void entryTest() {
     printf("Entry After R %" PRIu64 "\n", c.getR());
 }
 
-void Test(int N) {
+void Test(int N, int T) {
     const int addressSize = N;
     const int testSize = std::pow(2, addressSize);
     //const int testSize = 5;
@@ -524,7 +543,7 @@ void Test(int N) {
     printf("                              BASIC TEST                              \n");
     printf("==============================================================================================================\n");
     uint64_cu* testset1 = generateTestSet(testSize);
-    TestFill(testSize, addressSize, testset1);
+    TestFill(testSize, T, addressSize, testset1);
     #ifdef GPUCODE
         gpuErrchk(cudaFree(testset1));
     #else
@@ -535,7 +554,7 @@ void Test(int N) {
     printf("                            COLLISION TEST                            \n");
     printf("==============================================================================================================\n");
     uint64_cu* testset2 = generateCollidingSet(testSize, addressSize);
-    TestFill(testSize, addressSize, testset2);
+    TestFill(testSize, T, addressSize, testset2);
     #ifdef GPUCODE
         gpuErrchk(cudaFree(testset1));
     #else
@@ -652,8 +671,8 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                                 gpuErrchk(cudaPeekAtLastError());
                                 gpuErrchk(cudaDeviceSynchronize());
 #else
-                                std::vector<std::thread> vecThread(size);
                                 int numThreads = std::pow(2, T);
+                                std::vector<std::thread> vecThread(numThreads);
                                 for (int i = 0; i < numThreads; i++) {
                                     vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, setsize * (j - WARMUP), i, numThreads);
                                 }
@@ -726,8 +745,9 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                             gpuErrchk(cudaPeekAtLastError());
                             gpuErrchk(cudaDeviceSynchronize());
                         #else
-                            std::vector<std::thread> vecThread(size);
                             int numThreads = std::pow(2, T);
+                            std::vector<std::thread> vecThread(numThreads);
+                            
                             for (int i = 0; i < numThreads; i++) {
                                 vecThread.at(i) = std::thread(fillCleary, setsize, vals, c, setsize * (j - WARMUP), i, numThreads);
                             }
@@ -816,7 +836,10 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
                     gpuErrchk(cudaFree(occ));
                     gpuErrchk(cudaFree(vals));
 #else
-
+                    delete failFlag;
+                    delete cc;
+                    delete occ;
+                    delete[] vals;
 #endif
                 }
             }
@@ -836,7 +859,12 @@ int main(int argc, char* argv[])
     }
 
     if (strcmp(argv[1], "test") == 0) {
-        Test(std::stoi(argv[2]));
+        if (argc < 4) {
+            printf("Not Enough Arguments Passed\n");
+            printf("Required: TABLESIZE, NUM_THREADS\n");
+            return 0;
+        }
+        Test(std::stoi(argv[2]), std::stoi(argv[3]));
     }
     else if (strcmp(argv[1], "benchmax") == 0) {
         if (argc < 6) {

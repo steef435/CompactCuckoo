@@ -53,6 +53,7 @@ protected:
     
     GPUHEADER
         void setBits(int start, int end, uint64_cu ins, std::atomic<uint64_cu>* loc, bool onDevice = true) {
+        //printf("\t\t\tSetting Bits\n");
         while (true) {
 
             uint64_cu oldval = (*loc).load();
@@ -61,8 +62,8 @@ protected:
             if (std::atomic_compare_exchange_weak(loc, &oldval, newval)) {
                 break;
             }
-            return;
         }
+        //printf("\t\t\tNewVal After: %" PRIu64 " \n", (*loc).load());
     }
 
 #ifdef GPUCODE

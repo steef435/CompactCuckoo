@@ -97,18 +97,26 @@ class Cleary : public HashTable{
             int cnt = 0;
 
             //Find first well defined A value
-            //printf("\t\t\t\t\t\t\t\t\t\t\tFirst well defined\n");
-            while(T[i].getA() == A_UNDEFINED && i!=MIN_ADRESS && T[i].getO()){
+            while(T[i].getA() == A_UNDEFINED && i>=MIN_ADRESS && T[i].getO()){
                 cnt = cnt - (T[i].getV() ? 1 : 0);
                 i=i-1;
+                if (i > MAX_ADRESS) {
+                    break;
+                }
             };
-            cnt = cnt + T[i].getA();
+
+            //printf("\t\t\t\tFirst well defined: %" PRIu32 "\n", i);
+            if (i <= MAX_ADRESS && i >= MIN_ADRESS) {
+                cnt = cnt + T[i].getA();
+                //printf("\t\t\t\tCnt: %i\n", cnt);
+            }
 
             //Look for the relevant group
-            //printf("\t\t\t\t\t\t\t\t\t\t\tFind relevant group\n");
+            //printf("\t\t\t\tFind relevant group\n");
             direction dir = up;
             if(cnt < 0){
                 dir = up;
+                //printf("\t\t\t\t\tDir Up %" PRIu32 "\n", i);
                 while(cnt != 0 && i != MAX_ADRESS){
                     i = i+1;
                     cnt = cnt + (T[i].getC() ? 1 : 0);
@@ -118,27 +126,33 @@ class Cleary : public HashTable{
                 }
             }else if(cnt > 0){
                 dir = down;
+                //printf("\t\t\t\t\tDir down %" PRIu32 "\n", i);
                 while(cnt != 0 && i != MIN_ADRESS){
                     cnt = cnt - (T[i].getC() ? 1 : 0);
                     i = i - 1;
                 }
                 if(T[i].getR() <= rem){dir = here;}
             }else{
+                //printf("\t\t\t\tEnd Case\n");
                 if(T[i].getR() > rem){dir = down;}
                 else if(T[i].getR() < rem){dir = up;}
-                else{dir = here;}
+                else{
+                    //printf("\t\t\t\tEnd Else Case\n");
+                    dir = here;}
             }
+            //printf("\t\t\t\tRelevant Group: %" PRIu32 "\n", i);
 
             //Look inside of the group
-            //printf("\t\t\t\t\t\t\t\t\t\t\tLook inside group\n");
+            //printf("\t\t\t\tLook inside group\n");
             switch (dir){
                 case here:
+                    //printf("\t\t\t\t\tHere\n");
                     break;
 
                 case down:
                     while (dir != here) {
                         assert(i <= MAX_ADRESS);
-                        //printf("\t\t\t\t\t\t\t\t\t\t\t\tGoing Down" PRIu32 "\n", i);
+                        //printf("\t\t\t\t\tGoing Down" PRIu32 "\n", i);
                         if (T[i].getC() == 1 || i == MIN_ADRESS) { dir = here; }
                         else {
                             i = i - 1;
@@ -152,7 +166,7 @@ class Cleary : public HashTable{
                 case up:
                     while (dir != here) {
                         assert(i <= MAX_ADRESS);
-                        //printf("\t\t\t\t\t\t\t\t\t\t\t\tGoing Up" PRIu32 "\n", i);
+                        //printf("\t\t\t\tGoing Up" PRIu32 "\n", i);
                         if (i == MAX_ADRESS) {
                             dir = here;
                         }
@@ -199,7 +213,7 @@ class Cleary : public HashTable{
 
         GPUHEADER
         bool insertIntoTable(keytype k) {
-            printf("\t\t\t\t\t\t\t%i: Inserting Into Table\n", getThreadID());
+            //printf("\t\t\t\t\t\t\t%i: Inserting Into Table\n", getThreadID());
 
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
@@ -571,6 +585,8 @@ class Cleary : public HashTable{
 
             addtype i = findIndex(k);
             assert(0<=i && i<=MAX_ADRESS);
+            //printf("\t\tFind Add   %" PRIu32 "\n", j);
+            //printf("\t\tFind Index %" PRIu32 "\n", i);
 
             if(T[i].getR() == rem){
                 return true;

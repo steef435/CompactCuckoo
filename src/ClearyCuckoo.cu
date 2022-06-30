@@ -130,7 +130,7 @@ class ClearyCuckoo : HashTable{
          **/
         GPUHEADER
         bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int depth=0){
-            printf("\tInsertintoTable\n");
+            //printf("\tInsertintoTable\n");
             keytype x = k;
             int hash = hashlist[0];
 
@@ -288,6 +288,7 @@ class ClearyCuckoo : HashTable{
             if(insertIntoTable(k,T,0)){
                 //Reset the Hash Counter
                 hashcounter = 0;
+                //print();
                 return true;
             }
             return false;
