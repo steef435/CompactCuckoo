@@ -343,7 +343,9 @@ void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int id = 0, int s
 }
 
 
-void TestFill(int N, int T, int tablesize, uint64_cu* vals) {
+bool TestFill(int N, int T, int tablesize, uint64_cu* vals) {
+    bool testres = true;
+
     //Init Var
     #ifdef GPUCODE
     bool* res;
@@ -397,6 +399,7 @@ void TestFill(int N, int T, int tablesize, uint64_cu* vals) {
         printf("All still in the table\n");
     }
     else {
+        //testres = false;
         printf("!---------------------Vals Missing---------------------!\n");
     }
 
@@ -430,7 +433,8 @@ void TestFill(int N, int T, int tablesize, uint64_cu* vals) {
     c->print();
 
     //Checking
-    *res = true;
+    res[0] = true;
+    printf("Checking Cleary\n");
     #ifdef GPUCODE
         checkCleary << <1, 1 >> > (N, vals, c, res);
         gpuErrchk( cudaPeekAtLastError() );
@@ -443,6 +447,7 @@ void TestFill(int N, int T, int tablesize, uint64_cu* vals) {
         printf("All still in the table\n");
     }
     else {
+        testres = false;
         printf("!---------------------Vals Missing---------------------!\n");
     }
 
@@ -456,6 +461,8 @@ void TestFill(int N, int T, int tablesize, uint64_cu* vals) {
         delete cc;
         delete c;
     #endif
+
+        return testres;
 }
 
 
@@ -530,7 +537,9 @@ void entryTest() {
     printf("Entry After R %" PRIu64 "\n", c.getR());
 }
 
-void Test(int N, int T) {
+void Test(int N, int T, int L) {
+    bool res = true;
+
     const int addressSize = N;
     const int testSize = std::pow(2, addressSize);
     //const int testSize = 5;
@@ -539,29 +548,48 @@ void Test(int N, int T) {
     //printf("Lock Test\n");
     //lockTest();
 
-    printf("==============================================================================================================\n");
-    printf("                              BASIC TEST                              \n");
-    printf("==============================================================================================================\n");
-    uint64_cu* testset1 = generateTestSet(testSize);
-    TestFill(testSize, T, addressSize, testset1);
-    #ifdef GPUCODE
+    for (int i = 0; i < L; i++) {
+
+        printf("==============================================================================================================\n");
+        printf("                              BASIC TEST                              \n");
+        printf("==============================================================================================================\n");
+        uint64_cu* testset1 = generateTestSet(testSize);
+        if (!TestFill(testSize, T, addressSize, testset1)) {
+            res = false;
+        }
+#ifdef GPUCODE
         gpuErrchk(cudaFree(testset1));
-    #else
+#else
         delete[] testset1;
-    #endif
+#endif
 
-    printf("==============================================================================================================\n");
-    printf("                            COLLISION TEST                            \n");
-    printf("==============================================================================================================\n");
-    uint64_cu* testset2 = generateCollidingSet(testSize, addressSize);
-    TestFill(testSize, T, addressSize, testset2);
-    #ifdef GPUCODE
-        gpuErrchk(cudaFree(testset1));
-    #else
+        printf("==============================================================================================================\n");
+        printf("                            COLLISION TEST                            \n");
+        printf("==============================================================================================================\n");
+        uint64_cu* testset2 = generateCollidingSet(testSize, addressSize);
+        if (!TestFill(testSize, T, addressSize, testset2)) {
+            res = false;
+        }
+#ifdef GPUCODE
+        gpuErrchk(cudaFree(testset2));
+#else
         delete[] testset2;
-    #endif
+#endif
 
-    printf("\nTESTING DONE\n");
+        if (!res) {
+            printf("TEST FAILED\n");
+            break;
+        }
+        else {
+            printf("TEST PASSED\n");
+        }
+    }
+
+    if (res) {
+        printf("==============================================================================================================\n");
+        printf("                                             ALL TESTS PASSED                                                 \n");
+        printf("==============================================================================================================\n");
+    }
 }
 
 
@@ -861,10 +889,10 @@ int main(int argc, char* argv[])
     if (strcmp(argv[1], "test") == 0) {
         if (argc < 4) {
             printf("Not Enough Arguments Passed\n");
-            printf("Required: TABLESIZE, NUM_THREADS\n");
+            printf("Required: TABLESIZE, NUM_THREADS, SAMPLES\n");
             return 0;
         }
-        Test(std::stoi(argv[2]), std::stoi(argv[3]));
+        Test(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]));
     }
     else if (strcmp(argv[1], "benchmax") == 0) {
         if (argc < 6) {

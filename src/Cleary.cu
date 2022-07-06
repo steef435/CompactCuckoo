@@ -87,14 +87,15 @@ class Cleary : public HashTable{
         }
 
         GPUHEADER
-        addtype findIndex(uint64_cu k){
-            //printf("\t\t\t\t\t\t\t\t\t\t\tFinding Index\n");
+        addtype findIndex(uint64_cu k){           
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h);
             remtype rem = getRem(h);
 
             addtype i = j;
             int cnt = 0;
+
+            //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Finding Index from %" PRIu32 "\n", getThreadID(), i);
 
             //Find first well defined A value
             while(T[i].getA() == A_UNDEFINED && i>=MIN_ADRESS && T[i].getO()){
@@ -105,18 +106,18 @@ class Cleary : public HashTable{
                 }
             };
 
-            //printf("\t\t\t\tFirst well defined: %" PRIu32 "\n", i);
+            //printf("\t\t\t\t\t\t\t\t\t\t\t%i: First well defined: %" PRIu32 "\n", getThreadID(), i);
             if (i <= MAX_ADRESS && i >= MIN_ADRESS) {
                 cnt = cnt + T[i].getA();
-                //printf("\t\t\t\tCnt: %i\n", cnt);
+                //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Cnt: %i\n", getThreadID(), cnt);
             }
 
             //Look for the relevant group
-            //printf("\t\t\t\tFind relevant group\n");
+            //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Find relevant group\n", getThreadID());
             direction dir = up;
             if(cnt < 0){
                 dir = up;
-                //printf("\t\t\t\t\tDir Up %" PRIu32 "\n", i);
+                //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Dir Up %" PRIu32 "\n", getThreadID(), i);
                 while(cnt != 0 && i != MAX_ADRESS){
                     i = i+1;
                     cnt = cnt + (T[i].getC() ? 1 : 0);
@@ -126,33 +127,41 @@ class Cleary : public HashTable{
                 }
             }else if(cnt > 0){
                 dir = down;
-                //printf("\t\t\t\t\tDir down %" PRIu32 "\n", i);
+                //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Dir down %" PRIu32 "\n", getThreadID(), i);
                 while(cnt != 0 && i != MIN_ADRESS){
                     cnt = cnt - (T[i].getC() ? 1 : 0);
                     i = i - 1;
                 }
                 if(T[i].getR() <= rem){dir = here;}
             }else{
-                //printf("\t\t\t\tEnd Case\n");
+                //printf("\t\t\t\t\t\t\t\t\t\t\t%i: End Case\n", getThreadID());
+                if (i > MAX_ADRESS) {
+                    i = 0;
+                    //IF val is being inserted first time, stop here
+                    if (!T[j].getV()) {
+                        return i;
+                    }
+                }
+
                 if(T[i].getR() > rem){dir = down;}
                 else if(T[i].getR() < rem){dir = up;}
                 else{
-                    //printf("\t\t\t\tEnd Else Case\n");
+                    //printf("\t\t\t\t\t\t\t\t\t\t\t%i: End Else Case\n", getThreadID());
                     dir = here;}
             }
-            //printf("\t\t\t\tRelevant Group: %" PRIu32 "\n", i);
+            //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Relevant Group: %" PRIu32 "\n", getThreadID(), i);
 
             //Look inside of the group
-            //printf("\t\t\t\tLook inside group\n");
+            //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Look inside group\n", getThreadID());
             switch (dir){
                 case here:
-                    //printf("\t\t\t\t\tHere\n");
+                    //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Here\n", getThreadID());
                     break;
 
                 case down:
                     while (dir != here) {
                         assert(i <= MAX_ADRESS);
-                        //printf("\t\t\t\t\tGoing Down" PRIu32 "\n", i);
+                        //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Going Down %" PRIu32 "\n", getThreadID(), i);
                         if (T[i].getC() == 1 || i == MIN_ADRESS) { dir = here; }
                         else {
                             i = i - 1;
@@ -166,7 +175,7 @@ class Cleary : public HashTable{
                 case up:
                     while (dir != here) {
                         assert(i <= MAX_ADRESS);
-                        //printf("\t\t\t\tGoing Up" PRIu32 "\n", i);
+                        //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Going Up %" PRIu32 "\n", getThreadID(), i);
                         if (i == MAX_ADRESS) {
                             dir = here;
                         }
@@ -223,14 +232,13 @@ class Cleary : public HashTable{
 
             //Find insertion index
             addtype i = findIndex(k);
+            //printf("\t\t\t\t\t\t\t%i: Index Found %" PRIu32 "\n", getThreadID(), i);
 
             //Check virgin bit and set
             if (!T[j].getV()) {
-                //printf("\t\t\t\t\t\t\t%i: Set VBit at %" PRIu32 "\n", threadIdx.x, j);
+                //printf("\t\t\t\t\t\t\t%i: Set VBit at %" PRIu32 "\n", getThreadID(), j);
                 T[j].setV(true);
-                //printf("\t\t\t\t\t\t\t%i: Set VBit  is set \n", getThreadID());
                 newgroup = true;
-                //printf("\t\t\t\t\t\t\t%i: New Group is set \n", getThreadID());
             }
 
             //printf("\t\t\t\t\t\t\t%i: Group Start/Groupend\n", getThreadID());
@@ -242,6 +250,7 @@ class Cleary : public HashTable{
             //Check whether i should be 0 (Check all smaller Vs
             //printf("\t\t\t\t\t\t\t\t\t\t%i: Check if i is 0 \n", getThreadID());
             bool setStart = false;
+            
             if (i == MIN_ADRESS && j != MIN_ADRESS && !T[MIN_ADRESS].getV()) {
                 setStart = true;
                 for (int x = 1; x < j; x++) {
@@ -272,7 +281,7 @@ class Cleary : public HashTable{
             //Decide to shift mem up or down
             //TODO: Maybe randomize
             int shift = 1;
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Prevent Overflows %" PRIu32 "\n", threadIdx.x, i);
+            //printf("\t\t\t\t\t\t\t\t\t\t%i: Prevent Overflows %" PRIu32 "\n", getThreadID(), i);
             //Prevent Overflows
             if (T[MAX_ADRESS].getO() && !T[MIN_ADRESS].getO()) {
                 shift = -1;
@@ -297,7 +306,7 @@ class Cleary : public HashTable{
             }
 
             //Edge cases where the location must be shifted
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Edge Cases %" PRIu32 "\n", threadIdx.x, i);
+            //printf("\t\t\t\t\t\t\t\t\t\t%i: Edge Cases %" PRIu32 "\n", getThreadID(), i);
             bool setC = false;
             if (shift == -1) {
                 //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift -1\n",getThreadID());
@@ -331,11 +340,11 @@ class Cleary : public HashTable{
             if (shift == 1) {
                 //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift 1\n", getThreadID());
                 if (groupend && (!newgroup) && (T[i].getR() < rem) && T[i].getO() && (i != MAX_ADRESS)) {
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 5:%" PRIu32 "\n",threadIdx.x ,i);
+                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 5:%" PRIu32 "\n",getThreadID(),i);
                     i++;
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Iter Case 5:%" PRIu32 "\n",threadIdx.x ,i);
+                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Iter Case 5:%" PRIu32 "\n",getThreadID(),i);
                     T[i].setC(false);
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: SetC 5:%" PRIu32 "\n",threadIdx.x ,i);
+                    //printf("\t\t\t\t\t\t\t\t\t\t%i: SetC 5:%" PRIu32 "\n",getThreadID(),i);
                     setC = true;
                     //printf("\t\t\t\t\t\t\t\t\t\t%i: Done Shift Case 5\n",getThreadID());
                 }
@@ -349,7 +358,7 @@ class Cleary : public HashTable{
                 }
             }
 
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Storing searchstart %" PRIu32 "\n", threadIdx.x, i);
+            //printf("\t\t\t\t\t\t\t\t\t\t%i: Storing searchstart %" PRIu32 "\n", getThreadID(), i);
 
             //Store where the search started for later
             addtype startloc = i;
@@ -358,14 +367,14 @@ class Cleary : public HashTable{
             //Check whether location is empty
             bool wasoccupied = T[i].getO();
 
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Storing old Values at %" PRIu32 "\n", threadIdx.x, i);
+            //printf("\t\t\t\t\t\t\t\t\t\t%i: Storing old Values at %" PRIu32 "\n", getThreadID(), i);
             //Store values at found location
             remtype R_old = T[i].getR();
             bool C_old = T[i].getC();
             bool O_old = T[i].getO();
 
             //Insert new values
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Setting new Values at %" PRIu32 "\n", threadIdx.x, i);
+            //printf("\t\t\t\t\t\t\t\t\t\t%i: Setting new Values at %" PRIu32 "\n", getThreadID(), i);
             T[i].setR(rem);
 
             T[i].setO(true);
@@ -376,7 +385,7 @@ class Cleary : public HashTable{
                 T[i].setC(newgroup);
             }
 
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Update C %" PRIu32 "\n", threadIdx.x, i);
+            //printf("\t\t\t\t\t\t\t\t\t\t%i: Update C %" PRIu32 "\n", getThreadID(), i);
             if (setC && shift == -1) { T[i].setC(true); }
             //Update C Value
             if (shift == 1 && !newgroup) {
@@ -384,10 +393,10 @@ class Cleary : public HashTable{
             }
 
             //If the space was occupied shift mem
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Shifting Mem from %" PRIu32 "\n", threadIdx.x, i);
+            //printf("\t\t\t\t\t\t\t\t\t\t%i: Shifting Mem from %" PRIu32 "\n", getThreadID(), i);
             if (wasoccupied) {
                 while (O_old) {
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift%" PRIu32 "\n", threadIdx.x, i);
+                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift%" PRIu32 "\n", getThreadID(), i);
                     i += shift;
                     assert(0<=i && i<=MAX_ADRESS);
                     //Store the values
@@ -414,7 +423,7 @@ class Cleary : public HashTable{
 
             if(A_UNDEFINED != 0){
             //Find the first well-defined A
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Find Start of Group %" PRIu32 "\n", threadIdx.x, i);
+            //printf("\t\t\t\t\t\t\t\t\t\t%i: Find Start of Group %" PRIu32 "\n", getThreadID(), i);
             addtype x = startloc;
             while(T[x].getA() == A_UNDEFINED && x!=MIN_ADRESS) {
                 x--;
@@ -424,10 +433,10 @@ class Cleary : public HashTable{
             }
 
             //Update the A values
-              //printf("\t\t\t\t\t\t\t\t\t\t%i: Updating A from %" PRIu32 "\n", threadIdx.x, x);
+              //printf("\t\t\t\t\t\t\t\t\t\t%i: Updating A from %" PRIu32 "\n", getThreadID(), x);
               int A_old = 0;
               while (T[x].getO() && x <= MAX_ADRESS) {
-                  //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Setting A %" PRIu32 "\n", threadIdx.x, x);
+                  //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Setting A %" PRIu32 "\n", getThreadID(), x);
                   assert(0<=x && x<=MAX_ADRESS);
                   //Update Based on C and V
                   if (T[x].getC()) {
@@ -507,11 +516,10 @@ class Cleary : public HashTable{
                 //__syncthreads();
                 counter++;
                 assert(0<=j && j<=MAX_ADRESS);
-                assert(counter < 30000);
-                //printf("\t\t\t\t\t\t\t\t%i: Sleeping %.6f \n", threadIdx.x, sleeptime);
+                //assert(counter < 30000);
 
                 //Try Non-Exclusive Write
-                //printf("\t\t\t\t\t\t\t\t%i: Trying Non-Exclusive Write at %" PRIu32 "\n", threadIdx.x, j);
+                //printf("\t\t\t\t\t\t\t\t%i: Trying Non-Exclusive Write at %" PRIu32 "\n", getThreadID(), j);
                 ClearyEntry<addtype, remtype> def(0, false, false, true, 0, false, false);
                 ClearyEntry<addtype, remtype> newval(rem, true, true, true, 0, false, false);
 
@@ -530,20 +538,20 @@ class Cleary : public HashTable{
                 assert(0<=right && right<=MAX_ADRESS);
 
                 if (!T[left].lock()) {
-                    //printf("\t\t\t\t\t\t\t\t%i: Left Failed at%" PRIu32 "\n", threadIdx.x, left);
+                    //printf("\t\t\t\t\t\t\t\t%i: Left Failed at%" PRIu32 "\n", getThreadID(), left);
                     //__nanosleep(1000);
                     continue;
                 }
-                //printf("\t\t\t\t\t\t\t\t%i: Left Retrieved at%" PRIu32 "\n", threadIdx.x, left);
-                //printf("\t\t\t\t\t\t\t\t%i: Trying Right at%" PRIu32 "\n", threadIdx.x, right);
+                //printf("\t\t\t\t\t\t\t\t%i: Left Retrieved at%" PRIu32 "\n", getThreadID(), left);
+                //printf("\t\t\t\t\t\t\t\t%i: Trying Right at%" PRIu32 "\n", getThreadID(), right);
                 if (!T[right].lock()) {
-                    //printf("\t\t\t\t\t\t\t\t%i: Right Failed at%" PRIu32 "\n", threadIdx.x, right);
+                    //printf("\t\t\t\t\t\t\t\t%i: Right Failed at%" PRIu32 "\n", getThreadID(), right);
                     T[left].unlock();
-                    //printf("\t\t\t\t\t\t\t\t%i: Left Unlocked at%" PRIu32 "\n", threadIdx.x, left);
+                    //printf("\t\t\t\t\t\t\t\t%i: Left Unlocked at%" PRIu32 "\n", getThreadID(), left);
                     //__nanosleep(1000);
                     continue;
                 }
-                //printf("\t\t\t\t\t\t\t\t%i: Right Retrieved at%" PRIu32 "\n", threadIdx.x, right);
+                //printf("\t\t\t\t\t\t\t\t%i: Right Retrieved at%" PRIu32 "\n", getThreadID(), right);
 
                 //Do a read
                 if (lookup(k)) {
@@ -551,8 +559,8 @@ class Cleary : public HashTable{
                     //printf("\t\tVal Already Exists\n");
                     T[left].unlock();
                     T[right].unlock();
-                    //printf("\t\t\t\t\t\t\t\t%i: Left Unlocked at%" PRIu32 "\n", threadIdx.x, left);
-                    //printf("\t\t\t\t\t\t\t\t%i: Right Unlocked at%" PRIu32 "\n", threadIdx.x, right);
+                    //printf("\t\t\t\t\t\t\t\t%i: Left Unlocked at%" PRIu32 "\n", getThreadID(), left);
+                    //printf("\t\t\t\t\t\t\t\t%i: Right Unlocked at%" PRIu32 "\n", getThreadID(), right);
                     return false;
                 }
 
@@ -561,8 +569,8 @@ class Cleary : public HashTable{
                 bool res = insertIntoTable(k);
                 T[left].unlock();
                 T[right].unlock();
-                //printf("\t\t\t\t\t\t\t\t%i: Left Unlocked at%" PRIu32 "\n", threadIdx.x, left);
-                //printf("\t\t\t\t\t\t\t\t%i: Right Unlocked at%" PRIu32 "\n", threadIdx.x, right);
+                //printf("\t\t\t\t\t\t\t\t%i: Left Unlocked at%" PRIu32 "\n", getThreadID(), left);
+                //printf("\t\t\t\t\t\t\t\t%i: Right Unlocked at%" PRIu32 "\n", getThreadID(), right);
                 //printf("\t\t\t\t\t\t\t\t%i: Insertion Success\n", getThreadID());
                 //printf("\tAfterInsertion");
                 return res;
