@@ -132,7 +132,7 @@ public:
 
     //Need to do with CAS
     GPUHEADER
-    bool lock() {
+    bool lock(bool edgeVal) {
 #ifdef GPUCODE
         //Store old TableEntry<ADD, REM>::value
         uint64_cu oldval = TableEntry<ADD, REM>::val;
@@ -148,6 +148,12 @@ public:
         uint64_cu newval = TableEntry<ADD, REM>::val.load();
         TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], 1, &newval, false);
 #endif
+        if (!edgeVal) {
+            if (TableEntry<ADD, REM>::getBits(Oindex[0], Oindex[1], &oldval)) {
+                printf("\t\t\tValue updated Recently\n");
+                return false;
+            }
+        }
 
         //If Lockbit was set return false
         if (TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1], &oldval)) {
@@ -169,7 +175,7 @@ public:
                 return false;
             }
         #else
-            bool res = std::atomic_compare_exchange_weak(TableEntry<ADD, REM>::getAtomValPtr(), &oldval, newval);
+            bool res = std::atomic_compare_exchange_strong(TableEntry<ADD, REM>::getAtomValPtr(), &oldval, newval);
             return res;
         #endif
     }
@@ -204,7 +210,7 @@ public:
                 return true;
             }
           #else
-              bool res = std::atomic_compare_exchange_weak(TableEntry<ADD, REM>::getAtomValPtr(), &oldval, newval);
+              bool res = std::atomic_compare_exchange_strong(TableEntry<ADD, REM>::getAtomValPtr(), &oldval, newval);
               return res;
           #endif
 
@@ -229,7 +235,7 @@ public:
         #else
         uint64_cu oldval = (*comp).getValue();
         uint64_cu newval = (*swap).getValue();
-        bool res = std::atomic_compare_exchange_weak(TableEntry<ADD, REM>::getAtomValPtr(), &oldval, newval);
+        bool res = std::atomic_compare_exchange_strong(TableEntry<ADD, REM>::getAtomValPtr(), &oldval, newval);
         newval = oldval;
         #endif
         return newval;

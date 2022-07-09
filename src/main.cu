@@ -299,7 +299,7 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0, int id = 0, 
             break;
             //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
         }
-        //H->print();
+        H->print();
     }
     //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
 }
@@ -473,7 +473,7 @@ void lockTestDevice(ClearyEntry<addtype, remtype>* T){
 
     while (true) {
         printf("\tGetting First Lock\n");
-        if (!T[left].lock()) {
+        if (!T[left].lock(false)) {
             printf("\tFirst Lock Failed\n");
                 continue;
         }
@@ -482,7 +482,7 @@ void lockTestDevice(ClearyEntry<addtype, remtype>* T){
         T[left].print();
 
         printf("\tGetting Second Lock\n");
-        if (!T[right].lock()) {
+        if (!T[right].lock(false)) {
             printf("\tSecond Lock Failed\n");
                 printf("\tAbort Locking\n");
             T[left].unlock();

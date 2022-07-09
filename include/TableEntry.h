@@ -59,7 +59,7 @@ protected:
             uint64_cu oldval = (*loc).load();
             uint64_cu newval = setValBits(start, end, ins, loc);
 
-            if (std::atomic_compare_exchange_weak(loc, &oldval, newval)) {
+            if (std::atomic_compare_exchange_strong(loc, &oldval, newval)) {
                 break;
             }
         }
