@@ -299,7 +299,7 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0, int id = 0, 
             break;
             //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
         }
-        H->print();
+        //H->print();
     }
     //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
 }

@@ -150,7 +150,7 @@ public:
 #endif
         if (!edgeVal) {
             if (TableEntry<ADD, REM>::getBits(Oindex[0], Oindex[1], &oldval)) {
-                printf("\t\t\tValue updated Recently\n");
+                //printf("\t\t\tValue updated Recently\n");
                 return false;
             }
         }
