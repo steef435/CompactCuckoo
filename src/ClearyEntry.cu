@@ -43,8 +43,8 @@ public:
         #ifdef GPUCODE
             uint64_cu old = atomicExch(TableEntry<ADD, REM>::getValPtr(), x->getValue());
         #else
-            old = *(TableEntry<ADD, REM>::getValPtr()).exchange(getValue());
-        #endif  
+            uint64_cu old = *(TableEntry<ADD, REM>::getValPtr()).exchange(x->getValue());
+        #endif
         //Return an entry with prev val
         x->setValue(old);
         return;
@@ -162,7 +162,7 @@ public:
         }
         //printf("\t\t\t\t\t\t\t\t\t Lock-Swapping\n");
         //Swap if the old value hasn't changed
-        
+
         #ifdef GPUCODE
             uint64_cu res = atomicCAS(TableEntry<ADD, REM>::getValPtr(), oldval, newval);
 
@@ -214,7 +214,7 @@ public:
               return res;
           #endif
 
-          
+
         }
     }
 

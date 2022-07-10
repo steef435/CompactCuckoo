@@ -50,7 +50,7 @@ protected:
             *loc = newval;
             return;
     }
-    
+
     GPUHEADER
         void setBits(int start, int end, uint64_cu ins, std::atomic<uint64_cu>* loc, bool onDevice = true) {
         //printf("\t\t\tSetting Bits\n");
@@ -153,7 +153,7 @@ protected:
 #else
         return val.load();
 #endif
-        
+
     }
 
     GPUHEADER
@@ -187,7 +187,7 @@ public:
 #else
         std::atomic_init(&val, 0);
 #endif
-        
+
     }
 
     GPUHEADER
@@ -205,9 +205,9 @@ public:
         #ifdef  GPUCODE
         uint64_cu old =  atomicExch(&val, x->getValue());
         #else
+        int64_cu old = val.load();
         val.exchange(x->getValue());
         #endif
-        //Return an entry with prev val
         x->setValue(old);
         return;
     }
