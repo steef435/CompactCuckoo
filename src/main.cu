@@ -343,7 +343,7 @@ void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int id = 0, int s
 }
 
 
-bool TestFill(int N, int T, int tablesize, uint64_cu* vals) {
+bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c, bool cc) {
     bool testres = true;
 
     //Init Var
@@ -353,23 +353,25 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals) {
     #else
     bool* res = new bool;
     #endif
+    int numThreads = std::pow(2, T);
 
 	//Create Table 1
-    #ifdef GPUCODE
-    ClearyCuckoo* cc;
-    gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
-    new (cc) ClearyCuckoo(tablesize, 16);
-    #else
-    ClearyCuckoo* cc = new ClearyCuckoo(tablesize, 16);
-    #endif
+    if (cc) {
+#ifdef GPUCODE
+        ClearyCuckoo* cc;
+        gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
+        new (cc) ClearyCuckoo(tablesize, 16);
+#else
+        ClearyCuckoo* cc = new ClearyCuckoo(tablesize, 16);
+#endif
 
-    printf("Filling ClearyCuckoo\n");
-    #ifdef GPUCODE
+        printf("Filling ClearyCuckoo\n");
+#ifdef GPUCODE
         fillClearyCuckoo << <1, 1 >> > (N, vals, cc);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
-    #else
-        int numThreads = std::pow(2, T);
+#else
+        
         std::vector<std::thread> vecThread1(numThreads);
 
         for (int i = 0; i < numThreads; i++) {
@@ -380,44 +382,51 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals) {
         for (int i = 0; i < numThreads; i++) {
             vecThread1.at(i).join();
         }
-    #endif
-    printf("Devices Synced\n");
-    cc->print();
+#endif
+        printf("Devices Synced\n");
+        cc->print();
 
-    //Check Table
-    res[0] = true;
-    printf("Checking Cleary-Cuckoo\n");
-    #ifdef GPUCODE
+        //Check Table
+        res[0] = true;
+        printf("Checking Cleary-Cuckoo\n");
+#ifdef GPUCODE
         checkClearyCuckoo << <1, 1 >> > (N, vals, cc, res);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
-    #else
+#else
         checkClearyCuckoo(N, vals, cc, res);
-    #endif
-    printf("Devices Synced\n");
-    if (res[0]) {
-        printf("All still in the table\n");
-    }
-    else {
-        //testres = false;
-        printf("!---------------------Vals Missing---------------------!\n");
+#endif
+        printf("Devices Synced\n");
+        if (res[0]) {
+            printf("All still in the table\n");
+        }
+        else {
+            //testres = false;
+            printf("!---------------------Vals Missing---------------------!\n");
+        }
+#ifdef GPUCODE
+        gpuErrchk(cudaFree(cc));
+#else
+        delete cc;
+#endif
     }
 
-	//Create Table 2
-    #ifdef GPUCODE
+    if (c) {
+        //Create Table 2
+#ifdef GPUCODE
         Cleary* c;
         gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
         new (c) Cleary(tablesize);
-    #else
+#else
         Cleary* c = new Cleary(tablesize);
-    #endif
+#endif
 
-    printf("Filling Cleary\n");
-    #ifdef GPUCODE
+        printf("Filling Cleary\n");
+#ifdef GPUCODE
         fillCleary << <1, 1 > >> (N, vals, c);
-        gpuErrchk( cudaPeekAtLastError() );
-        gpuErrchk( cudaDeviceSynchronize() );
-    #else
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+#else
         std::vector<std::thread> vecThread2(numThreads);
 
         for (int i = 0; i < numThreads; i++) {
@@ -428,38 +437,40 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals) {
         for (int i = 0; i < numThreads; i++) {
             vecThread2.at(i).join();
         }
-    #endif
-    printf("Devices Synced\n");
-    c->print();
+#endif
+        printf("Devices Synced\n");
+        c->print();
 
-    //Checking
-    res[0] = true;
-    printf("Checking Cleary\n");
-    #ifdef GPUCODE
+        //Checking
+        res[0] = true;
+        printf("Checking Cleary\n");
+#ifdef GPUCODE
         checkCleary << <1, 1 >> > (N, vals, c, res);
-        gpuErrchk( cudaPeekAtLastError() );
-        gpuErrchk( cudaDeviceSynchronize() );
-    #else
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+#else
         checkCleary(N, vals, c, res);
-    #endif
-    printf("Devices Synced\n");
-    if (res[0]) {
-        printf("All still in the table\n");
-    }
-    else {
-        testres = false;
-        printf("!---------------------Vals Missing---------------------!\n");
+#endif
+        printf("Devices Synced\n");
+        if (res[0]) {
+            printf("All still in the table\n");
+        }
+        else {
+            testres = false;
+            printf("!---------------------Vals Missing---------------------!\n");
+        }
+#ifdef GPUCODE
+        gpuErrchk(cudaFree(c));
+#else
+        delete c;
+#endif
     }
 
     //Destroy Vars
     #ifdef GPUCODE
         gpuErrchk(cudaFree(res));
-        gpuErrchk(cudaFree(cc));
-        gpuErrchk(cudaFree(c));
     #else
         delete res;
-        delete cc;
-        delete c;
     #endif
 
         return testres;
@@ -537,7 +548,7 @@ void entryTest() {
     printf("Entry After R %" PRIu64 "\n", c.getR());
 }
 
-void Test(int N, int T, int L) {
+void Test(int N, int T, int L, bool c, bool cc) {
     bool res = true;
 
     const int addressSize = N;
@@ -554,7 +565,7 @@ void Test(int N, int T, int L) {
         printf("                              BASIC TEST                              \n");
         printf("==============================================================================================================\n");
         uint64_cu* testset1 = generateTestSet(testSize);
-        if (!TestFill(testSize, T, addressSize, testset1)) {
+        if (!TestFill(testSize, T, addressSize, testset1, c, cc)) {
             res = false;
         }
 #ifdef GPUCODE
@@ -567,7 +578,7 @@ void Test(int N, int T, int L) {
         printf("                            COLLISION TEST                            \n");
         printf("==============================================================================================================\n");
         uint64_cu* testset2 = generateCollidingSet(testSize, addressSize);
-        if (!TestFill(testSize, T, addressSize, testset2)) {
+        if (!TestFill(testSize, T, addressSize, testset2, c, cc)) {
             res = false;
         }
 #ifdef GPUCODE
@@ -887,12 +898,24 @@ int main(int argc, char* argv[])
     }
 
     if (strcmp(argv[1], "test") == 0) {
-        if (argc < 4) {
+        bool c = false;
+        bool cc = false;
+
+        if (argc < 5) {
             printf("Not Enough Arguments Passed\n");
-            printf("Required: TABLESIZE, NUM_THREADS, SAMPLES\n");
+            printf("Required: TABLESIZE, NUM_THREADS, SAMPLES, TABlETYPE (c cc ccc)\n");
             return 0;
         }
-        Test(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]));
+
+        std::string s = argv[5];
+        c = s == "c";
+        cc = s == "cc";
+        if (s == "ccc") {
+            c = true;
+            cc = true;
+        }
+
+        Test(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), c, cc);
     }
     else if (strcmp(argv[1], "benchmax") == 0) {
         if (argc < 6) {
