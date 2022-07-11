@@ -705,12 +705,13 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                             begin = std::chrono::steady_clock::now();
                             if (j >= WARMUP) {
                                 //printf("\t\tBegin: %i End:%i\n", setsize * j, setsize * (j+1));
-#ifdef GPUCODE
+#ifdef GPUCODE                  
+                                int numThreads = std::pow(2, T);
                                 fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
                                 gpuErrchk(cudaPeekAtLastError());
                                 gpuErrchk(cudaDeviceSynchronize());
 #else
-                                int numThreads = std::pow(2, T);
+                                int numThreads = T+1;
                                 std::vector<std::thread> vecThread(numThreads);
                                 for (int i = 0; i < numThreads; i++) {
                                     vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, setsize * (j - WARMUP), i, numThreads);
@@ -724,7 +725,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << std::pow(2, T) << "," << L << "," << H << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
+                                myfile << N << "," << numThreads << "," << L << "," << H << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
                             }
 
                         }
@@ -779,12 +780,14 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
 
                     begin = std::chrono::steady_clock::now();
                     if (j >= WARMUP) {
+                        
                         #ifdef GPUCODE
-                            fillCleary << <1, std::pow(2, T) >> > (setsize, vals, c, setsize* (j - WARMUP));
+                            int numThreads = std::pow(2, T);
+                            fillCleary << <1, numThreads >> > (setsize, vals, c, setsize* (j - WARMUP));
                             gpuErrchk(cudaPeekAtLastError());
                             gpuErrchk(cudaDeviceSynchronize());
                         #else
-                            int numThreads = std::pow(2, T);
+                            int numThreads = T+1;
                             std::vector<std::thread> vecThread(numThreads);
                             
                             for (int i = 0; i < numThreads; i++) {
@@ -798,7 +801,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                         #endif
                         //End the timer
                         end = std::chrono::steady_clock::now();
-                        myfile << N << "," << std::pow(2, T) << "," << -1 << "," << -1 << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
+                        myfile << N << "," << numThreads << "," << -1 << "," << -1 << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
                     }
 
                 }
