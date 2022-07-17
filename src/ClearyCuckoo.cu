@@ -60,27 +60,27 @@ class ClearyCuckoo : HashTable{
         int hn;
         int* hashlist;
 
-        __host__ __device__
+        GPUHEADER
         addtype getAdd(keytype key){
             hashtype mask = ((hashtype) 1 << AS) - 1;
             addtype add = key & mask;
             return add;
         }
 
-        __host__ __device__
+        GPUHEADER
             remtype getRem(keytype key) {
             remtype rem = key >> AS;
             return rem;
         }
 
-        __host__ __device__
+        GPUHEADER
         uint64_cu reformKey(addtype add, remtype rem){
             rem = rem << AS;
             rem += add;
             return rem;
         }
 
-        __host__ __device__
+        GPUHEADER
         void createHashList(int* list) {
             //printf("\tCreating Hashlist\n");
             for (int i = 0; i < hn; i++) {
@@ -89,7 +89,7 @@ class ClearyCuckoo : HashTable{
             return;
         }
 
-        __host__ __device__
+        GPUHEADER
             void iterateHashList(int* list) {
             //printf("\tUpdating Hashlist\n");
             for (int i = 0; i < hn; i++) {
@@ -98,7 +98,7 @@ class ClearyCuckoo : HashTable{
             return;
         }
 
-        __host__ __device__
+        GPUHEADER
         int getNextHash(int* ls, int curr) {
             for (int i = 0; i < hn; i++) {
                 if (ls[i] == curr) {
@@ -115,7 +115,7 @@ class ClearyCuckoo : HashTable{
             return ls[0];
         }
 
-        __host__ __device__
+        GPUHEADER
         bool containsHash(int* ls, int query) {
             for (int i = 0; i < hn; i++) {
                 if (ls[i] == query) {
@@ -128,7 +128,7 @@ class ClearyCuckoo : HashTable{
         /**
          * Function to label which hash function was used on this value
          **/
-        __host__ __device__
+        GPUHEADER
         bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int depth=0){
             //printf("\tInsertintoTable\n");
             keytype x = k;
@@ -151,7 +151,7 @@ class ClearyCuckoo : HashTable{
 
                 //Place new value
                 //printf("\tPlacing New Value\n");
-                ClearyCuckooEntry<addtype, remtype> entry = ClearyCuckooEntry<addtype, remtype>(rem, hash, true, false);
+                ClearyCuckooEntry<addtype, remtype> entry(rem, hash, true, false);
                 T[add].exchValue(&entry);
 
                 //Store the old value
@@ -187,7 +187,7 @@ class ClearyCuckoo : HashTable{
             return false;
         };
 
-        __host__ __device__
+        GPUHEADER
         bool rehash(int depth){
             //printf("Rehash\n");
             //Prevent recursion of rehashing
@@ -218,7 +218,7 @@ class ClearyCuckoo : HashTable{
             return true;
         };
 
-        __host__ __device__
+        GPUHEADER
         bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T){
             //printf("\t\tLookup %" PRIu64 "\n", k);
             for (int i = 0; i < hn; i++) {
@@ -249,8 +249,13 @@ class ClearyCuckoo : HashTable{
             hn = hashNumber;
 
             //printf("\tAllocating Memory\n");
+            #ifdef GPUCODE
             gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>)));
             gpuErrchk(cudaMallocManaged(&hashlist, hn * sizeof(int)));
+            #else
+            T = new ClearyCuckooEntry<addtype, remtype>[tablesize];
+            hashlist = new int[hn];
+            #endif
 
             //printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
@@ -267,24 +272,29 @@ class ClearyCuckoo : HashTable{
          */
         ~ClearyCuckoo(){
             //printf("Destroying Table\n");
-
+            #ifdef GPUCODE
             gpuErrchk(cudaFree(T));
             gpuErrchk(cudaFree(hashlist));
+            #else
+            delete[] T;
+            delete[] hashlist;
+            #endif
         }
 
-        __device__ __host__
+        GPUHEADER
         bool insert(uint64_cu k){
             //Succesful Insertion
             //printf("\tInserting val %" PRIu64 "\n", k);
             if(insertIntoTable(k,T,0)){
                 //Reset the Hash Counter
                 hashcounter = 0;
+                //print();
                 return true;
             }
             return false;
         };
 
-        __host__ __device__
+        GPUHEADER
         bool rehash(){
             //Local counter for number of rehashes
             while(!rehash(0) && hashcounter<MAXREHASHES){
@@ -298,24 +308,24 @@ class ClearyCuckoo : HashTable{
             return true;
         }
 
-        __host__ __device__
+        GPUHEADER
         bool lookup(uint64_cu k){
             return lookup(k, T);
         };
 
-        __host__ __device__
+        GPUHEADER
         void clear(){
             for(int i=0; i<tablesize; i++){
-                T[i] = ClearyCuckooEntry<addtype, remtype>();
+                new (&T[i]) ClearyCuckooEntry<addtype, remtype>();
             }
         }
 
-        __host__ __device__
+        GPUHEADER
         int getSize(){
             return tablesize;
         }
 
-        __host__ __device__
+        GPUHEADER
         void print(){
             printf("----------------------------------------------------------------\n");
             printf("|    i     |     R[i]       | O[i] |        key         |label |\n");
@@ -334,7 +344,7 @@ class ClearyCuckoo : HashTable{
             printf("------------------------------------------------------------\n");
         }
 
-        __host__ __device__
+        GPUHEADER
         void debug(uint64_cu i) {
 
         }

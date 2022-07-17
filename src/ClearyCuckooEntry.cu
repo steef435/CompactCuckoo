@@ -15,8 +15,8 @@ private:
     int Oindex[2] = { 63, 63 };
 
 public:
-    __host__ __device__
-    ClearyCuckooEntry(REM R, int H, bool O, bool onDevice=true) {
+    GPUHEADER
+    ClearyCuckooEntry ( REM R, int H, bool O, bool onDevice=true) noexcept {
         TableEntry<ADD, REM>::val= 0;
         setR(R, onDevice);
         setH(H, onDevice);
@@ -24,18 +24,26 @@ public:
         return;
     }
 
-    __host__ __device__
-    ClearyCuckooEntry() {
+    GPUHEADER
+    ClearyCuckooEntry() noexcept {
         TableEntry<ADD, REM>::val = 0;
         return;
     }
 
 
-    __host__ __device__
+    GPUHEADER
     void exchValue(ClearyCuckooEntry* x) {
+        //printf("Exchanging Values");
         //Atomically set this TableEntry<ADD, REM>::value to the new one
         //printf("\t\tBefore: %" PRIu64 ", %" PRIu64 "\n", TableEntry<ADD, REM>::val, x->getValue());
+        #ifdef  __CUDA_ARCH__
         uint64_cu old = atomicExch(TableEntry<ADD, REM>::getValPtr(), x->getValue());
+        #else
+        //printf("Before: atom:%" PRIu64 "\n", (*(TableEntry<ADD, REM>::getAtomValPtr())).load());
+        //printf("Before: val :%" PRIu64 "\n", x->getValue());
+        uint64_cu old = (*(TableEntry<ADD, REM>::getAtomValPtr())).exchange(x->getValue());
+        //printf("After: atom:%" PRIu64 "\n", (*(TableEntry<ADD, REM>::getAtomValPtr())).load());
+        #endif
         //Return an entry with prev TableEntry<ADD, REM>::val
         x->setValue(old);
         //printf("\t\tAfter: %" PRIu64 ", %" PRIu64 "\n", TableEntry<ADD, REM>::val, x->getValue());
@@ -43,43 +51,52 @@ public:
     }
 
 
-    __host__ __device__
+    GPUHEADER
     void setR(REM x, bool onDevice=true) {
+        //printf("\t\tSetting R to %" PRIu64  "\n", x);
         TableEntry<ADD, REM>::setBits(Rindex[0], Rindex[1], x, onDevice);
+        //printf("\t\tR is Set:%" PRIu64  "\n", TableEntry<ADD, REM>::val.load());
         return;
 
     }
 
-    __host__ __device__
+    GPUHEADER
     REM getR() {
         return (REM)TableEntry<ADD, REM>::getBits(Rindex[0], Rindex[1]);
     }
 
-    __host__ __device__
+    GPUHEADER
     void setH(int x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Hindex[0], Hindex[1], x, onDevice);
         return;
     }
 
-    __host__ __device__
+    GPUHEADER
     int getH() {
         return (int) TableEntry<ADD, REM>::getBits(Hindex[0], Hindex[1]);
     }
 
-    __host__ __device__
+    GPUHEADER
     void setO(bool x, bool onDevice = true) {
+        //printf("\t\tSetting O to %i\n", x);
         TableEntry<ADD, REM>::setBits(Oindex[0], Oindex[1], x, onDevice);
+        //printf("\t\tO is Set:%" PRIu64  "\n", TableEntry<ADD, REM>::val.load());
+        //printf("\t\tO is Set:%i\n", getO());
         return;
     }
 
-    __host__ __device__
+    GPUHEADER
     bool getO() {
         return (bool)TableEntry<ADD, REM>::getBits(Oindex[0], Oindex[1]);
     }
 
-    __host__ __device__
+    GPUHEADER
     void print() {
+#ifdef GPUCODE
         printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val);
+#else
+        printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val.load());
+#endif
         return;
     }
 
