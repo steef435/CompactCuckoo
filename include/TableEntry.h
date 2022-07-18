@@ -52,7 +52,7 @@ protected:
     }
 
     GPUHEADER
-        void setBits(int start, int end, uint64_cu ins, std::atomic<uint64_cu>* loc, bool onDevice = true) {
+    void setBits(int start, int end, uint64_cu ins, std::atomic<uint64_cu>* loc, bool onDevice = true) {
         //printf("\t\t\tSetting Bits\n");
         while (true) {
 
@@ -76,14 +76,11 @@ protected:
 
             //In devices, atomically exchange
             if (onDevice) {
-                printf("\t\t\t\t\t\t\t\t\t\t%i: Trying to write\n", threadIdx.x);
                 uint64_cu res = atomicCAS(loc, oldval, newval);
                 //Make sure the value hasn't changed in the meantime
                 if (res == oldval) {
-                    printf("\t\t\t\t\t\t\t\t\t\t%i: Write Success\n", threadIdx.x);
                     return;
                 }
-                printf("\t\t\t\t\t\t\t\t\t\t%i: Write Failed\n", threadIdx.x);
                 continue;
             }
             else {

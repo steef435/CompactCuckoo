@@ -10,6 +10,9 @@
 #include <sstream>
 #include <thread>
 
+#include <cuda.h>
+#include <curand_kernel.h>
+
 #include "int_cu.h"
 
 
@@ -55,6 +58,7 @@ remtype getRem(keytype key, int AS) {
     return rem;
 }
 
+__host__ __device__
 bool contains(uint64_cu* arr, uint64_cu val, int index) {
     for (int i = 0; i < index; i++) {
         if (val == arr[i]) {
@@ -87,6 +91,82 @@ uint64_cu* generateTestSet(int size) {
         }
     }
     return res;
+}
+
+__global__ 
+void setup_kernel(int seed, curandState* state) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    curand_init(seed, idx, 0, &state[idx]);
+}
+
+__global__
+void firstPassGenSet(curandState* state, uint64_cu* res, int N) {
+    int index = threadIdx.x;
+    int stride = blockDim.x;
+
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    curandState localState = state[idx];
+
+    for (int i = index; i < N; i += stride) {
+        printf("Index: %i\n", i);
+        float myrandf = curand_uniform(&localState);
+        uint64_cu newval = myrandf * std::llround(std::pow(2, 58));
+
+        res[i] = newval;
+    }
+    return;
+}
+
+__global__
+void secondPassGenSet(curandState* state, uint64_cu* res, int N) {
+    int index = threadIdx.x;
+    int stride = blockDim.x;
+
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    curandState localState = state[idx];
+
+    for (int i = index; i < N; i += stride) {
+        printf("Index: %i\n", i);
+        if (contains(res, res[i], i)) {
+            while (true) {
+                float myrandf = curand_uniform(&localState);
+                uint64_cu newval = myrandf * std::llround(std::pow(2, 58));
+                //Check if new in table
+                if (!contains(res, newval, i)) {
+                    res[i] = newval;
+                    break;
+                }
+            }
+        }
+    }
+    return;
+}
+
+uint64_cu* generateTestSetParallel(int size, int NUM_THREADS) {
+
+    //Init States
+    curandState* states;
+    gpuErrchk(cudaMallocManaged(&states, sizeof(curandState) * NUM_THREADS));
+
+    const auto p1 = std::chrono::system_clock::now();
+    setup_kernel << < 1, NUM_THREADS >> > (std::chrono::duration_cast<std::chrono::microseconds>(p1.time_since_epoch()).count(), states);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
+    //Result array
+    uint64_cu* res;
+    gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
+
+    firstPassGenSet << <1, NUM_THREADS >> > (states, res, size);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
+    secondPassGenSet << <1, NUM_THREADS >> > (states, res, size);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
+    return res;
+
 }
 
 __host__ __device__
@@ -134,42 +214,6 @@ uint64_cu* generateCollidingSet(int size, int N) {
     }
 
     return res;
-}
-
-template <typename T>
-void exportToCSV(std::vector<std::vector<T>>* matrix, std::string name) {
-    std::ofstream myfile;
-    std::string filename = "results/" + name + ".csv";
-    myfile.open(filename);
-    if (myfile.is_open()) {
-        for (int i = 0; i < matrix->size(); i++) {
-            for (int j = 0; j < matrix->at(0).size(); j++) {
-                myfile << (*matrix)[i][j] << ",";
-            }
-            myfile << "\n";
-        }
-        myfile.close();
-    }
-    else {
-        std::cout << "Failed to open file : \n";
-    }
-}
-
-template <typename T>
-void exportToCSV(std::vector<std::vector<std::vector<T>>>* matrix, std::string name) {
-    std::ofstream myfile;
-    std::string filename = "results/" + name + ".csv";
-    myfile.open(filename);
-    if (myfile.is_open()) {
-        for (int i = 0; i < matrix->size(); i++) {
-            for (int j = 0; j < matrix->at(0).size(); j++) {
-                for (int k = 0; k < (matrix->at(0)).at(0).size(); k++) {
-                    myfile << i << "," << j << "," << k << "," << ((*matrix)[i][j])[k] << "\n";
-                }
-            }
-        }
-        myfile.close();
-    }
 }
 
 
@@ -241,15 +285,11 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin=0, 
     int stride = s;
 #endif
     
-    //printf("\t\t\t\t\t\tStarting Thread %i\n", getThreadID());
     for (int i = index+begin; i < N+begin; i += stride) {
-        //printf("\t\t\t\tCC Index:%i\n", i);
         if (!(H->insert(vals[i]))) {
-            //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
             break;
         }
     }
-    //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
 }
 
 #ifdef GPUCODE
@@ -264,19 +304,16 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupanc
     int stride = s;
 #endif
 
-    //printf("\t\t\t\t\t\tStarting Thread %i\n", getThreadID());
     for (int i = index; i < N; i += stride) {
         if (failFlag[0]) {
             break;
         }
         if (!(H->insert(vals[i]))) {
             atomicCAS(&(failFlag[0]), 0, 1);
-            //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
             break;
         }
         atomicAdd(&occupancy[0], 1);
     }
-    //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
 }
 #endif
 
@@ -291,17 +328,11 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin=0, int id = 0, 
     int stride = s;
 #endif
 
-    //printf("\t\t\t\t\t\tStarting Thread %i\n", getThreadID());
     for (int i = index+begin; i < N+begin; i += stride) {
-        //printf("Inserting %" PRIu64 "\n", vals[i]);
         if (!(H->insert(vals[i]))) {
-            //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
             break;
-            //printf("\t\t\t\t\t\tStopping Thread %i\n", index);
         }
-        //H->print();
     }
-    //printf("\t\t\t\t\t\tStopping Thread %i\n", getThreadID());
 }
 
 GPUHEADER_G
@@ -558,6 +589,11 @@ void Test(int N, int T, int L, bool c, bool cc) {
 
     //printf("Lock Test\n");
     //lockTest();
+    std::chrono::steady_clock::time_point begin;
+    std::chrono::steady_clock::time_point end;
+
+
+    begin = std::chrono::steady_clock::now();
 
     for (int i = 0; i < L; i++) {
 
@@ -596,11 +632,14 @@ void Test(int N, int T, int L, bool c, bool cc) {
         }
     }
 
+    end = std::chrono::steady_clock::now();
+
     if (res) {
         printf("==============================================================================================================\n");
         printf("                                             ALL TESTS PASSED                                                 \n");
         printf("==============================================================================================================\n");
     }
+    std::cout << "Time Running:" << (std::chrono::duration_cast<std::chrono::seconds> (end - begin).count());
 }
 
 
@@ -611,7 +650,7 @@ void Test(int N, int T, int L, bool c, bool cc) {
  * ================================================================================================================
 */
 
-void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES, std::vector<std::string>* params = nullptr) {
+void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES, std::vector<std::string>* params = nullptr) {
 
     const int WARMUP = 2;
 
@@ -642,9 +681,14 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
         myfile << "tablesize,numthreads,loops,hashes,samples,type,interval,time\n";
     }
 
+    printf("=====================================================================\n");
+    printf("                     Starting Cleary-Cuckoo                \n\n");
+
+    int NUM_GEN_THREADS = 256;
+
     //Tablesizes
     bool setup = true;
-    for (int N = 5; N < 5 + NUM_TABLES; N++) {
+    for (int N = NUM_TABLES_start; N < NUM_TABLES_start + NUM_TABLES; N++) {
         if (params && setup) {
             N = std::stoi(params->at(0));
         }
@@ -659,28 +703,26 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                 T = std::stoi(params->at(1));
             }
             printf("\tNumber of Threads:%i\n", T);
-
+            //Number of Loops
             for (int L = 0; L < NUM_LOOPS; L++) {
+                int numThreads = std::pow(2, T);
+
                 if (params && setup) {
                     L = std::stoi(params->at(2));
                 }
                 printf("\t\tNumber of Loops:%i\n", L);
-
+                //Number of Hashes
                 for (int H = 1; H < NUM_HASHES; H++) {
                     if (params && setup) {
                         H = std::stoi(params->at(3));
                     }
-                    printf("\t\t\tNumber of Hashes:%i\n", H);
                     //Number of samples
                     for (int S = 0; S < NUM_SAMPLES; S++) {
-                        //printf("\t\t\t\tSample Number:%i\n", S);
                         if (params && setup) {
                             S = std::stoi(params->at(4));
                         }
                         setup = false;
-                        //printf("\t\t\t\t\tGenVals\n");
-                        uint64_cu* vals = generateTestSet(size);
-                        //printf("\t\t\t\t\tInitCC\n");
+                        uint64_cu* vals = generateTestSetParallel(size, NUM_GEN_THREADS);
                         //Init Cleary Cuckoo
 
 #ifdef GPUCODE
@@ -694,19 +736,14 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                         cc->setMaxLoops(L);
 
                         //Loop over intervals
-                        //printf("\t\t\t\t\tFilling\n");
                         for (int j = 0; j < INTERVAL + WARMUP; j++) {
                             //Fill the table
-                            //printf("\t\t\t\t\t\tFilling ClearyCuckoo\n");
-                            //Start the Timer
                             std::chrono::steady_clock::time_point begin;
                             std::chrono::steady_clock::time_point end;
 
                             begin = std::chrono::steady_clock::now();
                             if (j >= WARMUP) {
-                                //printf("\t\tBegin: %i End:%i\n", setsize * j, setsize * (j+1));
 #ifdef GPUCODE                  
-                                int numThreads = std::pow(2, T);
                                 fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
                                 gpuErrchk(cudaPeekAtLastError());
                                 gpuErrchk(cudaDeviceSynchronize());
@@ -729,7 +766,6 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                             }
 
                         }
-                        //printf("\t\t\t\t\tFreeVals\n");
 #ifdef GPUCODE
                         gpuErrchk(cudaFree(cc));
                         gpuErrchk(cudaFree(vals));
@@ -743,7 +779,10 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
         }
     }
 
-    for (int N = 5; N < 5+NUM_TABLES; N++) {
+    printf("=====================================================================\n");
+    printf("                     Starting Cleary                \n\n");
+
+    for (int N = NUM_TABLES_start; N < NUM_TABLES_start + NUM_TABLES; N++) {
         if (params && setup) {
             N = std::stoi(params->at(0));
         }
@@ -755,10 +794,8 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
             printf("\tNumber of Threads:%i\n", T);
             for (int S = 0; S < NUM_SAMPLES; S++) {
                 printf("\t\t\t\tSample Number:%i\n", S);
-                //printf("\t\t\t\t\tGenVals\n");
-                uint64_cu* vals = generateTestSet(size);
+                uint64_cu* vals = generateTestSetParallel(size, NUM_GEN_THREADS);
 
-                //printf("\t\t\t\t\tInitC\n");
                 //Init Cleary
                 #ifdef GPUCODE
                 Cleary* c;
@@ -769,15 +806,11 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                 #endif
 
                 //Loop over intervals
-                //printf("\t\t\t\t\tFilling\n");
                 for (int j = 0; j < INTERVAL + WARMUP; j++) {
                   std::chrono::steady_clock::time_point begin;
                   std::chrono::steady_clock::time_point end;
 
                     //Fill the table
-                    //printf("\t\t\t\t\t\tFilling Cleary\n");
-                    //Start the Timer
-
                     begin = std::chrono::steady_clock::now();
                     if (j >= WARMUP) {
                         
@@ -805,7 +838,6 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
                     }
 
                 }
-                //printf("\t\t\t\t\tFreeVals\n");
                 #ifdef GPUCODE
                 gpuErrchk(cudaFree(c));
                 gpuErrchk(cudaFree(vals));
@@ -818,7 +850,7 @@ void BenchmarkFilling(int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THR
     }
 
     myfile.close();
-    printf("\t\t\tBenchmark Done\n");
+    printf("\nBenchmark Done\n");
 }
 
 void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NUM_SAMPLES) {
@@ -890,7 +922,7 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
 
     myfile.close();
 
-    printf("\t\t\tStarting MAX Occupancy Benchmark\n");
+    printf("\n\nBenchmark Done\n");
 }
 
 
@@ -929,25 +961,37 @@ int main(int argc, char* argv[])
         BenchmarkMaxOccupancy(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]));
     }
     else if (strcmp(argv[1], "benchfill") == 0) {
-        if (argc < 6) {
+        if (argc < 7) {
             printf("Not Enough Arguments Passed\n");
-            printf("Required: NUM_TABLES, INTERVAL, NUM_SAMPLES, NUM_THREADS, NUM_LOOPS, NUM_HASHES\n");
+            printf("Required: NUM_TABLES start, end, INTERVAL, NUM_SAMPLES, NUM_THREADS, NUM_LOOPS, NUM_HASHES\n");
             return 0;
         }
         else if (strcmp(argv[2], "continue") == 0) {
             printf("Continuing from Last Position\n");
             std::vector<std::string>* lastargs = getLastArgs("results/benchfill.csv");
 
-            BenchmarkFilling(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), lastargs);
+            BenchmarkFilling(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), lastargs);
             delete lastargs;
             return 0;
         }
 
-        BenchmarkFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]));
+        BenchmarkFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]));
     }
 
     else if (strcmp(argv[1], "debug") == 0) {
+        int NUM_THREADS = 8;
 
+        uint64_cu* test = generateTestSetParallel(16, NUM_THREADS);
+        printf("Generated:\n");
+        for (int i = 0; i < 16; i++) {
+            printf("%" PRIu64 "\n", test[i]);
+        }
+
+        uint64_cu* test2 = generateTestSetParallel(24, NUM_THREADS);
+        printf("Generated:\n");
+        for (int i = 0; i < 16; i++) {
+            printf("%" PRIu64 "\n", test2[i]);
+        }
     }
 
     return 0;
