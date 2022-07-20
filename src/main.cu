@@ -100,15 +100,16 @@ void setup_kernel(int seed, curandState* state) {
 }
 
 __global__
-void firstPassGenSet(curandState* state, uint64_cu* res, int N) {
+void firstPassGenSet(curandState* state, uint64_cu* res, int N, int setsize, int begin) {
     int index = threadIdx.x;
     int stride = blockDim.x;
 
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     curandState localState = state[idx];
 
-    for (int i = index; i < N; i += stride) {
-        printf("Index: %i\n", i);
+    int maxVal = setsize + begin < N ? setsize + begin : N;
+
+    for (int i = index + begin; i < maxVal; i += stride) {
         float myrandf = curand_uniform(&localState);
         uint64_cu newval = myrandf * std::llround(std::pow(2, 58));
 
@@ -118,15 +119,20 @@ void firstPassGenSet(curandState* state, uint64_cu* res, int N) {
 }
 
 __global__
-void secondPassGenSet(curandState* state, uint64_cu* res, int N) {
+void secondPassGenSet(curandState* state, uint64_cu* res, int N, int setsize, int begin) {
+    //printf("Setsize: %i Begin:%i\n", setsize, begin);
+
     int index = threadIdx.x;
     int stride = blockDim.x;
 
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     curandState localState = state[idx];
 
-    for (int i = index; i < N; i += stride) {
-        printf("Index: %i\n", i);
+    int maxVal = setsize + begin < N ? setsize + begin : N;
+    //printf("MaxVal: %i\n", maxVal);
+
+    for (int i = index + begin; i < maxVal; i += stride) {
+        //printf("Index: %i\n", i);
         if (contains(res, res[i], i)) {
             while (true) {
                 float myrandf = curand_uniform(&localState);
@@ -148,6 +154,11 @@ uint64_cu* generateTestSetParallel(int size, int NUM_THREADS) {
     curandState* states;
     gpuErrchk(cudaMallocManaged(&states, sizeof(curandState) * NUM_THREADS));
 
+    int setsize = 128;
+    int split = (int) std::ceil((float)size / (float)setsize);
+    split = split == 0 ? 1 : split;
+
+    //Time For Seeding the Randomness
     const auto p1 = std::chrono::system_clock::now();
     setup_kernel << < 1, NUM_THREADS >> > (std::chrono::duration_cast<std::chrono::microseconds>(p1.time_since_epoch()).count(), states);
     gpuErrchk(cudaPeekAtLastError());
@@ -157,13 +168,21 @@ uint64_cu* generateTestSetParallel(int size, int NUM_THREADS) {
     uint64_cu* res;
     gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
 
-    firstPassGenSet << <1, NUM_THREADS >> > (states, res, size);
-    gpuErrchk(cudaPeekAtLastError());
-    gpuErrchk(cudaDeviceSynchronize());
+    //Fill With Values
+    for (int i = 0; i < split; i++) {
+        firstPassGenSet << <1, NUM_THREADS >> > (states, res, size, setsize, i * setsize);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+    }
 
-    secondPassGenSet << <1, NUM_THREADS >> > (states, res, size);
-    gpuErrchk(cudaPeekAtLastError());
-    gpuErrchk(cudaDeviceSynchronize());
+    //Check for Duplicates
+    /*
+    for (int i = 0; i < split; i++) {
+        secondPassGenSet << <1, NUM_THREADS >> > (states, res, size, setsize, i * setsize);
+        printf("New Set %i\n", i);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+    }*/
 
     return res;
 
@@ -697,6 +716,10 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
         int size = std::pow(2, N);
         int setsize = (int)(size / INTERVAL);
 
+        if (setsize == 0) {
+            printf("Error: Number of Intervals is greater than number of elements\n");
+        }
+
         //Number of Threads
         for (int T = 0; T < NUM_THREADS; T++) {
             if (params && setup) {
@@ -713,9 +736,11 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
                 printf("\t\tNumber of Loops:%i\n", L);
                 //Number of Hashes
                 for (int H = 1; H < NUM_HASHES; H++) {
+                    printf("\t\t\tNumber of Hashes:%i\n", H);
                     if (params && setup) {
                         H = std::stoi(params->at(3));
                     }
+
                     //Number of samples
                     for (int S = 0; S < NUM_SAMPLES; S++) {
                         if (params && setup) {
@@ -771,7 +796,7 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
                         gpuErrchk(cudaFree(vals));
 #else       
                         delete cc;
-                        delete[] vals;
+                        gpuErrchk(cudaFree(vals));
 #endif
                     }
                 }
@@ -843,7 +868,7 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
                 gpuErrchk(cudaFree(vals));
                 #else       
                 delete c;
-                delete[] vals;
+                gpuErrchk(cudaFree(vals));
                 #endif
             }
         }
@@ -981,16 +1006,10 @@ int main(int argc, char* argv[])
     else if (strcmp(argv[1], "debug") == 0) {
         int NUM_THREADS = 8;
 
-        uint64_cu* test = generateTestSetParallel(16, NUM_THREADS);
+        uint64_cu* test2 = generateTestSetParallel(10000, NUM_THREADS);
         printf("Generated:\n");
-        for (int i = 0; i < 16; i++) {
-            printf("%" PRIu64 "\n", test[i]);
-        }
-
-        uint64_cu* test2 = generateTestSetParallel(24, NUM_THREADS);
-        printf("Generated:\n");
-        for (int i = 0; i < 16; i++) {
-            printf("%" PRIu64 "\n", test2[i]);
+        for (int i = 0; i < 10000; i++) {
+            printf("%i: %" PRIu64 "\n",i, test2[i]);
         }
     }
 
