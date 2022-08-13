@@ -35,13 +35,6 @@ class ClearyCuckoo : HashTable{
 *  Global Variables
 *
 */
-
-    //Allows for easy changing of the types
-    using addtype = uint32_t;
-    using remtype = uint64_cu;
-    using hashtype = uint64_cu;
-    using keytype = uint64_cu;
-
     private:
         //Constant Vars
         const static int HS = 59;       //HashSize

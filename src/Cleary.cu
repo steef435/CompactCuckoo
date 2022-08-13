@@ -325,7 +325,7 @@ class Cleary : public HashTable{
 
             //Store where the search started for later
             addtype startloc = i;
-            assert(0<=i && i<=MAX_ADRESS);
+            boundaryAssert(i, MIN_ADRESS, MAX_ADRESS);
 
             //Check whether location is empty
             bool wasoccupied = T[i].getO();
@@ -361,7 +361,7 @@ class Cleary : public HashTable{
                 while (O_old) {
                     //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift%" PRIu32 "\n", getThreadID(), i);
                     i += shift;
-                    assert(0<=i && i<=MAX_ADRESS);
+                    boundaryAssert(i, MIN_ADRESS, MAX_ADRESS);
                     //Store the values
                     remtype R_temp = T[i].getR();
                     bool C_temp = T[i].getC();
@@ -400,7 +400,7 @@ class Cleary : public HashTable{
                 int A_old = 0;
                 while (T[x].getO() && x <= MAX_ADRESS) {
                     //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Setting A %" PRIu32 "\n", getThreadID(), x);
-                    assert(0<=x && x<=MAX_ADRESS);
+                    boundaryAssert(x, MIN_ADRESS, MAX_ADRESS);
                     //Update Based on C and V
                     if (T[x].getC()) {
                         A_old += 1;
@@ -478,7 +478,7 @@ class Cleary : public HashTable{
             while (true) {
                 //__syncthreads();
                 counter++;
-                assert(0<=j && j<=MAX_ADRESS);
+                boundaryAssert(j, MIN_ADRESS, MAX_ADRESS);
                 //assert(counter < 30000);
 
                 //Try Non-Exclusive Write
@@ -498,8 +498,8 @@ class Cleary : public HashTable{
                 addtype left = leftLock(j);
                 addtype right = rightLock(j);
 
-                assert(0<=left && left<=MAX_ADRESS);
-                assert(0<=right && right<=MAX_ADRESS);
+                boundaryAssert(left, MIN_ADRESS, MAX_ADRESS);
+                boundaryAssert(right, MIN_ADRESS, MAX_ADRESS);
 
                 if (!T[left].lock(left == MIN_ADRESS)) {
                     //printf("\t\t\t\t\t\t\t\t%i: Left Failed at%" PRIu32 "\n", getThreadID(), left);
@@ -556,7 +556,7 @@ class Cleary : public HashTable{
             };
 
             addtype i = findIndex(k);
-            assert(0<=i && i<=MAX_ADRESS);
+            boundaryAssert(i, MIN_ADRESS, MAX_ADRESS);
             //printf("\t\tFind Add   %" PRIu32 "\n", j);
             //printf("\t\tFind Index %" PRIu32 "\n", i);
 

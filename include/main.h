@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <thread>
 #include <sstream>
+#include <assert.h>
 
 /***
 * 
@@ -84,4 +85,8 @@ uint64_cu reformKey(addtype add, remtype rem, int AS) {
     rem = rem << AS;
     rem += add;
     return rem;
+}
+
+void boundaryAssert(int i, addtype min, addtype max) {
+    assert(min <= i && i <= max);
 }

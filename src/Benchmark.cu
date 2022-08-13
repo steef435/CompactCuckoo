@@ -17,9 +17,10 @@ void readList(uint64_cu* xs, int N, int numLoops, int T = 1, int id = 0) {
 
     for (int i = 0; i < numLoops; i++) {
         //printf("Reading List i:%i\n",i);
+        uint64_cu val = 0;
         for (int j = begin; j < end; j++) {
             //printf("Reading List j:%i\n", j);
-            uint64_cu val = xs[j];
+             val += xs[j];
         }
     }
 }
@@ -69,8 +70,6 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
 
     printf("=====================================================================\n");
     printf("                     Starting Cleary-Cuckoo                \n\n");
-
-    int NUM_GEN_THREADS = 256;
 
     //Tablesizes
     bool setup = true;
