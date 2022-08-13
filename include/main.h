@@ -2,8 +2,25 @@
 #include <thread>
 #include <sstream>
 
+/***
+* 
+* TYPES
+* 
+*/
+
 typedef long long int int64_cu;
 typedef unsigned long long int uint64_cu;
+
+using addtype = uint32_t;
+using remtype = uint64_cu;
+using hashtype = uint64_cu;
+using keytype = uint64_cu;
+
+/**
+*
+* GPU Debug Methods
+* 
+*/
 
 #ifndef GPUASSERT
 #define GPUASSERT
@@ -17,8 +34,6 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
    }
 }
 #endif
-
-//#define GPUCODE
 
 #ifdef GPUCODE
     #define GPUHEADER __host__ __device__
@@ -44,3 +59,29 @@ inline int getThreadID()
 #endif
 }
 #endif
+
+/**
+* 
+* OTHER HELPER METHODS
+* 
+*/
+
+GPUHEADER
+addtype getAdd(keytype key, int AS) {
+    hashtype mask = ((hashtype)1 << AS) - 1;
+    addtype add = key & mask;
+    return add;
+}
+
+GPUHEADER
+remtype getRem(keytype key, int AS) {
+    remtype rem = key >> AS;
+    return rem;
+}
+
+GPUHEADER
+uint64_cu reformKey(addtype add, remtype rem, int AS) {
+    rem = rem << AS;
+    rem += add;
+    return rem;
+}

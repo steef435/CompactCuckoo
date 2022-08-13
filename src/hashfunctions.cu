@@ -1,5 +1,10 @@
 #include <stdint.h>
-#include "int_cu.h"
+
+#ifndef MAIN
+#define MAIN
+#include "main.h"
+#endif
+
 
 using nodetype = uint64_cu;
 

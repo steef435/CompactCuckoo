@@ -19,7 +19,8 @@ else
 endif
 
 CPP_FILES = $(wildcard $(SRC_DIR)/*.cpp)
-CU_FILES  = $(wildcard $(SRC_DIR)/*.cu)
+CU_FILES  = $(wildcard $(SRC_DIR)/main.cu)
+
 
 H_FILES   = $(wildcard $(SRC_DIR)/*.h)
 CUH_FILES = $(wildcard $(SRC_DIR)/*.cuh)

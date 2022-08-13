@@ -5,13 +5,16 @@
 #include <iterator>
 #include <set>
 #include <inttypes.h>
+#include <atomic>
 #include <random>
 
 #include <curand.h>
 #include <curand_kernel.h>
 
-#include "int_cu.h"
-
+#ifndef MAIN
+#define MAIN
+#include "main.h"
+#endif
 
 #ifndef HASHTABLE
 #define HASHTABLE
@@ -60,25 +63,15 @@ class ClearyCuckoo : HashTable{
         int hn;
         int* hashlist;
 
-        GPUHEADER
-        addtype getAdd(keytype key){
-            hashtype mask = ((hashtype) 1 << AS) - 1;
-            addtype add = key & mask;
-            return add;
-        }
+        //Flags
+#ifdef GPUCODE
+        bool failFlag = false;
+        int occupation = 0;
+#else
+        std::atomic<bool> failFlag;
+        std::atomic<int> occupation;
+#endif
 
-        GPUHEADER
-            remtype getRem(keytype key) {
-            remtype rem = key >> AS;
-            return rem;
-        }
-
-        GPUHEADER
-        uint64_cu reformKey(addtype add, remtype rem){
-            rem = rem << AS;
-            rem += add;
-            return rem;
-        }
 
         GPUHEADER
         void createHashList(int* list) {
@@ -146,8 +139,8 @@ class ClearyCuckoo : HashTable{
             while(c < MAXLOOPS){
                 //Get the key of k
                 hashtype hashed1 = RHASH(hash, x);
-                addtype add = getAdd(hashed1);
-                remtype rem = getRem(hashed1);
+                addtype add = getAdd(hashed1, AS);
+                remtype rem = getRem(hashed1, AS);
 
                 //Place new value
                 //printf("\tPlacing New Value\n");
@@ -166,7 +159,7 @@ class ClearyCuckoo : HashTable{
                 }
 
                 //Otherwise rebuild the original key
-                hashtype h_old = reformKey(add, temp);
+                hashtype h_old = reformKey(add, temp, AS);
                 x = RHASH_INVERSE(oldhash, h_old);
 
                 //Hash with the next hash value
@@ -209,7 +202,7 @@ class ClearyCuckoo : HashTable{
                     new (&T[i]) ClearyCuckooEntry<addtype, remtype>();
 
                     //Insert
-                    hashtype h_old = reformKey(i, temp);
+                    hashtype h_old = reformKey(i, temp, AS);
                     keytype k_old = RHASH_INVERSE(oldhash, h_old);
                     insertIntoTable(k_old, T, depth+1);
                 }
@@ -223,8 +216,8 @@ class ClearyCuckoo : HashTable{
             //printf("\t\tLookup %" PRIu64 "\n", k);
             for (int i = 0; i < hn; i++) {
                 uint64_cu hashed1 = RHASH(hashlist[i], k);
-                addtype add = getAdd(hashed1);
-                remtype rem = getRem(hashed1);
+                addtype add = getAdd(hashed1, AS);
+                remtype rem = getRem(hashed1, AS);
                 if (T[add].getR() == rem && T[add].getO()) {
                     return true;
                 }
@@ -247,6 +240,9 @@ class ClearyCuckoo : HashTable{
             tablesize = (int) pow(2,AS);
 
             hn = hashNumber;
+
+            failFlag.store(false);
+            occupation.store(0);
 
             //printf("\tAllocating Memory\n");
             #ifdef GPUCODE
@@ -285,12 +281,17 @@ class ClearyCuckoo : HashTable{
         bool insert(uint64_cu k){
             //Succesful Insertion
             //printf("\tInserting val %" PRIu64 "\n", k);
+            if (failFlag.load() || occupation.load() == tablesize) {
+                return false;
+            }
             if(insertIntoTable(k,T,0)){
                 //Reset the Hash Counter
                 hashcounter = 0;
                 //print();
+                occupation += 1;
                 return true;
             }
+            failFlag.store(false);
             return false;
         };
 
@@ -326,6 +327,32 @@ class ClearyCuckoo : HashTable{
         }
 
         GPUHEADER
+        int* getHashlist() {
+            int* res = new int[3];
+            for (int i = 0; i < hn; i++) {
+                res[i] = hashlist[i];
+            }
+            return res;
+        }
+
+        void readEverything(int N) {
+            int j = 0;
+            int step = 1;
+
+            if (N < tablesize) {
+                step = std::ceil(((float)tablesize) / ((float)N));
+            }
+
+            for (int i = 0; i < N; i+=step) {
+                j += T[i%tablesize].getR();
+            }
+
+            if (j != 0) {
+                printf("Not all Zero\n");
+            }
+        }
+
+        GPUHEADER
         void print(){
             printf("----------------------------------------------------------------\n");
             printf("|    i     |     R[i]       | O[i] |        key         |label |\n");
@@ -335,7 +362,7 @@ class ClearyCuckoo : HashTable{
                 if(T[i].getO()){
                     remtype rem = T[i].getR();
                     int label = T[i].getH();
-                    hashtype h = reformKey(i, rem);
+                    hashtype h = reformKey(i, rem, AS);
                     keytype k = RHASH_INVERSE(label, h);
 
                     printf("|%-10i|%-16" PRIu64 "|%-6i|%-20" PRIu64 "|%-6i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
@@ -358,3 +385,65 @@ class ClearyCuckoo : HashTable{
         }
 
 };
+
+GPUHEADER_G
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin = 0, int id = 0, int s = 1)
+{
+#ifdef GPUCODE
+    int index = getThreadID();
+    int stride = blockDim.x;
+#else
+    int index = id;
+    int stride = s;
+#endif
+
+    for (int i = index + begin; i < N + begin; i += stride) {
+        if (!(H->insert(vals[i]))) {
+            break;
+        }
+    }
+}
+
+#ifdef GPUCODE
+GPUHEADER_G
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupancy, int* failFlag, int id = 0, int s = 1)
+{
+#ifdef GPUCODE
+    int index = getThreadID();
+    int stride = blockDim.x;
+#else
+    int index = id;
+    int stride = s;
+#endif
+
+    for (int i = index; i < N; i += stride) {
+        if (failFlag[0]) {
+            break;
+        }
+        if (!(H->insert(vals[i]))) {
+            atomicCAS(&(failFlag[0]), 0, 1);
+            break;
+        }
+        atomicAdd(&occupancy[0], 1);
+    }
+}
+#endif
+
+GPUHEADER_G
+void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res, int id = 0, int s = 1)
+{
+#ifdef GPUCODE
+    int index = getThreadID();
+    int stride = blockDim.x;
+#else
+    int index = id;
+    int stride = s;
+#endif
+
+    for (int i = index; i < N; i += stride) {
+        if (!(H->lookup(vals[i]))) {
+            printf("\tSetting Res:Val %" PRIu64 " Missing\n", vals[i]);
+            res[0] = false;
+        }
+    }
+}

@@ -1,5 +1,7 @@
-#include "int_cu.h"
-
+#ifndef MAIN
+#define MAIN
+#include "main.h"
+#endif
 
 #ifndef ENTRYINCLUDED
 #define ENTRYINCLUDED

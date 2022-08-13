@@ -12,7 +12,10 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-#include "int_cu.h"
+#ifndef MAIN
+#define MAIN
+#include "main.h"
+#endif
 
 #ifndef HASHTABLE
 #define HASHTABLE
@@ -26,12 +29,6 @@
 
 #include "ClearyEntry.cu"
 
-//Types to allow for changes
-
-using addtype = uint32_t;
-using remtype = uint64_cu;
-using hashtype = uint64_cu;
-using keytype = uint64_cu;
 
 //Enum for searching
 
@@ -67,30 +64,10 @@ class Cleary : public HashTable{
         int h1;
 
         GPUHEADER
-            addtype getAdd(keytype key) {
-            hashtype mask = ((hashtype)1 << AS) - 1;
-            addtype add = key & mask;
-            return add;
-        }
-
-        GPUHEADER
-            remtype getRem(keytype key) {
-            remtype rem = key >> AS;
-            return rem;
-        }
-
-        GPUHEADER
-            uint64_cu reformKey(addtype add, remtype rem) {
-            rem = rem << AS;
-            rem += add;
-            return rem;
-        }
-
-        GPUHEADER
         addtype findIndex(uint64_cu k){           
             hashtype h = RHASH(h1, k);
-            addtype j = getAdd(h);
-            remtype rem = getRem(h);
+            addtype j = getAdd(h, AS);
+            remtype rem = getRem(h, AS);
 
             addtype i = j;
             int cnt = 0;
@@ -225,8 +202,8 @@ class Cleary : public HashTable{
             //printf("\t\t\t\t\t\t\t%i: Inserting Into Table\n", getThreadID());
 
             hashtype h = RHASH(h1, k);
-            addtype j = getAdd(h);
-            remtype rem = getRem(h);
+            addtype j = getAdd(h, AS);
+            remtype rem = getRem(h, AS);
 
             bool newgroup = false;
 
@@ -493,8 +470,8 @@ class Cleary : public HashTable{
             //printf("\tInserting %" PRIu64 "\n", k);
             //Calculate Hash
             hashtype h = RHASH(h1, k);
-            addtype j = getAdd(h);
-            remtype rem = getRem(h);
+            addtype j = getAdd(h, AS);
+            remtype rem = getRem(h, AS);
 
             int counter=0;
 
@@ -569,8 +546,8 @@ class Cleary : public HashTable{
             //printf("\t\tLookup %" PRIu64 "\n", k);
             //Hash Key
             hashtype h = RHASH(h1, k);
-            addtype j = getAdd(h);
-            remtype rem = getRem(h);
+            addtype j = getAdd(h, AS);
+            remtype rem = getRem(h, AS);
 
             //If no values with add exist, return
             if(T[j].getV() == 0){
@@ -606,6 +583,16 @@ class Cleary : public HashTable{
             return size;
         }
 
+        void readEverything(int N) {
+            int j = 0;
+            for (int i = 0; i < N; i++) {
+                j += T[i % tablesize].getR();
+            }
+            if (j != 0) {
+                printf("Not all Zero\n");
+            }
+        }
+
         GPUHEADER
         void print(){
             printf("----------------------------------------------------------------\n");
@@ -624,3 +611,40 @@ class Cleary : public HashTable{
         bool rehash(){return true;}
 
 };
+
+GPUHEADER_G
+void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin = 0, int id = 0, int s = 1)
+{
+#ifdef GPUCODE
+    int index = getThreadID();
+    int stride = blockDim.x;
+#else
+    int index = id;
+    int stride = s;
+#endif
+    //std::cout << "ThreadID: " << GetCurrentProcessorNumber() << "\n";
+    for (int i = index + begin; i < N + begin; i += stride) {
+        if (!(H->insert(vals[i]))) {
+            break;
+        }
+    }
+}
+
+GPUHEADER_G
+void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int id = 0, int s = 1)
+{
+#ifdef GPUCODE
+    int index = getThreadID();
+    int stride = blockDim.x;
+#else
+    int index = id;
+    int stride = s;
+#endif
+
+    for (int i = index; i < N; i += stride) {
+        if (!(H->lookup(vals[i]))) {
+            printf("\tVal %" PRIu64 " Missing\n", vals[i]);
+            res[0] = false;
+        }
+    }
+}
