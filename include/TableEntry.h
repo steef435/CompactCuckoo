@@ -44,12 +44,15 @@ protected:
 #endif
     }
 
+
+#ifndef GPUCODE
     GPUHEADER
     void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
             uint64_cu newval = setValBits(start, end, ins, loc);
             *loc = newval;
             return;
     }
+#endif
 
     GPUHEADER
     void setBits(int start, int end, uint64_cu ins, std::atomic<uint64_cu>* loc, bool onDevice = true) {
@@ -66,8 +69,10 @@ protected:
         //printf("\t\t\tNewVal After: %" PRIu64 " \n", (*loc).load());
     }
 
+
+
 #ifdef GPUCODE
-    GPUHEADER
+    GPUHEADER_D
     void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
         while (true) {
 
@@ -171,10 +176,12 @@ protected:
 #endif
     }
 
+#ifndef GPUCODE
     __host__ __device__
     std::atomic<uint64_cu>* getAtomValPtr() {
         return &val;
     }
+#endif
 
 public:
     GPUHEADER

@@ -1,4 +1,5 @@
 #include "numbergeneratorsTest.cu"
+#include <cuda.h>
 
 #ifndef TABLES
 #define TABLES
@@ -88,8 +89,10 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c, bool cc) {
 #endif
 
         printf("Filling Cleary\n");
+
 #ifdef GPUCODE
-        fillCleary << <1, 1 > >> (N, vals, c);
+        //TODO Why?
+        //fillCleary << < 1, 1 > >> (N, vals, c);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
@@ -104,12 +107,14 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c, bool cc) {
             vecThread2.at(i).join();
         }
 #endif
+
         printf("Devices Synced\n");
         c->print();
 
         //Checking
         res[0] = true;
         printf("Checking Cleary\n");
+
 #ifdef GPUCODE
         checkCleary << <1, 1 >> > (N, vals, c, res);
         gpuErrchk(cudaPeekAtLastError());
@@ -117,6 +122,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c, bool cc) {
 #else
         checkCleary(N, vals, c, res);
 #endif
+
         printf("Devices Synced\n");
         if (res[0]) {
             printf("All still in the table\n");
@@ -125,6 +131,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c, bool cc) {
             testres = false;
             printf("!---------------------Vals Missing---------------------!\n");
         }
+
 #ifdef GPUCODE
         gpuErrchk(cudaFree(c));
 #else
@@ -237,7 +244,7 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
         printf("==============================================================================================================\n");
         printf("                              BASIC TEST                              \n");
         printf("==============================================================================================================\n");
-        uint64_cu* testset1 = generateTestSet(testSize);
+        uint64_cu* testset1 = generateRandomSet(testSize);
         if (!TestFill(testSize, T, addressSize, testset1, c, cc)) {
             res = false;
         }

@@ -616,7 +616,7 @@ GPUHEADER_G
 void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin = 0, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = getThreadID();
+    int index = threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -634,7 +634,7 @@ GPUHEADER_G
 void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = getThreadID();
+    int index = threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;

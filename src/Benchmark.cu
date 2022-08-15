@@ -65,7 +65,7 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
     printf("File Opened\n");
 
     if (!params) {
-        myfile << "tablesize,numthreads,loops,hashes,collision_percentage,samples,type,interval,time\n";
+        myfile << "tablesize,numthreads,loops,hashes,collision_percentage,collision_depth,samples,type,interval,time\n";
     }
 
     printf("=====================================================================\n");
@@ -113,10 +113,11 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
 
                     for (int P = 0; P < PERCENTAGE; P += P_STEPSIZE) {
                         printf("\t\t\t\tPercentage:%i\n", P);
-                        for (int D = 0; D < DEPTH; D += 1) {
+                        for (int D = 1; D < DEPTH; D += 1) {
+                            printf("\t\t\t\t\tDepth:%i\n", D);
                             //Number of samples
                             for (int S = 0; S < NUM_SAMPLES; S++) {
-                                printf("\t\t\t\t\tSample:%i\n", S);
+                                printf("\t\t\t\t\t\tSample:%i\n", S);
                                 if (params && setup) {
                                     S = std::stoi(params->at(4));
                                 }
@@ -137,8 +138,8 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
                                 delete[] hs;
 
                                 //Warmup
-                                readList(vals, size, 20);
-                                cc->readEverything(size * 50);
+                                //readList(vals, size, 20);
+                                //cc->readEverything(size * 50);
                                 //warmupThreads(numThreads, vals, size, 20);
 
                                 //Loop over intervals
@@ -171,7 +172,7 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
                                         //End the timer
                                         end = std::chrono::steady_clock::now();
 
-                                        myfile << N << "," << numThreads << "," << L << "," << H << "," << P << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
+                                        myfile << N << "," << numThreads << "," << L << "," << H << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
                                     }
 
                                 }
@@ -211,7 +212,7 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
             for (int S = 0; S < NUM_SAMPLES; S++) {
                 printf("\t\t\t\tSample Number:%i\n", S);
                 //uint64_cu* vals = generateTestSetParallel(size, NUM_GEN_THREADS);
-                uint64_cu* vals = generateTestSet(size);
+                uint64_cu* vals = generateRandomSet(size);
 
                 //Init Cleary
 #ifdef GPUCODE
@@ -300,7 +301,7 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
                 printf("\t\tNum of Loops:%i\n", k);
                 for (int S = 0; S < NUM_SAMPLES; S++) {
                     //printf("\t\t'tSample Number:%i\n", S);
-                    uint64_cu* vals = generateTestSet(size);
+                    uint64_cu* vals = generateRandomSet(size);
 
                     int* failFlag;
                     gpuErrchk(cudaMallocManaged(&failFlag, sizeof(int)));

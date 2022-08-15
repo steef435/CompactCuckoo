@@ -36,6 +36,8 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 #endif
 
+#define GPUCODE
+
 #ifdef GPUCODE
     #define GPUHEADER __host__ __device__
     #define GPUHEADER_G __global__
@@ -87,6 +89,7 @@ uint64_cu reformKey(addtype add, remtype rem, int AS) {
     return rem;
 }
 
+GPUHEADER
 void boundaryAssert(int i, addtype min, addtype max) {
     assert(min <= i && i <= max);
 }

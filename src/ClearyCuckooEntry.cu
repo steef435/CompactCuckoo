@@ -39,7 +39,7 @@ public:
         //printf("Exchanging Values");
         //Atomically set this TableEntry<ADD, REM>::value to the new one
         //printf("\t\tBefore: %" PRIu64 ", %" PRIu64 "\n", TableEntry<ADD, REM>::val, x->getValue());
-        #ifdef  __CUDA_ARCH__
+        #ifdef GPUCODE
         uint64_cu old = atomicExch(TableEntry<ADD, REM>::getValPtr(), x->getValue());
         #else
         //printf("Before: atom:%" PRIu64 "\n", (*(TableEntry<ADD, REM>::getAtomValPtr())).load());

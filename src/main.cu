@@ -140,7 +140,13 @@ int main(int argc, char* argv[])
             TableTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), c, cc);
         }
         else if (strcmp(argv[2], "NUMGEN") == 0) {
-            numGenTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]));
+            if (argc < 7) {
+                printf("Not Enough Arguments Passed\n");
+                printf("Required: SIZE, NUM_HASHES, PERCENTAGE, DEPTH\n");
+                return 0;
+            }
+
+            numGenCollisionTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]));
         }
         else {
             printf("Possible Tests:\nTABLE, NUMGEN\n");
@@ -173,13 +179,7 @@ int main(int argc, char* argv[])
     }
 
     else if (strcmp(argv[1], "debug") == 0) {
-        int NUM_THREADS = 8;
 
-        uint64_cu* test2 = generateTestSetParallel(10000, NUM_THREADS);
-        printf("Generated:\n");
-        for (int i = 0; i < 10000; i++) {
-            printf("%i: %" PRIu64 "\n",i, test2[i]);
-        }
     }
 
     return 0;

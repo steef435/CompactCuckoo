@@ -26,7 +26,7 @@ bool contains(uint64_cu* arr, uint64_cu val, int index) {
     return false;
 }
 
-uint64_cu* generateTestSet(int size) {
+uint64_cu* generateRandomSet(int size) {
     //Random Number generator
     std::uniform_int_distribution<long long int> dist(0, std::llround(std::pow(2, 58)));
 
@@ -41,6 +41,30 @@ uint64_cu* generateTestSet(int size) {
     int i = 0;
     while (insertedSet.size() != size) {
         uint64_cu rand = dist(e2_ng);
+        if (!(insertedSet.find(rand) != insertedSet.end())) {
+            insertedSet.insert(rand);
+            res[i] = rand;
+            i++;
+        }
+    }
+    return res;
+}
+
+uint64_cu* generateNormalSet(int size) {
+    //Random Number generator
+    std::normal_distribution<> dist{std::pow(2, 58)/2 , 1000 };
+
+#ifdef GPUCODE
+    uint64_cu* res;
+    gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
+#else
+    uint64_cu* res = new uint64_cu[size];
+#endif
+    std::unordered_set<uint64_cu> insertedSet;
+
+    int i = 0;
+    while (insertedSet.size() != size) {
+        uint64_cu rand = std::round(dist(e2_ng));
         if (!(insertedSet.find(rand) != insertedSet.end())) {
             insertedSet.insert(rand);
             res[i] = rand;
@@ -189,15 +213,11 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     std::uniform_int_distribution<long long int> dist64(0, std::llround(std::pow(2, 58)));
     std::uniform_int_distribution<long long int> dist16(0, std::llround(std::pow(2, 16)));
 
-    //printf("\t\t\t\t\t\t\tgenerateCollisionSet N:%i H:%i perc:%i maxperc:%f\n", N, H, percentage, 100.0 / ((float)H));
+    printf("\t\t\t\t\t\t\tgenerateCollisionSet N:%i H:%i perc:%i maxperc:%f\n", N, H, percentage, 100.0 / ((float)H));
     int maxPercentage = std::floor(100.0 / ((float)H));
     if (percentage > maxPercentage) {
         printf("Error: Percentage too Large - 1/H being used instead");
         percentage = maxPercentage;
-    }
-
-    if (((float)N * maxPercentage) / ((float)depth) < 0) {
-        printf("Error: Depth Too large");
     }
 
 #ifdef GPUCODE
@@ -210,55 +230,58 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
 
     int n = 0;
 
-    for (int h = 0; h < H; h++) {
-        //Generate Half the Set First
-        int fullSet = (int)(((float)N * (float)percentage) / 100.0);
-        int halfSet = std::floor(((float)N * (float)percentage) / (100.0 * (float)depth));
-        int start = n;
-        int maxVal = N < n + halfSet ? N : n + halfSet;
-        //printf("\t\t\t\t\t\t\t\tGenerate First Set from %i to %i to %i\n", start, start + halfSet, start + fullSet);
-        //Generate the First values
-        for (int i = n; i < maxVal; i++) {
-            uint64_cu rand = dist64(e2_ng);
-            if (!(insertedSet.find(rand) != insertedSet.end())) {
-                //printf("\t\t\t\t\t\t\t\t\tInsertingVal1 at %i\n", i);
-                insertedSet.insert(rand);
-                res[i] = rand;
-                n++;
-            }
-            else {
-                //printf("\t\t\t\t\t\t\t\t\tAlready in Table1\n");
-                i--;
-            }
-        }
+    if (percentage != 0) {
+        for (int h = 0; h < H; h++) {
+            //Generate Half the Set First
+            int fullSet = (int)(((float)N * (float)percentage) / 100.0);
+            int halfSet = std::floor(((float)N * (float)percentage) / (100.0 * ((float)depth + 1)));
 
-        int hash = hs[h];
-        int outerLoop = std::floor((float)(fullSet - halfSet) / (float)depth);
-        std::uniform_int_distribution<long long int> index(start, start + halfSet);
-        //printf("OuterLoop: %i\n", outerLoop);
-        //Generate the Second value set
-        for (int i = 0; i < outerLoop; i++) {
-            //Select a random index and get the address
-            int r = index(e2_ng);
-            uint64_cu hashed = RHASH(hash, res[r]);
-            uint64_cu add = getAdd(hashed, AS);
-            //printf("\t\t\t\t\t\t\t\t\t\tRetrieved Val from %i is %" PRIu64 " with add %" PRIu32 "\n", r, res[r], add);
-            for (int j = 0; j < depth; j++) {
-                //Create a new value
-                uint64_cu newVal = reformKey(add, dist16(e2_ng), AS);
-                uint64_cu toInsert = RHASH_INVERSE(hash, newVal);
-
-                //printf("Trying Insert at %i\n", i);
-                //Check if value exists
-                if (!(insertedSet.find(toInsert) != insertedSet.end())) {
-                    //printf("\t\t\t\t\t\t\t\t\tInsertingVal2 at %" PRIu64 "\n", n);
-                    insertedSet.insert(toInsert);
-                    res[n] = toInsert;
+            int start = n;
+            int maxVal = N < n + halfSet ? N : n + halfSet;
+            printf("\t\t\t\t\t\t\t\tGenerate First Set from %i to %i to %i\n", start, start + halfSet, start + fullSet);
+            //Generate the First values
+            for (int i = n; i < maxVal; i++) {
+                uint64_cu rand = dist64(e2_ng);
+                if (!(insertedSet.find(rand) != insertedSet.end())) {
+                    //printf("\t\t\t\t\t\t\t\t\tInsertingVal1 at %i\n", i);
+                    insertedSet.insert(rand);
+                    res[i] = rand;
                     n++;
                 }
                 else {
-                    //printf("\t\t\t\t\t\t\t\t\tAlready in Table2\n");
-                    j--;
+                    //printf("\t\t\t\t\t\t\t\t\tAlready in Table1\n");
+                    i--;
+                }
+            }
+
+            int hash = hs[h];
+            int outerLoop = std::floor((float)(fullSet - halfSet) / (float)depth);
+            std::uniform_int_distribution<long long int> index(start, start + halfSet);
+            //printf("OuterLoop: %i\n", outerLoop);
+            //Generate the Second value set
+            for (int i = 0; i < outerLoop; i++) {
+                //Select a random index and get the address
+                int r = index(e2_ng);
+                uint64_cu hashed = RHASH(hash, res[r]);
+                uint64_cu add = getAdd(hashed, AS);
+                //printf("\t\t\t\t\t\t\t\t\t\tRetrieved Val from %i is %" PRIu64 " with add %" PRIu32 "\n", r, res[r], add);
+                for (int j = 0; j < depth; j++) {
+                    //Create a new value
+                    uint64_cu newVal = reformKey(add, dist16(e2_ng), AS);
+                    uint64_cu toInsert = RHASH_INVERSE(hash, newVal);
+
+                    //printf("Trying Insert at %i\n", i);
+                    //Check if value exists
+                    if (!(insertedSet.find(toInsert) != insertedSet.end())) {
+                        //printf("\t\t\t\t\t\t\t\t\tInsertingVal2 at %" PRIu64 "\n", n);
+                        insertedSet.insert(toInsert);
+                        res[n] = toInsert;
+                        n++;
+                    }
+                    else {
+                        //printf("\t\t\t\t\t\t\t\t\tAlready in Table2\n");
+                        j--;
+                    }
                 }
             }
         }

@@ -58,7 +58,7 @@ class ClearyCuckoo : HashTable{
 
         //Flags
 #ifdef GPUCODE
-        bool failFlag = false;
+        int failFlag = 0;
         int occupation = 0;
 #else
         std::atomic<bool> failFlag;
@@ -233,10 +233,15 @@ class ClearyCuckoo : HashTable{
             tablesize = (int) pow(2,AS);
 
             hn = hashNumber;
-
+            /*
+#ifdef GPUCODE
+            failFlag = false;
+            occupation = 0;
+#else
             failFlag.store(false);
             occupation.store(0);
-
+#endif
+            */
             //printf("\tAllocating Memory\n");
             #ifdef GPUCODE
             gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>)));
@@ -270,21 +275,39 @@ class ClearyCuckoo : HashTable{
             #endif
         }
 
-        GPUHEADER
+        GPUHEADER_D
         bool insert(uint64_cu k){
             //Succesful Insertion
             //printf("\tInserting val %" PRIu64 "\n", k);
+            /*
+#ifdef GPUCODE
+            if (failFlag || occupation == tablesize) {
+#else
             if (failFlag.load() || occupation.load() == tablesize) {
+#endif
                 return false;
             }
+            */
             if(insertIntoTable(k,T,0)){
                 //Reset the Hash Counter
                 hashcounter = 0;
                 //print();
+                /*
+#ifdef GPUCODE
+                atomicAdd(&occupation, 1);
+#else
                 occupation += 1;
+#endif
+                */
                 return true;
             }
+            /*
+#ifdef GPUCODE
+            atomicExch(&failFlag, 1);
+#else
             failFlag.store(false);
+#endif
+            */
             return false;
         };
 
@@ -383,7 +406,7 @@ GPUHEADER_G
 void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin = 0, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = getThreadID();
+    int index = threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -402,7 +425,7 @@ GPUHEADER_G
 void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupancy, int* failFlag, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = getThreadID();
+    int index = threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -426,7 +449,7 @@ GPUHEADER_G
 void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = getThreadID();
+    int index = threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;

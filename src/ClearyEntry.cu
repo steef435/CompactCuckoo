@@ -233,7 +233,7 @@ public:
     GPUHEADER
     uint64_cu compareAndSwap(ClearyEntry<ADD, REM>* comp, ClearyEntry<ADD, REM>* swap) {
         #ifdef GPUCODE
-            uint64_cu newVal = atomicCAS(TableEntry<ADD, REM>::getValPtr(), (*comp).getValue(), (*swap).getValue());
+            uint64_cu newval = atomicCAS(TableEntry<ADD, REM>::getValPtr(), (*comp).getValue(), (*swap).getValue());
         #else
         uint64_cu oldval = (*comp).getValue();
         uint64_cu newval = (*swap).getValue();

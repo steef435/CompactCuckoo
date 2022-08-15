@@ -6,7 +6,7 @@
 #include "numbergenerators.cu"
 #endif
 
-void numGenTest(int N, int H, int percentage, int depth) {
+void numGenCollisionTest(int N, int H, int percentage, int depth) {
     int tablesize = (int)pow(2, N);
 
     int* hs = new int[H];
@@ -34,5 +34,22 @@ void numGenTest(int N, int H, int percentage, int depth) {
     printf("------------------------------------------------------------\n");
 
     delete[] hs;
+    delete[] list;
+}
+
+void numGenNormalTest(int N) {
+    int tablesize = (int)pow(2, N);
+
+    uint64_cu* list = generateNormalSet(tablesize);
+
+    printf("----------------------------------------------------------------\n");
+    printf("|    i     |         val        |\n");
+
+    printf("----------------------------------------------------------------\n");
+    for (int i = 0; i < tablesize; i++) {
+        printf("|%-10i|%-20" PRIu64 "|", i, list[i]);
+    }
+    printf("------------------------------------------------------------\n");
+
     delete[] list;
 }
