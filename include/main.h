@@ -36,18 +36,6 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 #endif
 
-#define GPUCODE
-
-#ifdef GPUCODE
-    #define GPUHEADER __host__ __device__
-    #define GPUHEADER_G __global__
-    #define GPUHEADER_D __device__
-#else
-    #define GPUHEADER
-    #define GPUHEADER_G
-#define GPUHEADER_D
-#endif
-
 #ifndef GETID
 #define GETID
 inline int getThreadID()
@@ -62,6 +50,34 @@ inline int getThreadID()
 #endif
 }
 #endif
+
+
+/**
+* 
+* Define this var to switch between GPU and CPU execution
+* 
+**/
+
+//#define GPUCODE
+
+/**
+*
+* GPU Headers
+*
+*/
+
+
+#ifdef GPUCODE
+    #define GPUHEADER __host__ __device__
+    #define GPUHEADER_G __global__
+    #define GPUHEADER_D __device__
+#else
+    #define GPUHEADER
+    #define GPUHEADER_G
+#define GPUHEADER_D
+#endif
+
+
 
 /**
 * 

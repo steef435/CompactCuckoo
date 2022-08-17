@@ -1,3 +1,5 @@
+#include <atomic>
+
 #ifndef NUMGEN
 #define NUMGEN
 #include "numbergenerators.cu"
@@ -39,7 +41,7 @@ void warmupThreads(int T, uint64_cu* xs, int N, int numLoops) {
 
 void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES, int PERCENTAGE, int P_STEPSIZE, int DEPTH, std::vector<std::string>* params = nullptr) {
 
-    const int WARMUP = 2;
+    const int WARMUP = 0;
 
     printf("=====================================================================\n");
     printf("                     Starting INSERTION BENCHMARK                    \n");
@@ -105,15 +107,15 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
                 }
                 printf("\t\tNumber of Loops:%i\n", L);
                 //Number of Hashes
-                for (int H = 1; H < NUM_HASHES; H++) {
+                for (int H = 1; H <= NUM_HASHES; H++) {
                     printf("\t\t\tNumber of Hashes:%i\n", H);
                     if (params && setup) {
                         H = std::stoi(params->at(3));
                     }
 
-                    for (int P = 0; P < PERCENTAGE; P += P_STEPSIZE) {
+                    for (int P = 0; P <= PERCENTAGE; P += P_STEPSIZE) {
                         printf("\t\t\t\tPercentage:%i\n", P);
-                        for (int D = 1; D < DEPTH; D += 1) {
+                        for (int D = 1; D <= DEPTH; D += 1) {
                             printf("\t\t\t\t\tDepth:%i\n", D);
                             //Number of samples
                             for (int S = 0; S < NUM_SAMPLES; S++) {
@@ -138,9 +140,9 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
                                 delete[] hs;
 
                                 //Warmup
-                                //readList(vals, size, 20);
-                                //cc->readEverything(size * 50);
-                                //warmupThreads(numThreads, vals, size, 20);
+                                readList(vals, size, 20);
+                                cc->readEverything(size * 50);
+                                warmupThreads(numThreads, vals, size, 20);
 
                                 //Loop over intervals
                                 for (int j = 0; j < INTERVAL + WARMUP; j++) {
@@ -303,37 +305,44 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int NUM_LOOPS, int NU
                     //printf("\t\t'tSample Number:%i\n", S);
                     uint64_cu* vals = generateRandomSet(size);
 
-                    int* failFlag;
-                    gpuErrchk(cudaMallocManaged(&failFlag, sizeof(int)));
-                    failFlag[0] = false;
-
                     //Init Cleary Cuckoo
                     ClearyCuckoo* cc;
                     gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
                     new (cc) ClearyCuckoo(N, j);
                     cc->setMaxLoops(k);
 
+#ifdef GPUCODE
+                    int* failFlag;
+                    gpuErrchk(cudaMallocManaged(&failFlag, sizeof(int)));
+                    failFlag[0] = false;
+
                     //Var to store num of inserted values
                     addtype* occ;
                     gpuErrchk(cudaMallocManaged(&occ, sizeof(addtype)));
                     occ[0] = 0;
 
-                    //Fill the table
-#ifdef GPUCODE
-                    fillClearyCuckoo << <1, 256 >> > (size, vals, cc, occ, failFlag);
+                    fillClearyCuckoo << <1, 1 >> > (size, vals, cc, occ, failFlag);
                     gpuErrchk(cudaPeekAtLastError());
                     gpuErrchk(cudaDeviceSynchronize());
 
                     myfile << N << "," << j << "," << k << "," << S << "," << occ[0] << ",\n";
+#else
+                    std::atomic<bool> failFlag(false);
+                    std::atomic<addtype> occ(0);
+                    fillClearyCuckoo(size, vals, cc, &occ, &failFlag);
+
+                    myfile << N << "," << j << "," << k << "," << S << "," << occ.load() << ",\n";
+#endif
+
+                    
+#ifdef GPUCODE
 
                     gpuErrchk(cudaFree(failFlag));
                     gpuErrchk(cudaFree(cc));
                     gpuErrchk(cudaFree(occ));
                     gpuErrchk(cudaFree(vals));
 #else
-                    delete failFlag;
                     delete cc;
-                    delete occ;
                     delete[] vals;
 #endif
                 }

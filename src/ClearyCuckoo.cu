@@ -185,20 +185,7 @@ class ClearyCuckoo : HashTable{
             //Insert the old values in the new table
             //printf("\tCheck all values for correctness\n");
             for(int i=0; i<tablesize; i++){
-                if ( ( !containsHash(hashlist, T[i].getH()) ) && T[i].getO()) {
-                    //printf("\tVal no longer correct\n");
-                    //Store the old value
-                    remtype temp = T[i].getR();
-                    int oldhash = T[i].getH();
-
-                    //Delete Entry
-                    new (&T[i]) ClearyCuckooEntry<addtype, remtype>();
-
-                    //Insert
-                    hashtype h_old = reformKey(i, temp, AS);
-                    keytype k_old = RHASH_INVERSE(oldhash, h_old);
-                    insertIntoTable(k_old, T, depth+1);
-                }
+                
             }
             //printf("\tRehash Done\n");
             return true;
@@ -444,6 +431,29 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupanc
     }
 }
 #endif
+
+GPUHEADER_G
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, std::atomic<addtype>* occupancy, std::atomic<bool>* failFlag, int id = 0, int s = 1)
+{
+#ifdef GPUCODE
+    int index = threadIdx.x;
+    int stride = blockDim.x;
+#else
+    int index = id;
+    int stride = s;
+#endif
+
+    for (int i = index; i < N; i += stride) {
+        if ((*failFlag).load()) {
+            break;
+        }
+        if (!(H->insert(vals[i]))) {
+            (*failFlag).store(true);
+            break;
+        }
+        (*occupancy).fetch_add(1);
+    }
+}
 
 GPUHEADER_G
 void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res, int id = 0, int s = 1)
