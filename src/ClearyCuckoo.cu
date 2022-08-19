@@ -179,11 +179,6 @@ class ClearyCuckoo : HashTable{
 
         GPUHEADER
         bool rehash(int depth, int* hs){
-            printf("\t\tRehash call\n");
-            for (int i = 0; i < hn; i++) {
-                printf("%i, ", hs[i]);
-            }
-            printf("\n");
             //Prevent recursion of rehashing
             if(depth >0){return false;}
 
@@ -209,7 +204,6 @@ class ClearyCuckoo : HashTable{
                     if (!insertIntoTable(k, T_copy, hs, depth + 1)) {
                         return false;
                     }
-                    print(T_copy);
                 }
             }
 
