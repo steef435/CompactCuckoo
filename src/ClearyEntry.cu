@@ -11,7 +11,7 @@
 
 
 template <class ADD, class REM>
-class ClearyEntry : TableEntry <ADD, REM> {
+class ClearyEntry : public TableEntry <ADD, REM> {
 
 private:
     int Rindex[2] = {  1, 56 };

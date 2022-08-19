@@ -149,25 +149,6 @@ protected:
     }
 
     GPUHEADER
-    uint64_cu getValue() {
-#ifdef GPUCODE
-        return val;
-#else
-        return val.load();
-#endif
-
-    }
-
-    GPUHEADER
-    void setValue(uint64_cu x) {
-#ifdef GPUCODE
-        val = x;
-#else
-        val.store(x);
-#endif
-    }
-
-    GPUHEADER
     uint64_cu* getValPtr(){
 #ifdef GPUCODE
         return &val;
@@ -200,6 +181,25 @@ public:
         val = x;
 #else
         std::atomic_init(&val, x);
+#endif
+    }
+
+    GPUHEADER
+    uint64_cu getValue() {
+#ifdef GPUCODE
+        return val;
+#else
+        return val.load();
+#endif
+
+    }
+
+    GPUHEADER
+    void setValue(uint64_cu x) {
+#ifdef GPUCODE
+        val = x;
+#else
+        val.store(x);
 #endif
     }
 

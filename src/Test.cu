@@ -1,4 +1,5 @@
 #include "numbergeneratorsTest.cu"
+#include "ClearyCuckooTest.cu"
 #include <cuda.h>
 
 #ifndef TABLES
@@ -233,11 +234,6 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
 
     //printf("Lock Test\n");
     //lockTest();
-    std::chrono::steady_clock::time_point begin;
-    std::chrono::steady_clock::time_point end;
-
-
-    begin = std::chrono::steady_clock::now();
 
     for (int i = 0; i < L; i++) {
 
@@ -276,12 +272,22 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
         }
     }
 
-    end = std::chrono::steady_clock::now();
+    printf("==============================================================================================================\n");
+    printf("                            REHASH TEST                            \n");
+    printf("==============================================================================================================\n");
+    uint64_cu* testset3 = generateRandomSet(testSize);
+    if (!testRehash(N, testset3)) {
+        res = false;
+    }
+    #ifdef GPUCODE
+        gpuErrchk(cudaFree(testset3));
+    #else
+        delete[] testset3;
+    #endif
 
     if (res) {
         printf("==============================================================================================================\n");
         printf("                                             ALL TESTS PASSED                                                 \n");
         printf("==============================================================================================================\n");
     }
-    std::cout << "Time Running:" << (std::chrono::duration_cast<std::chrono::seconds> (end - begin).count());
 }

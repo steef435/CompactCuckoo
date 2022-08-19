@@ -10,7 +10,7 @@
 
 
 template <class ADD, class REM>
-class ClearyCuckooEntry : TableEntry <ADD, REM> {
+class ClearyCuckooEntry : public TableEntry <ADD, REM> {
 
 private:
     int Rindex[2] = { 1, 56 };
@@ -30,6 +30,12 @@ public:
     GPUHEADER
     ClearyCuckooEntry() noexcept {
         TableEntry<ADD, REM>::val = 0;
+        return;
+    }
+
+    GPUHEADER
+        ClearyCuckooEntry(uint64_cu x) noexcept {
+        TableEntry<ADD, REM>::val = x;
         return;
     }
 

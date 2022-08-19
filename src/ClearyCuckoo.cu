@@ -60,9 +60,11 @@ class ClearyCuckoo : HashTable{
 #ifdef GPUCODE
         int failFlag = 0;
         int occupation = 0;
+        int rehashFlag = 0;
 #else
         std::atomic<bool> failFlag;
         std::atomic<int> occupation;
+        std::atomic<int> rehashFlag;
 #endif
 
 
@@ -76,10 +78,10 @@ class ClearyCuckoo : HashTable{
         }
 
         GPUHEADER
-            void iterateHashList(int* list) {
+        void iterateHashList(int* list) {
             //printf("\tUpdating Hashlist\n");
             for (int i = 0; i < hn; i++) {
-                list[i] = (list[i]+1)%32;
+                list[i] = (list[i]+1+i)%32;
             }
             return;
         }
@@ -115,10 +117,10 @@ class ClearyCuckoo : HashTable{
          * Function to label which hash function was used on this value
          **/
         GPUHEADER
-        bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int depth=0){
+        bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, int depth=0){
             //printf("\tInsertintoTable\n");
             keytype x = k;
-            int hash = hashlist[0];
+            int hash = hs[0];
 
             //If the key is already inserted don't do anything
             if (lookup(k, T)) {
@@ -156,37 +158,79 @@ class ClearyCuckoo : HashTable{
                 x = RHASH_INVERSE(oldhash, h_old);
 
                 //Hash with the next hash value
-                hash = getNextHash(hashlist, oldhash);
+                hash = getNextHash(hs, oldhash);
 
                 c++;
             }
-            /*
+            
             if(depth>0){return false;}
             //If MAXLOOPS is reached rehash the whole table
+            //printf("Rehash\n");
             if(!rehash()){
                 //If rehash fails, return
+                //printf("Rehash Failed\n");
                 return false;
-            }*/
-
-            //if(insertIntoTable(x, T, depth)){return true;}
+            }
+            //printf("Next insertion\n");
+            if(insertIntoTable(x, T, hs, depth)){return true;}
 
             return false;
         };
 
         GPUHEADER
-        bool rehash(int depth){
-            //printf("Rehash\n");
+        bool rehash(int depth, int* hs){
+            printf("\t\tRehash call\n");
+            for (int i = 0; i < hn; i++) {
+                printf("%i, ", hs[i]);
+            }
+            printf("\n");
             //Prevent recursion of rehashing
             if(depth >0){return false;}
 
-            //printf("\tCreate Hashlist\n");
-            iterateHashList(hashlist);
+            ClearyCuckooEntry<addtype, remtype>* T_copy;
 
-            //Insert the old values in the new table
-            //printf("\tCheck all values for correctness\n");
-            for(int i=0; i<tablesize; i++){
-                
+#ifdef GPUCODE
+            gpuErrchk(cudaMallocManaged(&T_copy, tablesize * sizeof(ClearyCuckooEntry<addtype, remtype>)));
+#else
+            T_copy = new ClearyCuckooEntry<addtype, remtype>[tablesize];
+#endif
+
+            //Initialize the table copy
+            for (int i = 0; i < tablesize; i++) {
+                new (&T_copy[i]) ClearyCuckooEntry<addtype, remtype>();
             }
+
+            //Copy entries into new table
+            for (int i = 0; i < tablesize; i++) {
+                if (T[i].getO()) {
+                    hashtype h_old = reformKey(i, T[i].getR(), AS);
+                    hashtype k = RHASH_INVERSE(T[i].getH(), h_old);
+
+                    if (!insertIntoTable(k, T_copy, hs, depth + 1)) {
+                        return false;
+                    }
+                    print(T_copy);
+                }
+            }
+
+            //Copy the table into the table
+            for (int i = 0; i < tablesize; i++) {
+                T[i].setValue(T_copy[i].getValue());
+            }
+
+            //set the new hashlist
+            for (int i = 0; i < hn; i++) {
+                hashlist[i] = hs[i];
+            }
+            
+#ifdef GPUCODE
+            gpuErrchk(cudaFree(T_copy));
+            gpuErrchk(cudaFree(hs));
+#else
+            delete[] T_copy;
+            delete[] hs;
+#endif
+
             //printf("\tRehash Done\n");
             return true;
         };
@@ -205,6 +249,25 @@ class ClearyCuckoo : HashTable{
             //printf("\t\tNone Found\n");
             return false;
         };
+
+        GPUHEADER
+        void print(ClearyCuckooEntry<addtype, remtype>* T) {
+            printf("----------------------------------------------------------------\n");
+            printf("|    i     |     R[i]       | O[i] |        key         |label |\n");
+            printf("----------------------------------------------------------------\n");
+            printf("Tablesize %i\n", tablesize);
+            for (int i = 0; i < tablesize; i++) {
+                if (T[i].getO()) {
+                    remtype rem = T[i].getR();
+                    int label = T[i].getH();
+                    hashtype h = reformKey(i, rem, AS);
+                    keytype k = RHASH_INVERSE(label, h);
+
+                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-20" PRIu64 "|%-6i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
+                }
+            }
+            printf("------------------------------------------------------------\n");
+        }
 
 
     public:
@@ -266,16 +329,26 @@ class ClearyCuckoo : HashTable{
         bool insert(uint64_cu k){
             //Succesful Insertion
             //printf("\tInserting val %" PRIu64 "\n", k);
-            /*
 #ifdef GPUCODE
-            if (failFlag || occupation == tablesize) {
+            if (failFlag) {
+                return false
+            }
+            while (rehashFlag) {
+                if (failFlag) {
+                    return false;
+                }
 #else
-            if (failFlag.load() || occupation.load() == tablesize) {
-#endif
+            if (failFlag.load()) {
                 return false;
             }
-            */
-            if(insertIntoTable(k,T,0)){
+            while (rehashFlag.load()) {
+                if (failFlag.load()) {
+                    return false;
+                }
+            }
+#endif
+
+            if(insertIntoTable(k,T, hashlist,0)){
                 //Reset the Hash Counter
                 hashcounter = 0;
                 //print();
@@ -288,27 +361,56 @@ class ClearyCuckoo : HashTable{
                 */
                 return true;
             }
-            /*
 #ifdef GPUCODE
             atomicExch(&failFlag, 1);
 #else
-            failFlag.store(false);
+            failFlag.store(true);
 #endif
-            */
             return false;
         };
 
         GPUHEADER
         bool rehash(){
+#ifdef GPUCODE
+            atomicExch(&rehashFlag, 1);
+#else
+            rehashFlag.store(1);
+#endif
+
+            //Create the new hashlist
+            int* hashlist_new;
+#ifdef GPUCODE
+            gpuErrchk(cudaMallocManaged(&hashlist_new, hn * sizeof(int)));
+#else
+            hashlist_new = new int[hn];
+#endif
+            for (int i = 0; i < hn; i++) {
+                hashlist_new[i] = hashlist[i];
+            }
+
+            iterateHashList(hashlist_new);
+
             //Local counter for number of rehashes
-            while(!rehash(0) && hashcounter<MAXREHASHES){
+            while(!rehash(0, hashlist_new) && hashcounter<MAXREHASHES){
+                //printf("\tRehash call %i\n", hashcounter);
+                iterateHashList(hashlist_new);
                 hashcounter++;
             };
             //If counter tripped return
             if(hashcounter >= MAXREHASHES){
+                printf("\t +++++++++++++++++++++++++++++++++++++++Rehash FAIL++++++++++++++++++++++++++++++++++++++\n");
                 return false;
             }
-            hashcounter++;
+            //Rehash done
+            printf("\t +++++++++++++++++++++++++++++++++++++++Rehash SUCCESS++++++++++++++++++++++++++++++++++++++\n");
+            hashcounter=0;
+
+#ifdef GPUCODE
+            atomicExch(&rehashFlag, 0);
+#else
+            rehashFlag.store(0);
+#endif
+
             return true;
         }
 
@@ -357,21 +459,7 @@ class ClearyCuckoo : HashTable{
 
         GPUHEADER
         void print(){
-            printf("----------------------------------------------------------------\n");
-            printf("|    i     |     R[i]       | O[i] |        key         |label |\n");
-            printf("----------------------------------------------------------------\n");
-            printf("Tablesize %i\n", tablesize);
-            for(int i=0; i<tablesize; i++){
-                if(T[i].getO()){
-                    remtype rem = T[i].getR();
-                    int label = T[i].getH();
-                    hashtype h = reformKey(i, rem, AS);
-                    keytype k = RHASH_INVERSE(label, h);
-
-                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-20" PRIu64 "|%-6i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
-                }
-            }
-            printf("------------------------------------------------------------\n");
+            print(T);
         }
 
         GPUHEADER
