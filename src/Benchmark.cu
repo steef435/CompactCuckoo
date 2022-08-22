@@ -39,7 +39,7 @@ void warmupThreads(int T, uint64_cu* xs, int N, int numLoops) {
     }
 }
 
-void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES, int NUM_REHASHES, 
+void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES, int NUM_REHASHES,
     int PERCENTAGE, int P_STEPSIZE, int DEPTH, std::vector<std::string>* params = nullptr) {
 
     const int WARMUP = 0;
@@ -139,8 +139,9 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
 
                                     cc->setMaxLoops(L);
                                     cc->setMaxRehashes(R);
-                                    int* hs = cc->getHashlist();
+                                    int* hs = cc->getHashlistCopy();
                                     uint64_cu* vals = generateCollisionSet(size, N, H, hs, P, D);
+                                    delete[] hs;
                                     //printf("Numsgenned\n");
 
                                     //printf("vals:\n");
@@ -166,7 +167,7 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
                                         if (j >= WARMUP) {
                                             //printf("Start Inserting\n");
                                             begin = std::chrono::steady_clock::now();
-    #ifdef GPUCODE                          
+    #ifdef GPUCODE
                                             fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
                                             gpuErrchk(cudaPeekAtLastError());
                                             gpuErrchk(cudaDeviceSynchronize());
@@ -192,9 +193,9 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
     #ifdef GPUCODE
                                     gpuErrchk(cudaFree(cc));
                                     gpuErrchk(cudaFree(vals));
-    #else       
+    #else
                                     delete cc;
-                                    delete vals;
+                                    delete[] vals;
     #endif
                                 }
                             }
@@ -276,9 +277,9 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
 #ifdef GPUCODE
                 gpuErrchk(cudaFree(c));
                 gpuErrchk(cudaFree(vals));
-#else       
+#else
                 delete c;
-                delete vals;
+                delete[] vals;
 #endif
             }
         }

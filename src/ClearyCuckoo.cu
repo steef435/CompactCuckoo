@@ -162,7 +162,7 @@ class ClearyCuckoo : HashTable{
 
                 c++;
             }
-            
+
             if(depth>0){return false;}
             //If MAXLOOPS is reached rehash the whole table
             //printf("Rehash\n");
@@ -202,6 +202,13 @@ class ClearyCuckoo : HashTable{
                     hashtype k = RHASH_INVERSE(T[i].getH(), h_old);
 
                     if (!insertIntoTable(k, T_copy, hs, depth + 1)) {
+            #ifdef GPUCODE
+                        gpuErrchk(cudaFree(T_copy));
+                        gpuErrchk(cudaFree(hs));
+            #else
+                        delete[] T_copy;
+            #endif
+
                         return false;
                     }
                 }
@@ -216,7 +223,7 @@ class ClearyCuckoo : HashTable{
             for (int i = 0; i < hn; i++) {
                 hashlist[i] = hs[i];
             }
-            
+
 #ifdef GPUCODE
             gpuErrchk(cudaFree(T_copy));
             gpuErrchk(cudaFree(hs));
@@ -276,15 +283,13 @@ class ClearyCuckoo : HashTable{
             tablesize = (int) pow(2,AS);
 
             hn = hashNumber;
-            /*
 #ifdef GPUCODE
             failFlag = false;
-            occupation = 0;
+            rehashFlag = false;
 #else
             failFlag.store(false);
-            occupation.store(0);
+            rehashFlag.store(false);
 #endif
-            */
             //printf("\tAllocating Memory\n");
             #ifdef GPUCODE
             gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>)));
@@ -396,7 +401,7 @@ class ClearyCuckoo : HashTable{
 #ifdef GPUCODE
             gpuErrchk(cudaFree(hashlist_new));
 #else
-            delete hashlist_new;
+            delete[] hashlist_new;
 #endif
 
             //If counter tripped return
@@ -434,8 +439,8 @@ class ClearyCuckoo : HashTable{
         }
 
         GPUHEADER
-        int* getHashlist() {
-            int* res = new int[3];
+        int* getHashlistCopy() {
+            int* res = new int[hn];
             for (int i = 0; i < hn; i++) {
                 res[i] = hashlist[i];
             }
