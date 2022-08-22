@@ -290,15 +290,15 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     for (int i = n; i < N; i++) {
         uint64_cu rand = dist64(e2_ng);
         if (!(insertedSet.find(rand) != insertedSet.end())) {
-            //printf("\t\t\t\t\t\t\t\t\tInsertingVal1 at %i\n", i);
+            printf("\t\t\t\t\t\t\t\t\tInsertingVal1 at %i\n", i);
             insertedSet.insert(rand);
             res[i] = rand;
         }
         else {
-            //printf("\t\t\t\t\t\t\t\t\tAlready in Table\n");
+            printf("\t\t\t\t\t\t\t\t\tAlready in Table\n");
             i--;
         }
     }
-    //printf("\t\t\t\t\t\t\tgenerateCollisionSet Return\n");
+    printf("\t\t\t\t\t\t\tgenerateCollisionSet Return\n");
     return res;
 }

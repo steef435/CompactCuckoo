@@ -18,8 +18,6 @@ bool testRehash(int N, uint64_cu* vals){
     //Fill an eigth of the table
     fillClearyCuckoo(tablesize / 4, vals, cc);
 
-    cc->print();
-
     //Rehash
     cc->rehash();
 

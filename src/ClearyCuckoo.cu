@@ -222,7 +222,6 @@ class ClearyCuckoo : HashTable{
             gpuErrchk(cudaFree(hs));
 #else
             delete[] T_copy;
-            delete[] hs;
 #endif
 
             //printf("\tRehash Done\n");
@@ -365,6 +364,8 @@ class ClearyCuckoo : HashTable{
 
         GPUHEADER
         bool rehash(){
+            hashcounter++;
+            //printf("Rehash call %i\n", hashcounter);
 #ifdef GPUCODE
             atomicExch(&rehashFlag, 1);
 #else
@@ -385,19 +386,26 @@ class ClearyCuckoo : HashTable{
             iterateHashList(hashlist_new);
 
             //Local counter for number of rehashes
+
             while(!rehash(0, hashlist_new) && hashcounter<MAXREHASHES){
                 //printf("\tRehash call %i\n", hashcounter);
                 iterateHashList(hashlist_new);
                 hashcounter++;
             };
+
+#ifdef GPUCODE
+            gpuErrchk(cudaFree(hashlist_new));
+#else
+            delete hashlist_new;
+#endif
+
             //If counter tripped return
             if(hashcounter >= MAXREHASHES){
-                printf("\t +++++++++++++++++++++++++++++++++++++++Rehash FAIL++++++++++++++++++++++++++++++++++++++\n");
+                //printf("\t +++++++++++++++++++++++++++++++++++++++Rehash FAIL++++++++++++++++++++++++++++++++++++++\n");
                 return false;
             }
             //Rehash done
-            printf("\t +++++++++++++++++++++++++++++++++++++++Rehash SUCCESS++++++++++++++++++++++++++++++++++++++\n");
-            hashcounter=0;
+            //printf("\t +++++++++++++++++++++++++++++++++++++++Rehash SUCCESS++++++++++++++++++++++++++++++++++++++\n");
 
 #ifdef GPUCODE
             atomicExch(&rehashFlag, 0);

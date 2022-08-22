@@ -39,7 +39,8 @@ void warmupThreads(int T, uint64_cu* xs, int N, int numLoops) {
     }
 }
 
-void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES, int PERCENTAGE, int P_STEPSIZE, int DEPTH, std::vector<std::string>* params = nullptr) {
+void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int NUM_HASHES, int NUM_REHASHES, 
+    int PERCENTAGE, int P_STEPSIZE, int DEPTH, std::vector<std::string>* params = nullptr) {
 
     const int WARMUP = 0;
 
@@ -113,78 +114,82 @@ void BenchmarkFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NU
                         H = std::stoi(params->at(3));
                     }
 
-                    for (int P = 0; P <= PERCENTAGE; P += P_STEPSIZE) {
-                        printf("\t\t\t\tPercentage:%i\n", P);
-                        for (int D = 1; D <= DEPTH; D += 1) {
-                            printf("\t\t\t\t\tDepth:%i\n", D);
-                            //Number of samples
-                            for (int S = 0; S < NUM_SAMPLES; S++) {
-                                printf("\t\t\t\t\t\tSample:%i\n", S);
-                                if (params && setup) {
-                                    S = std::stoi(params->at(4));
-                                }
-                                setup = false;
-                                //Init Cleary Cuckoo
-
-#ifdef GPUCODE
-                                ClearyCuckoo* cc;
-                                gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
-                                new (cc) ClearyCuckoo(N, H);
-#else
-                                ClearyCuckoo* cc = new ClearyCuckoo(N, H);
-#endif
-
-                                cc->setMaxLoops(L);
-                                int* hs = cc->getHashlist();
-                                uint64_cu* vals = generateCollisionSet(size, N, H, hs, P, D);
-                                delete[] hs;
-
-                                //Warmup
-                                readList(vals, size, 20);
-                                cc->readEverything(size * 50);
-                                warmupThreads(numThreads, vals, size, 20);
-
-                                //Loop over intervals
-                                for (int j = 0; j < INTERVAL + WARMUP; j++) {
-                                    //Fill the table
-                                    std::chrono::steady_clock::time_point begin;
-                                    std::chrono::steady_clock::time_point end;
-
-                                    if (j < WARMUP) {
-                                        //cc->readEverything(20);
+                    for (int R = 0; R <= NUM_REHASHES; R++) {
+                        printf("\t\t\t\tRehashes:%i\n", R);
+                        for (int P = 0; P <= PERCENTAGE; P += P_STEPSIZE) {
+                            printf("\t\t\t\t\tPercentage:%i\n", P);
+                            for (int D = 1; D <= DEPTH; D += 1) {
+                                printf("\t\t\t\t\t\tDepth:%i\n", D);
+                                //Number of samples
+                                for (int S = 0; S < NUM_SAMPLES; S++) {
+                                    printf("\t\t\t\t\t\t\tSample:%i\n", S);
+                                    if (params && setup) {
+                                        S = std::stoi(params->at(4));
                                     }
+                                    setup = false;
+                                    //Init Cleary Cuckoo
 
-                                    if (j >= WARMUP) {
-                                        begin = std::chrono::steady_clock::now();
-#ifdef GPUCODE                  
-                                        fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
-                                        gpuErrchk(cudaPeekAtLastError());
-                                        gpuErrchk(cudaDeviceSynchronize());
-#else
-                                        std::vector<std::thread> vecThread(numThreads);
-                                        for (int i = 0; i < numThreads; i++) {
-                                            vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, setsize * (j - WARMUP), i, numThreads);
+    #ifdef GPUCODE
+                                    ClearyCuckoo* cc;
+                                    gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
+                                    new (cc) ClearyCuckoo(N, H);
+    #else
+                                    ClearyCuckoo* cc = new ClearyCuckoo(N, H);
+    #endif
+
+                                    cc->setMaxLoops(L);
+                                    cc->setMaxRehashes(R);
+                                    int* hs = cc->getHashlist();
+                                    uint64_cu* vals = generateCollisionSet(size, N, H, hs, P, D);
+                                    printf("Numsgenned\n");
+
+                                    //Warmup
+                                    readList(vals, size, 20);
+                                    cc->readEverything(size * 50);
+                                    warmupThreads(numThreads, vals, size, 20);
+
+                                    //Loop over intervals
+                                    for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                                        //Fill the table
+                                        std::chrono::steady_clock::time_point begin;
+                                        std::chrono::steady_clock::time_point end;
+
+                                        if (j < WARMUP) {
+                                            //cc->readEverything(20);
                                         }
 
-                                        //Join Threads
-                                        for (int i = 0; i < numThreads; i++) {
-                                            vecThread.at(i).join();
+                                        if (j >= WARMUP) {
+                                            begin = std::chrono::steady_clock::now();
+    #ifdef GPUCODE                  
+                                            fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, setsize * (j - WARMUP));
+                                            gpuErrchk(cudaPeekAtLastError());
+                                            gpuErrchk(cudaDeviceSynchronize());
+    #else
+                                            std::vector<std::thread> vecThread(numThreads);
+                                            for (int i = 0; i < numThreads; i++) {
+                                                vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, setsize * (j - WARMUP), i, numThreads);
+                                            }
+
+                                            //Join Threads
+                                            for (int i = 0; i < numThreads; i++) {
+                                                vecThread.at(i).join();
+                                            }
+    #endif
+                                            //End the timer
+                                            end = std::chrono::steady_clock::now();
+
+                                            myfile << N << "," << numThreads << "," << L << "," << H << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
                                         }
-#endif
-                                        //End the timer
-                                        end = std::chrono::steady_clock::now();
 
-                                        myfile << N << "," << numThreads << "," << L << "," << H << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
                                     }
-
+    #ifdef GPUCODE
+                                    gpuErrchk(cudaFree(cc));
+                                    gpuErrchk(cudaFree(vals));
+    #else       
+                                    delete cc;
+                                    delete vals;
+    #endif
                                 }
-#ifdef GPUCODE
-                                gpuErrchk(cudaFree(cc));
-                                gpuErrchk(cudaFree(vals));
-#else       
-                                delete cc;
-                                delete vals;
-#endif
                             }
                         }
                     }
