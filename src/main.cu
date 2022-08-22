@@ -14,8 +14,6 @@
 #include <cuda.h>
 #include <curand_kernel.h>
 
-#include <windows.h>
-
 #ifndef MAIN
 #define MAIN
 #include "main.h"
@@ -155,10 +153,10 @@ int main(int argc, char* argv[])
     else if (strcmp(argv[1], "benchmax") == 0) {
         if (argc < 6) {
             printf("Not Enough Arguments Passed\n");
-            printf("Required: TABLESIZES, NUM_HASHES, NUM_LOOPS, NUM_SAMPLES\n");
+            printf("Required: TABLESIZES, NUM_HASHES, NUM_LOOPS, NUM_REHASHES, NUM_SAMPLES\n");
             return 0;
         }
-        BenchmarkMaxOccupancy(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]));
+        BenchmarkMaxOccupancy(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]));
     }
     else if (strcmp(argv[1], "benchfill") == 0) {
         if (argc < 10) {

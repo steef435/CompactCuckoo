@@ -213,7 +213,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     std::uniform_int_distribution<long long int> dist64(0, std::llround(std::pow(2, 58)));
     std::uniform_int_distribution<long long int> dist16(0, std::llround(std::pow(2, 16)));
 
-    printf("\t\t\t\t\t\t\tgenerateCollisionSet N:%i H:%i perc:%i maxperc:%f\n", N, H, percentage, 100.0 / ((float)H));
+    //printf("\t\t\t\t\t\t\tgenerateCollisionSet N:%i H:%i perc:%i maxperc:%f\n", N, H, percentage, 100.0 / ((float)H));
     int maxPercentage = std::floor(100.0 / ((float)H));
     if (percentage > maxPercentage) {
         printf("Error: Percentage too Large - 1/H being used instead");
@@ -238,7 +238,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
 
             int start = n;
             int maxVal = N < n + halfSet ? N : n + halfSet;
-            printf("\t\t\t\t\t\t\t\tGenerate First Set from %i to %i to %i\n", start, start + halfSet, start + fullSet);
+            //printf("\t\t\t\t\t\t\t\tGenerate First Set from %i to %i to %i\n", start, start + halfSet, start + fullSet);
             //Generate the First values
             for (int i = n; i < maxVal; i++) {
                 uint64_cu rand = dist64(e2_ng);
@@ -290,15 +290,15 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     for (int i = n; i < N; i++) {
         uint64_cu rand = dist64(e2_ng);
         if (!(insertedSet.find(rand) != insertedSet.end())) {
-            printf("\t\t\t\t\t\t\t\t\tInsertingVal1 at %i\n", i);
+            //printf("\t\t\t\t\t\t\t\t\tInsertingVal1 at %i\n", i);
             insertedSet.insert(rand);
             res[i] = rand;
         }
         else {
-            printf("\t\t\t\t\t\t\t\t\tAlready in Table\n");
+            //printf("\t\t\t\t\t\t\t\t\tAlready in Table\n");
             i--;
         }
     }
-    printf("\t\t\t\t\t\t\tgenerateCollisionSet Return\n");
+    //printf("\t\t\t\t\t\t\tgenerateCollisionSet Return\n");
     return res;
 }

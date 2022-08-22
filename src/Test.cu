@@ -42,8 +42,8 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c, bool cc) {
         for (int i = 0; i < numThreads; i++) {
             vecThread1.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, addtype, int, int)>(fillClearyCuckoo), N, vals, cc, 0, i, numThreads);
             //Setting Thread Affinity
-            auto mask = (static_cast<DWORD_PTR>(1) << (i % 4));//core number starts from 0
-            auto ret = SetThreadAffinityMask(vecThread1.at(i).native_handle(), mask);
+            //auto mask = (static_cast<DWORD_PTR>(1) << (i % 4));//core number starts from 0
+            //auto ret = SetThreadAffinityMask(vecThread1.at(i).native_handle(), mask);
         }
 
         //Join Threads

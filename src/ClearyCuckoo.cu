@@ -482,6 +482,7 @@ class ClearyCuckoo : HashTable{
 GPUHEADER_G
 void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin = 0, int id = 0, int s = 1)
 {
+    //printf("\tThread Started\n");
 #ifdef GPUCODE
     int index = threadIdx.x;
     int stride = blockDim.x;
@@ -491,6 +492,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin = 0
 #endif
 
     for (int i = index + begin; i < N + begin; i += stride) {
+        //printf("Inserting %" PRIu64 "\n", vals[i]);
         if (!(H->insert(vals[i]))) {
             break;
         }
