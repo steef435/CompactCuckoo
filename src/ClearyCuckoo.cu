@@ -235,6 +235,111 @@ class ClearyCuckoo : HashTable{
             return true;
         };
 
+        GPUHEADER_G
+        void parallelRehashThread(ClearyCuckooEntry<addtype, remtype>* T, ClearyCuckooEntry<addtype, remtype>* T_copy, int*hs, int* res, int id, int s) {
+#ifdef GPUCODE
+            int index = threadIdx.x;
+            int stride = blockDim.x;
+
+            int* hs_copy;
+            gpuErrchk(cudaMallocManaged(&hs_copy, hn * sizeof(int)));
+#else
+            int index = id;
+            int stride = s;
+
+            int* hs_copy = new int[hn];
+#endif
+
+            for (int i = 0; i < hn; i++) {
+                hs_copy[i] = hs[i];
+            }
+            
+            for (int i = index; i < tablesize; i += stride) {
+                //printf("Inserting %" PRIu64 "\n", vals[i]);
+                if (T[i].getO()) {
+                    hashtype h_old = reformKey(i, T[i].getR(), AS);
+                    hashtype k = RHASH_INVERSE(T[i].getH(), h_old);
+
+                    if (!insertIntoTable(k, T_copy, hs, 1)) {
+                        *res = false;
+
+#ifdef GPUCODE
+                        gpuErrchk(cudaFree(hs_copy));
+#else
+                        delete[] hs_copy;
+#endif
+
+                        return;
+                    }
+                }
+            }
+        }
+
+        GPUHEADER
+        bool parallelRehash(int depth, int* hs, int numThreads){
+            //Prevent recursion of rehashing
+            if(depth >0){return false;}
+
+            ClearyCuckooEntry<addtype, remtype>* T_copy;
+
+#ifdef GPUCODE
+            gpuErrchk(cudaMallocManaged(&T_copy, tablesize * sizeof(ClearyCuckooEntry<addtype, remtype>)));
+#else
+            T_copy = new ClearyCuckooEntry<addtype, remtype>[tablesize];
+#endif
+
+            //Initialize the table copy
+            for (int i = 0; i < tablesize; i++) {
+                new (&T_copy[i]) ClearyCuckooEntry<addtype, remtype>();
+            }
+
+            int res = true;
+
+#ifdef GPUCODE
+            parallelRehashThread<< <1, numThreads >> > (T, T_copy, hs, &res);
+            gpuErrchk(cudaPeekAtLastError());
+            gpuErrchk(cudaDeviceSynchronize());
+#else
+            std::vector<std::thread> vecThread(numThreads);
+            for (int i = 0; i < numThreads; i++) {
+                //printf("Starting Threads\n");
+                vecThread.at(i) = std::thread(&ClearyCuckoo::parallelRehashThread, this, T, T_copy, hs, &res, i, numThreads);
+            }
+
+            //Join Threads
+            for (int i = 0; i < numThreads; i++) {
+                vecThread.at(i).join();
+            }
+#endif
+
+#ifdef GPUCODE
+            gpuErrchk(cudaFree(T_copy));
+            gpuErrchk(cudaFree(hs));
+#else
+            delete[] T_copy;
+#endif
+
+            //Copy the table into the table
+            for (int i = 0; i < tablesize; i++) {
+                T[i].setValue(T_copy[i].getValue());
+            }
+
+            //set the new hashlist
+            for (int i = 0; i < hn; i++) {
+                hashlist[i] = hs[i];
+            }
+
+#ifdef GPUCODE
+            gpuErrchk(cudaFree(T_copy));
+            gpuErrchk(cudaFree(hs));
+#else
+            delete[] T_copy;
+#endif
+
+            //printf("\tRehash Done\n");
+            return true;
+        };
+
         GPUHEADER
         bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T){
             //printf("\t\tLookup %" PRIu64 "\n", k);
@@ -392,7 +497,7 @@ class ClearyCuckoo : HashTable{
 
             //Local counter for number of rehashes
 
-            while(!rehash(0, hashlist_new) && hashcounter<MAXREHASHES){
+            while(!parallelRehash(0, hashlist_new, 4) && hashcounter<MAXREHASHES){
                 //printf("\tRehash call %i\n", hashcounter);
                 iterateHashList(hashlist_new);
                 hashcounter++;
