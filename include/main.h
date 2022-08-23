@@ -19,6 +19,31 @@ using keytype = uint64_cu;
 
 /**
 *
+* Define this var to switch between GPU and CPU execution
+*
+**/
+
+#define GPUCODE
+
+/**
+*
+* GPU Headers
+*
+*/
+
+
+#ifdef GPUCODE
+#define GPUHEADER __host__ __device__
+#define GPUHEADER_G __global__
+#define GPUHEADER_D __device__
+#else
+#define GPUHEADER
+#define GPUHEADER_G
+#define GPUHEADER_D
+#endif
+
+/**
+*
 * GPU Debug Methods
 * 
 */
@@ -26,11 +51,12 @@ using keytype = uint64_cu;
 #ifndef GPUASSERT
 #define GPUASSERT
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+GPUHEADER
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
    if (code != cudaSuccess)
    {
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      printf("GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
       if (abort) exit(code);
    }
 }
@@ -52,30 +78,7 @@ inline int getThreadID()
 #endif
 
 
-/**
-* 
-* Define this var to switch between GPU and CPU execution
-* 
-**/
 
-//#define GPUCODE
-
-/**
-*
-* GPU Headers
-*
-*/
-
-
-#ifdef GPUCODE
-    #define GPUHEADER __host__ __device__
-    #define GPUHEADER_G __global__
-    #define GPUHEADER_D __device__
-#else
-    #define GPUHEADER
-    #define GPUHEADER_G
-#define GPUHEADER_D
-#endif
 
 
 

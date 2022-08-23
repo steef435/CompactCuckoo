@@ -434,12 +434,13 @@ class ClearyCuckoo : HashTable{
             //printf("\tInserting val %" PRIu64 "\n", k);
 #ifdef GPUCODE
             if (failFlag) {
-                return false
+                return false;
             }
             while (rehashFlag) {
                 if (failFlag) {
                     return false;
                 }
+            }
 #else
             if (failFlag.load()) {
                 return false;
@@ -477,7 +478,7 @@ class ClearyCuckoo : HashTable{
             hashcounter++;
             //printf("Rehash call %i\n", hashcounter);
 #ifdef GPUCODE
-            atomicExch(&rehashFlag, 1);
+            rehashFlag = 1;
 #else
             rehashFlag.store(1);
 #endif
@@ -485,7 +486,7 @@ class ClearyCuckoo : HashTable{
             //Create the new hashlist
             int* hashlist_new;
 #ifdef GPUCODE
-            gpuErrchk(cudaMallocManaged(&hashlist_new, hn * sizeof(int)));
+            gpuErrchk(cudaMalloc(&hashlist_new, hn * sizeof(int)));
 #else
             hashlist_new = new int[hn];
 #endif
@@ -518,7 +519,7 @@ class ClearyCuckoo : HashTable{
             //printf("\t +++++++++++++++++++++++++++++++++++++++Rehash SUCCESS++++++++++++++++++++++++++++++++++++++\n");
 
 #ifdef GPUCODE
-            atomicExch(&rehashFlag, 0);
+            rehashFlag = 0;
 #else
             rehashFlag.store(0);
 #endif
@@ -634,6 +635,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupanc
 }
 #endif
 
+#ifndef GPUCODE
 GPUHEADER_G
 void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, std::atomic<addtype>* occupancy, std::atomic<bool>* failFlag, int id = 0, int s = 1)
 {
@@ -656,6 +658,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, std::atomic<addty
         (*occupancy).fetch_add(1);
     }
 }
+#endif
 
 GPUHEADER_G
 void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res, int id = 0, int s = 1)

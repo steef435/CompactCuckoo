@@ -16,13 +16,28 @@ bool testRehash(int N, uint64_cu* vals){
 #endif
 
     //Fill an eigth of the table
+#ifdef GPUCODE
+    fillClearyCuckoo << <1, 8 >> > (tablesize / 4, vals, cc);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+#else
     fillClearyCuckoo(tablesize / 4, vals, cc);
+#endif
+    
 
     //Rehash
     cc->rehash();
 
     //Check if all values are still present
     bool res = true;
+#ifdef GPUCODE
+    checkClearyCuckoo << <1, 8 >> > (tablesize / 4, vals, cc, &res);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+#else
     checkClearyCuckoo(tablesize / 4, vals, cc, &res);
+#endif
+
+    
     return res;
 }
