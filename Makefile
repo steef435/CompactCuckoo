@@ -38,7 +38,7 @@ $(TARGET) : $(OBJS)
 	$(CXX) $(CXXFLAGS) $(LIB_CUDA) -o $@ $?
 
 $(OBJ_DIR)/%.cu.o : $(SRC_DIR)/%.cu $(CUH_FILES)
-	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c -o $@ $<
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -dc -c -o $@ $<
 
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(H_FILES)
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c -o $@ $<

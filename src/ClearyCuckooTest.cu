@@ -4,6 +4,8 @@
 #include "Cleary.cu"
 #endif
 
+
+#ifdef REHASH
 bool testRehash(int N, uint64_cu* vals){
     int tablesize = std::pow(2, N);;
 
@@ -41,3 +43,5 @@ bool testRehash(int N, uint64_cu* vals){
     
     return res;
 }
+
+#endif

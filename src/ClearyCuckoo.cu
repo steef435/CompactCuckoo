@@ -28,6 +28,7 @@
 
 #include "ClearyCuckooEntry.cu"
 
+
 class ClearyCuckoo : HashTable{
 
 /*
@@ -66,7 +67,6 @@ class ClearyCuckoo : HashTable{
         std::atomic<int> occupation;
         std::atomic<int> rehashFlag;
 #endif
-
 
         GPUHEADER
         void createHashList(int* list) {
@@ -163,20 +163,19 @@ class ClearyCuckoo : HashTable{
                 c++;
             }
 
+#ifdef REHASH
             if(depth>0){return false;}
             //If MAXLOOPS is reached rehash the whole table
-            //printf("Rehash\n");
             if(!rehash()){
                 //If rehash fails, return
-                //printf("Rehash Failed\n");
                 return false;
             }
-            //printf("Next insertion\n");
             if(insertIntoTable(x, T, hs, depth)){return true;}
-
+#endif
             return false;
         };
 
+#ifdef REHASH
         GPUHEADER
         bool rehash(int depth, int* hs){
             //Prevent recursion of rehashing
@@ -185,7 +184,7 @@ class ClearyCuckoo : HashTable{
             ClearyCuckooEntry<addtype, remtype>* T_copy;
 
 #ifdef GPUCODE
-            gpuErrchk(cudaMallocManaged(&T_copy, tablesize * sizeof(ClearyCuckooEntry<addtype, remtype>)));
+            gpuErrchk(cudaMalloc(&T_copy, tablesize * sizeof(ClearyCuckooEntry<addtype, remtype>)));
 #else
             T_copy = new ClearyCuckooEntry<addtype, remtype>[tablesize];
 #endif
@@ -204,7 +203,6 @@ class ClearyCuckoo : HashTable{
                     if (!insertIntoTable(k, T_copy, hs, depth + 1)) {
             #ifdef GPUCODE
                         gpuErrchk(cudaFree(T_copy));
-                        gpuErrchk(cudaFree(hs));
             #else
                         delete[] T_copy;
             #endif
@@ -213,7 +211,6 @@ class ClearyCuckoo : HashTable{
                     }
                 }
             }
-
             //Copy the table into the table
             for (int i = 0; i < tablesize; i++) {
                 T[i].setValue(T_copy[i].getValue());
@@ -226,14 +223,13 @@ class ClearyCuckoo : HashTable{
 
 #ifdef GPUCODE
             gpuErrchk(cudaFree(T_copy));
-            gpuErrchk(cudaFree(hs));
 #else
             delete[] T_copy;
 #endif
 
-            //printf("\tRehash Done\n");
             return true;
         };
+#endif
 
         GPUHEADER
         bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T){
@@ -275,7 +271,7 @@ class ClearyCuckoo : HashTable{
          * Constructor
          */
         ClearyCuckoo() {}
-
+        
         ClearyCuckoo(int adressSize, int hashNumber){
             //printf("Creating ClearyCuckoo Table\n");
             AS = adressSize;
@@ -290,7 +286,7 @@ class ClearyCuckoo : HashTable{
             failFlag.store(false);
             rehashFlag.store(false);
 #endif
-            //printf("\tAllocating Memory\n");
+            //printf("\tAllocating Memory %" PRIu32 "\n", tablesize);
             #ifdef GPUCODE
             gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>)));
             gpuErrchk(cudaMallocManaged(&hashlist, hn * sizeof(int)));
@@ -327,6 +323,7 @@ class ClearyCuckoo : HashTable{
         bool insert(uint64_cu k){
             //Succesful Insertion
             //printf("\tInserting val %" PRIu64 "\n", k);
+#ifdef REHASH
 #ifdef GPUCODE
             if (failFlag) {
                 return false;
@@ -346,10 +343,12 @@ class ClearyCuckoo : HashTable{
                 }
             }
 #endif
-
+#endif
             if(insertIntoTable(k,T, hashlist,0)){
                 //Reset the Hash Counter
+#ifdef REHASH
                 hashcounter = 0;
+#endif
                 //print();
                 /*
 #ifdef GPUCODE
@@ -360,14 +359,17 @@ class ClearyCuckoo : HashTable{
                 */
                 return true;
             }
+#ifdef REHASH
 #ifdef GPUCODE
             atomicExch(&failFlag, 1);
 #else
             failFlag.store(true);
 #endif
+#endif
             return false;
         };
 
+#ifdef REHASH
         GPUHEADER
         bool rehash(){
             hashcounter++;
@@ -399,6 +401,7 @@ class ClearyCuckoo : HashTable{
                 hashcounter++;
             };
 
+
 #ifdef GPUCODE
             gpuErrchk(cudaFree(hashlist_new));
 #else
@@ -421,6 +424,7 @@ class ClearyCuckoo : HashTable{
 
             return true;
         }
+#endif
 
         GPUHEADER
         bool lookup(uint64_cu k){
@@ -496,7 +500,6 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin = 0
     int index = id;
     int stride = s;
 #endif
-
     for (int i = index + begin; i < N + begin; i += stride) {
         //printf("Inserting %" PRIu64 "\n", vals[i]);
         if (!(H->insert(vals[i]))) {

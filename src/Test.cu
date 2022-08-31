@@ -8,9 +8,9 @@
 #include "Cleary.cu"
 #endif
 
-bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c, bool cc) {
+bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc_bool) {
     bool testres = true;
-
+    printf("TestRes\n");
     //Init Var
 #ifdef GPUCODE
     bool* res;
@@ -21,7 +21,8 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c, bool cc) {
     int numThreads = std::pow(2, T);
 
     //Create Table 1
-    if (cc) {
+    printf("Testcc\n");
+    if (cc_bool) {
 #ifdef GPUCODE
         ClearyCuckoo* cc;
         gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
@@ -79,8 +80,10 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c, bool cc) {
 #endif
     }
 
-    if (c) {
+    printf("Testc\n");
+    if (c_bool) {
         //Create Table 2
+        printf("CreatingC\n");
 #ifdef GPUCODE
         Cleary* c;
         gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
@@ -272,6 +275,7 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
         }
     }
 
+#ifdef REHASH
     printf("==============================================================================================================\n");
     printf("                                          REHASH TEST                                                         \n");
     
@@ -289,6 +293,7 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
     #else
     delete[] testset3;
     #endif
+#endif
 
     if (res) {
         printf("==============================================================================================================\n");
