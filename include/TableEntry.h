@@ -203,7 +203,7 @@ public:
 #endif
     }
 
-    GPUHEADER
+    GPUHEADER_D
     void exchValue(TableEntry* x) {
         //Atomically set this value to the new one
         #ifdef  GPUCODE

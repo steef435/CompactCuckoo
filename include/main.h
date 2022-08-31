@@ -4,9 +4,9 @@
 #include <assert.h>
 
 /***
-* 
+*
 * TYPES
-* 
+*
 */
 
 typedef long long int int64_cu;
@@ -23,7 +23,7 @@ using keytype = uint64_cu;
 *
 **/
 
-#define GPUCODE
+//#define GPUCODE
 #define REHASH
 
 /**
@@ -46,7 +46,7 @@ using keytype = uint64_cu;
 /**
 *
 * GPU Debug Methods
-* 
+*
 */
 
 #ifndef GPUASSERT
@@ -84,9 +84,9 @@ inline int getThreadID()
 
 
 /**
-* 
+*
 * OTHER HELPER METHODS
-* 
+*
 */
 
 GPUHEADER
