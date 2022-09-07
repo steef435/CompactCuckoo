@@ -295,6 +295,9 @@ class ClearyCuckoo : HashTable{
             hashlist = new int[hn];
             #endif
 
+            //Default MAXLOOPS Value
+            MAXLOOPS = round(104.49226591 * log(3.80093894 * (AS - 3.54270024)) - 88.47034412);
+
             //printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
                 new (&T[i]) ClearyCuckooEntry<addtype, remtype>();
@@ -490,7 +493,7 @@ class ClearyCuckoo : HashTable{
 };
 
 GPUHEADER_G
-void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin = 0, int id = 0, int s = 1)
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, int* failFlag, addtype begin = 0, int id = 0, int s = 1)
 {
     //printf("\tThread Started\n");
 #ifdef GPUCODE
@@ -503,6 +506,9 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype begin = 0
     for (int i = index + begin; i < N + begin; i += stride) {
         //printf("Inserting %" PRIu64 "\n", vals[i]);
         if (!(H->insert(vals[i]))) {
+            if (failFlag != nullptr) {
+                (*failFlag) = true;
+            }
             break;
         }
     }
