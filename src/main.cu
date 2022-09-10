@@ -161,19 +161,29 @@ int main(int argc, char* argv[])
     else if (strcmp(argv[1], "benchfill") == 0) {
         if (argc < 10) {
             printf("Not Enough Arguments Passed\n");
-            printf("Required: NUM_TABLES start, end, INTERVAL, NUM_SAMPLES, NUM_THREADS, NUM_LOOPS, NUM_HASHES, NUM_REHASHES, PERCENTAGE, PERCENTAGE_STEPSIZE, DEPTH\n");
+            printf("Required: NUM_TABLES start, end, INTERVAL, NUM_SAMPLES, NUM_THREADS, NUM_LOOPS, LOOP_STEP, NUM_HASHES, HASH_STEP, NUM_REHASHES, PERCENTAGE, PERCENTAGE_STEPSIZE, DEPTH\n");
             return 0;
         }
         else if (strcmp(argv[2], "continue") == 0) {
             printf("Continuing from Last Position\n");
             std::vector<std::string>* lastargs = getLastArgs("results/benchfill.csv");
 
-            BenchmarkFilling(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), std::stoi(argv[9]), std::stoi(argv[10]), std::stoi(argv[11]), std::stoi(argv[12]), lastargs);
+            BenchmarkGeneralFilling(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), std::stoi(argv[9]), std::stoi(argv[10]), std::stoi(argv[11]), std::stoi(argv[12]), std::stoi(argv[13]), std::stoi(argv[14]), lastargs);
             delete lastargs;
             return 0;
         }
 
-        BenchmarkFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), std::stoi(argv[10]), std::stoi(argv[11]), std::stoi(argv[12]) );
+        BenchmarkGeneralFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), std::stoi(argv[10]), std::stoi(argv[11]), std::stoi(argv[12]), std::stoi(argv[13]), std::stoi(argv[14]));
+    }
+
+    else if (strcmp(argv[1], "benchspeed") == 0) {
+        if (argc < 10) {
+            printf("Not Enough Arguments Passed\n");
+            printf("Required: NUM_TABLES_start,  NUM_TABLES, INTERVAL, NUM_SAMPLES, NUM_THREADS, PERCENTAGE, P_STEPSIZE, DEPTH\n");
+            return 0;
+        }
+
+        BenchmarkSpeed(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]));
     }
 
     else if (strcmp(argv[1], "debug") == 0) {

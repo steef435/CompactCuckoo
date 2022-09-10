@@ -271,6 +271,8 @@ class ClearyCuckoo : HashTable{
          * Constructor
          */
         ClearyCuckoo() {}
+
+        ClearyCuckoo(int adressSize) : ClearyCuckoo(adressSize, 4) {}
         
         ClearyCuckoo(int adressSize, int hashNumber){
             //printf("Creating ClearyCuckoo Table\n");
@@ -490,10 +492,14 @@ class ClearyCuckoo : HashTable{
             MAXLOOPS = x;
         }
 
+        int getHashNum() {
+            return hn;
+        }
+
 };
 
 GPUHEADER_G
-void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, int* failFlag, addtype begin = 0, int id = 0, int s = 1)
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, int* failFlag=nullptr, addtype begin = 0, int id = 0, int s = 1)
 {
     //printf("\tThread Started\n");
 #ifdef GPUCODE
