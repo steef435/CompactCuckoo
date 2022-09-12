@@ -26,6 +26,16 @@ bool contains(uint64_cu* arr, uint64_cu val, int index) {
     return false;
 }
 
+void shuffle(uint64_cu* arr, int len)
+{
+    for (auto i = 0; i < len; i++) {
+        std::uniform_int_distribution<int> d(i, len);
+        std::swap(arr[i], arr[d(rd_ng)]);
+    }
+}
+
+
+
 uint64_cu* generateRandomSet(int size) {
     //Random Number generator
     std::uniform_int_distribution<long long int> dist(0, std::llround(std::pow(2, 58)));
@@ -235,7 +245,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     int fullSet = (int)(((float)N * (float)percentage) / 100.0);
     int halfSet = std::floor(((float)N * (float)percentage) / (100.0 * ((float)depth + 1)));
 
-    printf("\t\t\t\t\t\t\t\tFullSet %i, Halfset:%i\n", fullSet, halfSet);
+    //printf("\t\t\t\t\t\t\t\tFullSet %i, Halfset:%i\n", fullSet, halfSet);
 
     for (int i = 0; i < halfSet*H; i++) {
         uint64_cu rand = dist64(e2_ng);
@@ -251,7 +261,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
         }
     }
 
-    printf("\t\t\t\t\t\t\t\tClean Set to %i\n", n);
+    //printf("\t\t\t\t\t\t\t\tClean Set to %i\n", n);
     
     if (percentage != 0) {
         for (int h = 0; h < H; h++) {
@@ -291,7 +301,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
                     i--;
                 }
             }
-            printf("\t\t\t\t\t\t\t\tGenerated Set from %i to %i\n", start, n);
+            //printf("\t\t\t\t\t\t\t\tGenerated Set from %i to %i\n", start, n);
         }
     }
 
@@ -308,5 +318,9 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
         }
     }
     //printf("\t\t\t\t\t\t\tgenerateCollisionSet Return\n");
+
+    shuffle(res, N);
+
+
     return res;
 }
