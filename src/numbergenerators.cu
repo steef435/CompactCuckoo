@@ -29,7 +29,7 @@ bool contains(uint64_cu* arr, uint64_cu val, int index) {
 void shuffle(uint64_cu* arr, int len)
 {
     for (auto i = 0; i < len; i++) {
-        std::uniform_int_distribution<int> d(i, len);
+        std::uniform_int_distribution<int> d(i, len-1);
         std::swap(arr[i], arr[d(rd_ng)]);
     }
 }
@@ -262,7 +262,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     }
 
     //printf("\t\t\t\t\t\t\t\tClean Set to %i\n", n);
-    
+
     if (percentage != 0) {
         for (int h = 0; h < H; h++) {
             //Generate Half the Set First

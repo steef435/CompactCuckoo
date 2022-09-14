@@ -140,10 +140,16 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
 
     #ifdef GPUCODE
                                     ClearyCuckoo* cc;
-                                    gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
+                                    cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
                                     new (cc) ClearyCuckoo(N, H);
+
+                                    int* failFlag;
+                                    cudaMallocManaged((void**)&failFlag, sizeof(int));
+                                    (*failFlag) = false;
     #else
                                     ClearyCuckoo* cc = new ClearyCuckoo(N, H);
+                                    int* failFlag = new int;
+                                    (*failFlag) = false;
     #endif
 
                                     cc->setMaxLoops(L);
@@ -162,7 +168,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                     cc->readEverything(size * 50);
                                     warmupThreads(numThreads, vals, size, 20);
 
-                                    int failFlag = false;
+
 
                                     //printf("Reading\n");
                                     //Loop over intervals
@@ -175,13 +181,13 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                             //cc->readEverything(20);
                                         }
 
-                                        if (j >= WARMUP && !failFlag) {
+                                        if (j >= WARMUP && !(*failFlag)) {
                                             //printf("Start Inserting\n");
                                             begin = std::chrono::steady_clock::now();
     #ifdef GPUCODE
-                                            fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, &failFlag, setsize * (j - WARMUP));
-                                            gpuErrchk(cudaPeekAtLastError());
-                                            gpuErrchk(cudaDeviceSynchronize());
+                                            fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, failFlag, setsize * (j - WARMUP));
+                                            //gpuErrchk(cudaPeekAtLastError());
+                                            //gpuErrchk(cudaDeviceSynchronize());
     #else
                                             std::vector<std::thread> vecThread(numThreads);
                                             for (int i = 0; i < numThreads; i++) {
@@ -206,10 +212,12 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
 
                                     }
     #ifdef GPUCODE
-                                    gpuErrchk(cudaFree(cc));
-                                    gpuErrchk(cudaFree(vals));
+                                    cudaFree(cc);
+                                    cudaFree(failFlag);
+                                    cudaFree(vals);
     #else
                                     delete cc;
+                                    delete failFlag;
                                     delete[] vals;
     #endif
                                 }
