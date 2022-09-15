@@ -23,8 +23,8 @@ using keytype = uint64_cu;
 *
 **/
 
-#define GPUCODE
-//#define REHASH
+//#define GPUCODE
+#define REHASH
 
 /**
 *

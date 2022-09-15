@@ -192,7 +192,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                             std::vector<std::thread> vecThread(numThreads);
                                             for (int i = 0; i < numThreads; i++) {
                                                 //printf("Starting Threads\n");
-                                                vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, int*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, &failFlag, setsize * (j - WARMUP), i, numThreads);
+                                                vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, int*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, failFlag, setsize * (j - WARMUP), i, numThreads);
                                             }
 
                                             //Join Threads
