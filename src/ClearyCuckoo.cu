@@ -273,9 +273,9 @@ class ClearyCuckoo : HashTable{
         ClearyCuckoo() {}
 
         ClearyCuckoo(int adressSize) : ClearyCuckoo(adressSize, 4) {}
-        
+
         ClearyCuckoo(int adressSize, int hashNumber){
-            //printf("Creating ClearyCuckoo Table\n");
+            printf("Creating ClearyCuckoo Table\n");
             AS = adressSize;
             RS = HS-AS;
             tablesize = (int) pow(2,AS);
@@ -288,7 +288,7 @@ class ClearyCuckoo : HashTable{
             failFlag.store(false);
             rehashFlag.store(false);
 #endif
-            //printf("\tAllocating Memory %" PRIu32 "\n", tablesize);
+            printf("\tAllocating Memory %" PRIu32 "\n", tablesize);
             #ifdef GPUCODE
             gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>)));
             gpuErrchk(cudaMallocManaged(&hashlist, hn * sizeof(int)));
@@ -300,13 +300,13 @@ class ClearyCuckoo : HashTable{
             //Default MAXLOOPS Value
             MAXLOOPS = round(104.49226591 * log(3.80093894 * (AS - 3.54270024)) - 88.47034412);
 
-            //printf("\tInitializing Entries\n");
+            printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
                 new (&T[i]) ClearyCuckooEntry<addtype, remtype>();
             }
 
             createHashList(hashlist);
-            //printf("\tDone\n");
+            printf("\tDone\n");
 
         }
 

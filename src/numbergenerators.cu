@@ -30,7 +30,9 @@ void shuffle(uint64_cu* arr, int len)
 {
     for (auto i = 0; i < len; i++) {
         std::uniform_int_distribution<int> d(i, len-1);
-        std::swap(arr[i], arr[d(rd_ng)]);
+        int loc= d(rd_ng);
+        //printf("\tLength:%i, Loc:%i\n", len, loc);
+        std::swap(arr[i], arr[loc]);
     }
 }
 
@@ -223,7 +225,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     std::uniform_int_distribution<long long int> dist64(0, std::llround(std::pow(2, 58)));
     std::uniform_int_distribution<long long int> dist16(0, std::llround(std::pow(2, 16)));
 
-    //printf("\t\t\t\t\t\t\tgenerateCollisionSet N:%i H:%i perc:%i maxperc:%f\n", N, H, percentage, 100.0 / ((float)H));
+    printf("\t\t\t\t\t\t\tgenerateCollisionSet N:%i H:%i perc:%i maxperc:%f\n", N, H, percentage, 100.0 / ((float)H));
     int maxPercentage = std::floor(100.0 / ((float)H));
     if (percentage > maxPercentage) {
         printf("Error: Percentage too Large - 1/H being used instead");
@@ -242,6 +244,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     int n = 0;
 
     //Generate the Clean set first
+    printf("\t\t\t\t\t\t\t\tGenClean\n");
     int fullSet = (int)(((float)N * (float)percentage) / 100.0);
     int halfSet = std::floor(((float)N * (float)percentage) / (100.0 * ((float)depth + 1)));
 
@@ -264,6 +267,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     //printf("\t\t\t\t\t\t\t\tClean Set to %i\n", n);
 
     if (percentage != 0) {
+        printf("\t\t\t\t\t\t\t\tGenColliding\n");
         for (int h = 0; h < H; h++) {
             //Generate Half the Set First
             int start = n;
@@ -305,6 +309,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
         }
     }
 
+    printf("\t\t\t\t\t\t\t\tFill Leftover space\n");
     for (int i = n; i < N; i++) {
         uint64_cu rand = dist64(e2_ng);
         if (!(insertedSet.find(rand) != insertedSet.end())) {
@@ -317,9 +322,11 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
             i--;
         }
     }
-    //printf("\t\t\t\t\t\t\tgenerateCollisionSet Return\n");
+    printf("\t\t\t\t\t\t\tShuffle\n");
 
     shuffle(res, N);
+
+    printf("\t\t\t\t\t\t\tReturn\n");
 
 
     return res;

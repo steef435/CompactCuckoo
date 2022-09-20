@@ -139,22 +139,27 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                     //Init Cleary Cuckoo
 
     #ifdef GPUCODE
+                                    printf("InitTable\n");
                                     ClearyCuckoo* cc;
-                                    cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo));
+                                    printf("\tAllocTable\n");
+                                    gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
+                                    printf("\tStartTable\n");
                                     new (cc) ClearyCuckoo(N, H);
-
+                                    printf("InitFailFlag\n");
                                     int* failFlag;
-                                    cudaMallocManaged((void**)&failFlag, sizeof(int));
+                                    gpuErrchk(cudaMallocManaged((void**)&failFlag, sizeof(int)));
                                     (*failFlag) = false;
     #else
                                     ClearyCuckoo* cc = new ClearyCuckoo(N, H);
                                     int* failFlag = new int;
                                     (*failFlag) = false;
     #endif
-
+                                    printf("SetVals\n");
                                     cc->setMaxLoops(L);
                                     cc->setMaxRehashes(R);
+                                    printf("getHashlistCopy\n");
                                     int* hs = cc->getHashlistCopy();
+                                    printf("Generate CollisionSet\n");
                                     uint64_cu* vals = generateCollisionSet(size, N, H, hs, P, D);
                                     delete[] hs;
                                     //printf("Numsgenned\n");
@@ -212,9 +217,9 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
 
                                     }
     #ifdef GPUCODE
-                                    cudaFree(cc);
-                                    cudaFree(failFlag);
-                                    cudaFree(vals);
+                                    gpuErrchk(cudaFree(cc));
+                                    gpuErrchk(cudaFree(failFlag));
+                                    gpuErrchk(cudaFree(vals));
     #else
                                     delete cc;
                                     delete failFlag;
