@@ -46,7 +46,9 @@ public:
         //Atomically set this TableEntry<ADD, REM>::value to the new one
         //printf("\t\tBefore: %" PRIu64 ", %" PRIu64 "\n", TableEntry<ADD, REM>::val, x->getValue());
         #ifdef GPUCODE
+        //printf("\t\tAtomCall %p, %" PRIu64 "\n", TableEntry<ADD, REM>::getValPtr(), x->getValue());
         uint64_cu old = atomicExch(TableEntry<ADD, REM>::getValPtr(), x->getValue());
+        //printf("\t\tAfter: %" PRIu64 ", %" PRIu64 "\n", TableEntry<ADD, REM>::val, x->getValue());
         #else
         //printf("Before: atom:%" PRIu64 "\n", (*(TableEntry<ADD, REM>::getAtomValPtr())).load());
         //printf("Before: val :%" PRIu64 "\n", x->getValue());

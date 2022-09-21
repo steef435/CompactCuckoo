@@ -139,13 +139,13 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                     //Init Cleary Cuckoo
 
     #ifdef GPUCODE
-                                    printf("InitTable\n");
+                                    //printf("InitTable\n");
                                     ClearyCuckoo* cc;
-                                    printf("\tAllocTable\n");
+                                    //printf("\tAllocTable\n");
                                     gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
-                                    printf("\tStartTable\n");
+                                    //printf("\tStartTable\n");
                                     new (cc) ClearyCuckoo(N, H);
-                                    printf("InitFailFlag\n");
+                                    //printf("InitFailFlag\n");
                                     int* failFlag;
                                     gpuErrchk(cudaMallocManaged((void**)&failFlag, sizeof(int)));
                                     (*failFlag) = false;
@@ -154,12 +154,12 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                     int* failFlag = new int;
                                     (*failFlag) = false;
     #endif
-                                    printf("SetVals\n");
+                                    //printf("SetVals\n");
                                     cc->setMaxLoops(L);
                                     cc->setMaxRehashes(R);
-                                    printf("getHashlistCopy\n");
+                                    //printf("getHashlistCopy\n");
                                     int* hs = cc->getHashlistCopy();
-                                    printf("Generate CollisionSet\n");
+                                    //printf("Generate CollisionSet\n");
                                     uint64_cu* vals = generateCollisionSet(size, N, H, hs, P, D);
                                     delete[] hs;
                                     //printf("Numsgenned\n");
@@ -175,7 +175,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
 
 
 
-                                    //printf("Reading\n");
+                                    //printf("Starting\n");
                                     //Loop over intervals
                                     for (int j = 0; j < INTERVAL + WARMUP; j++) {
                                         //Fill the table
@@ -187,7 +187,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                         }
 
                                         if (j >= WARMUP && !(*failFlag)) {
-                                            //printf("Start Inserting\n");
+                                            //printf("Insertion %i\n", j);
                                             begin = std::chrono::steady_clock::now();
     #ifdef GPUCODE
                                             fillClearyCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cc, failFlag, setsize * (j - WARMUP));

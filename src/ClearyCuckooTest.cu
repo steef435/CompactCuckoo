@@ -25,10 +25,12 @@ bool testRehash(int N, uint64_cu* vals){
 #else
     fillClearyCuckoo(tablesize / 4, vals, cc);
 #endif
-    
+
 
     //Rehash
+    #ifndef GPUCODE
     cc->rehash();
+    #endif
 
     //Check if all values are still present
     bool res = true;
@@ -40,7 +42,7 @@ bool testRehash(int N, uint64_cu* vals){
     checkClearyCuckoo(tablesize / 4, vals, cc, &res);
 #endif
 
-    
+
     return res;
 }
 

@@ -24,7 +24,7 @@ using keytype = uint64_cu;
 **/
 
 #define GPUCODE
-#define REHASH
+//#define REHASH
 
 /**
 *
@@ -65,6 +65,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 #ifndef GETID
 #define GETID
+GPUHEADER_D
 inline int getThreadID()
 {
 #ifdef GPUCODE
