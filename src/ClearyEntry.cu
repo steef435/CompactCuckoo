@@ -37,7 +37,7 @@ public:
     ClearyEntry (uint64_cu x) noexcept : TableEntry< ADD, REM >(x) {}
 
     GPUHEADER
-    ClearyEntry() noexcept : ClearyEntry(0, false, false, true, 0, false) {}
+    ClearyEntry() noexcept : ClearyEntry(0, false, false, true, 0, false, false) {}
 
     GPUHEADER
     void exchValue(ClearyEntry* x) {

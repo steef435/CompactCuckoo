@@ -452,7 +452,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             }
 
                         }
-                        printf("Delete CC Vars\n");
+                        //printf("Delete CC Vars\n");
 #ifdef GPUCODE
                         gpuErrchk(cudaFree(cc));
                         gpuErrchk(cudaFree(failFlag));

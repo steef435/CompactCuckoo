@@ -37,8 +37,15 @@ protected:
 
     GPUHEADER
     void setBits(int start, int end, uint64_cu ins, bool onDevice=true) {
-        printf("\tSetBits %i, %i, %" PRIu64 ", %p, %i \n", start, end, ins, &val, onDevice);
+        //printf("\tSetBits %i, %i, %p, %i \n", start, end, &val, onDevice);
+#ifdef GPUCODE
+        if(onDevice){
+          setBitsDevice(start, end, ins, &val, onDevice);
+          return;
+        }
+#else
         setBits(start, end, ins, &val, onDevice);
+#endif
     }
 
 
@@ -60,32 +67,39 @@ protected:
 
 
 #ifdef GPUCODE
-    GPUHEADER
-    void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
+    GPUHEADER_D
+    void setBitsDevice(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
+        //printf("SetBits Device\n");
         while (true) {
 
             uint64_cu oldval = *loc;
             uint64_cu newval = setValBits(start, end, ins, loc);
 
             //In devices, atomically exchange
-            if (onDevice) {
-                uint64_cu res = atomicCAS(loc, oldval, newval);
-                //Make sure the value hasn't changed in the meantime
-                if (res == oldval) {
-                    return;
-                }
-                continue;
-            }
-            else {
-                *loc = newval;
+            uint64_cu res = atomicCAS(loc, oldval, newval);
+            //Make sure the value hasn't changed in the meantime
+            if (res == oldval) {
                 return;
             }
+            continue;
+        }
+    }
+
+    GPUHEADER
+    void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
+        //printf("SetBits Normal\n");
+        while (true) {
+            uint64_cu oldval = *loc;
+            uint64_cu newval = setValBits(start, end, ins, loc);
+
+            *loc = newval;
+            return;
         }
     }
 #else
     GPUHEADER
     void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
-            printf("Default SetBits\n");
+            //printf("Default SetBits\n");
             uint64_cu newval = setValBits(start, end, ins, loc);
             *loc = newval;
             return;
