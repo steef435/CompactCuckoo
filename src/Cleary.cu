@@ -458,7 +458,7 @@ class Cleary : public HashTable{
          * Destructor
          */
         ~Cleary() {
-            #ifdef GPUCODECODE
+            #ifdef GPUCODE
             gpuErrchk(cudaFree(T));
             #else
             delete[] T;
