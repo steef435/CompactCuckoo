@@ -527,7 +527,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
 
 
-void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int HASH_STEP, int NUM_LOOPS, int LOOP_STEP, int NUM_REHASHES, int REHASH_STEP, int NUM_SAMPLES) {
+void BenchmarkMaxOccupancy(int TABLE_START, int NUM_TABLES, int HASH_START, int NUM_HASHES, int HASH_STEP, int NUM_LOOPS, int LOOP_STEP, int NUM_REHASHES, int REHASH_STEP, int NUM_SAMPLES) {
 
     printf("=====================================================================\n");
     printf("                   Starting MAX Occupancy Benchmark                  \n");
@@ -543,7 +543,13 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int HASH_STEP, int NU
 #ifdef REHASH
     specifier += "-REHASH";
 #endif
-    std::string filename = "results/benchmax" + specifier + ".csv";
+
+    std::string filename = "results/benchmax";
+    if (HASH_START == 4 && NUM_HASHES == 1) {
+        filename = "results/benchmax_4";
+    }
+
+    filename = filename + specifier + ".csv";
 
 
     myfile.open(filename);
@@ -556,14 +562,14 @@ void BenchmarkMaxOccupancy(int TABLESIZES, int NUM_HASHES, int HASH_STEP, int NU
     myfile << "tablesize,hashes,loops,rehashes,samples,max\n";
 
     //MAX_LOOPS
-    for (int N = 5; N < 5 + TABLESIZES; N++) {
+    for (int N = TABLE_START; N < TABLE_START + NUM_TABLES; N++) {
         printf("Table Size:%i\n", N);
         int size = std::pow(2, N);
-        for (int H = 1; H < NUM_HASHES; H+=HASH_STEP) {
+        for (int H = HASH_START; H < HASH_START + NUM_HASHES; H+=HASH_STEP) {
             printf("\tNum of Hashes:%i\n", H);
             for (int L = 0; L < NUM_LOOPS; L+=LOOP_STEP) {
                 printf("\t\tNum of Loops:%i\n", L);
-                for (int R = 0; R < NUM_REHASHES; R+=REHASH_STEP) {
+                for (int R = 0; R <= NUM_REHASHES; R+=REHASH_STEP) {
                     printf("\t\t\tNum of Rehashes:%i\n", R);
                     for (int S = 0; S < NUM_SAMPLES; S++) {
                         //printf("\t\t'tSample Number:%i\n", S);

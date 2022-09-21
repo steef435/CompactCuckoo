@@ -9,7 +9,7 @@ template <class ADD, class REM>
 class TableEntry {
 
 protected:
-    #ifdef  GPUCODE
+    #ifdef GPUCODE
     uint64_cu val;
     #else
     std::atomic<uint64_cu> val;
@@ -43,9 +43,8 @@ protected:
           setBitsDevice(start, end, ins, &val, onDevice);
           return;
         }
-#else
-        setBits(start, end, ins, &val, onDevice);
 #endif
+        setBits(start, end, ins, &val, onDevice);
     }
 
 
@@ -71,7 +70,6 @@ protected:
     void setBitsDevice(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
         //printf("SetBits Device\n");
         while (true) {
-
             uint64_cu oldval = *loc;
             uint64_cu newval = setValBits(start, end, ins, loc);
 
@@ -89,7 +87,6 @@ protected:
     void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
         //printf("SetBits Normal\n");
         while (true) {
-            uint64_cu oldval = *loc;
             uint64_cu newval = setValBits(start, end, ins, loc);
 
             *loc = newval;

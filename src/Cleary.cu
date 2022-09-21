@@ -214,7 +214,7 @@ class Cleary : public HashTable{
             //Check virgin bit and set
             if (!T[j].getV()) {
                 //printf("\t\t\t\t\t\t\t%i: Set VBit at %" PRIu32 "\n", getThreadID(), j);
-                T[j].setV(true);
+                T[j].setV(true, true);
                 newgroup = true;
             }
 
@@ -275,7 +275,7 @@ class Cleary : public HashTable{
                 //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift -1\n",getThreadID());
                 if (groupstart && (!newgroup) && (T[i].getR() > rem) && T[i].getO() && (i != MIN_ADRESS)) {
                     //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 1\n",getThreadID());
-                    T[i].setC(false);
+                    T[i].setC(false, true);
                     setC = true;
                     i--;
                 }
@@ -306,7 +306,7 @@ class Cleary : public HashTable{
                     //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 5:%" PRIu32 "\n",getThreadID(),i);
                     i++;
                     //printf("\t\t\t\t\t\t\t\t\t\t%i: Iter Case 5:%" PRIu32 "\n",getThreadID(),i);
-                    T[i].setC(false);
+                    T[i].setC(false, true);
                     //printf("\t\t\t\t\t\t\t\t\t\t%i: SetC 5:%" PRIu32 "\n",getThreadID(),i);
                     setC = true;
                     //printf("\t\t\t\t\t\t\t\t\t\t%i: Done Shift Case 5\n",getThreadID());
@@ -338,9 +338,9 @@ class Cleary : public HashTable{
 
             //Insert new values
             //printf("\t\t\t\t\t\t\t\t\t\t%i: Setting new Values at %" PRIu32 "\n", getThreadID(), i);
-            T[i].setR(rem);
+            T[i].setR(rem, true);
 
-            T[i].setO(true);
+            T[i].setO(true, true);
             if ((shift == 1) && !setC) {
                 T[i].setC(C_old);
             }
@@ -349,7 +349,7 @@ class Cleary : public HashTable{
             }
 
             //printf("\t\t\t\t\t\t\t\t\t\t%i: Update C %" PRIu32 "\n", getThreadID(), i);
-            if (setC && shift == -1) { T[i].setC(true); }
+            if (setC && shift == -1) { T[i].setC(true, true); }
             //Update C Value
             if (shift == 1 && !newgroup) {
                 C_old = setC;
@@ -368,9 +368,9 @@ class Cleary : public HashTable{
                     bool O_temp = T[i].getO();
 
                     //Put the old values in the new location
-                    T[i].setR(R_old);
-                    T[i].setO(true);
-                    T[i].setC(C_old);
+                    T[i].setR(R_old, true);
+                    T[i].setO(true, true);
+                    T[i].setC(C_old, true);
 
                     //Store the old values again
                     R_old = R_temp;
@@ -408,7 +408,7 @@ class Cleary : public HashTable{
                     if (T[x].getV()) {
                         A_old -= 1;
                     }
-                    T[x].setA(A_old);
+                    T[x].setA(A_old, true);
                     x++;
                     if (x > MAX_ADRESS) {
                         break;

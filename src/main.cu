@@ -153,10 +153,10 @@ int main(int argc, char* argv[])
     else if (strcmp(argv[1], "benchmax") == 0) {
         if (argc < 6) {
             printf("Not Enough Arguments Passed\n");
-            printf("Required: TABLESIZES, NUM_HASHES, HASH_STEP, NUM_LOOPS, LOOP_STEP, NUM_REHASHES, REHASH_STEP, NUM_SAMPLES\n");
+            printf("Required: TABLE_START, NUM_TABLES, HASH_START, NUM_HASHES, HASH_STEP, NUM_LOOPS, LOOP_STEP, NUM_REHASHES, REHASH_STEP, NUM_SAMPLES\n");
             return 0;
         }
-        BenchmarkMaxOccupancy(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]));
+        BenchmarkMaxOccupancy(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), std::stoi(argv[10]), std::stoi(argv[11]));
     }
     else if (strcmp(argv[1], "benchfill") == 0) {
         if (argc < 10) {
