@@ -265,7 +265,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     }
 
     //printf("\t\t\t\t\t\t\t\tClean Set to %i\n", n);
-
+    
     if (percentage != 0) {
         printf("\t\t\t\t\t\t\t\tGenColliding\n");
         for (int h = 0; h < H; h++) {
