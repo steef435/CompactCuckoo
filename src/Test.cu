@@ -95,8 +95,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         printf("Filling Cleary\n");
 
 #ifdef GPUCODE
-        //TODO Why?
-        //fillCleary << < 1, 1 > >> (N, vals, c);
+        fillCleary << <1, 1 >> > (N, vals, c);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
