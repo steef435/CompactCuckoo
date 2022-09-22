@@ -400,10 +400,11 @@ class ClearyCuckoo : HashTable{
             int oldFlag = 1;
             while(oldFlag != 0){
               //printf("\toldFlag\n");
+              __syncthreads();
               oldFlag = atomicCAS(&rehashFlag, 0, 1);
             }
             //printf("\tSync\n");
-            __syncthreads();
+            
 #else
             rehashFlag.store(1);
 #endif
