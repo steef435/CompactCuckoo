@@ -146,6 +146,15 @@ int main(int argc, char* argv[])
 
             numGenCollisionTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]));
         }
+        else if (strcmp(argv[2], "QUEUE") == 0) {
+            if (argc < 5) {
+                printf("Not Enough Arguments Passed\n");
+                printf("Required: MAXSIZE, NUM_THREADS \n");
+                return 0;
+            }
+
+            queueTest(std::stoi(argv[3]), std::stoi(argv[4]));
+        }
         else {
             printf("Possible Tests:\nTABLE, NUMGEN\n");
         }

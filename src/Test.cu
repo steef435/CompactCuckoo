@@ -1,5 +1,6 @@
 #include "numbergeneratorsTest.cu"
 #include "ClearyCuckooTest.cu"
+#include "SharedQueueTest.cu"
 #include <cuda.h>
 
 #ifndef TABLES
