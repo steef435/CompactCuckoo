@@ -23,7 +23,7 @@ using keytype = uint64_cu;
 *
 **/
 
-#define GPUCODE
+//#define GPUCODE
 #define REHASH
 
 /**
@@ -37,10 +37,12 @@ using keytype = uint64_cu;
 #define GPUHEADER __host__ __device__
 #define GPUHEADER_G __global__
 #define GPUHEADER_D __device__
+#define GPUHEADER_H __host__
 #else
 #define GPUHEADER
 #define GPUHEADER_G
 #define GPUHEADER_D
+#define GPUHEADER_H
 #endif
 
 /**

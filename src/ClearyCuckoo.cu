@@ -8,6 +8,9 @@
 #include <atomic>
 #include <random>
 
+//For to List
+#include <vector>
+
 #include <curand.h>
 #include <curand_kernel.h>
 
@@ -26,7 +29,13 @@
 #include "hashfunctions.cu"
 #endif
 
+#ifndef SHAREDQUEUE
+#define SHAREDQUEUE
+#include "SharedQueue.cu"
+#endif
 #include "ClearyCuckooEntry.cu"
+
+
 
 
 class ClearyCuckoo : HashTable{
@@ -67,6 +76,7 @@ class ClearyCuckoo : HashTable{
         std::atomic<int> occupation;
         std::atomic<int> rehashFlag;
 #endif
+        SharedQueue<keytype>* rehashQueue;
 
         GPUHEADER
         void createHashList(int* list) {
@@ -171,6 +181,8 @@ class ClearyCuckoo : HashTable{
             }
 
 #ifdef REHASH
+            //printf("Pushing %" PRIu64 "\n", x);
+            rehashQueue->push(x);
             if(depth>0){return false;}
             //If MAXLOOPS is reached rehash the whole table
             if(!rehash()){
@@ -178,62 +190,47 @@ class ClearyCuckoo : HashTable{
                 //If rehash fails, return
                 return false;
             }
-            if(insertIntoTable(x, T, hs, depth)){return true;}
-#endif
+
+            //printf("Inserting RehashQueue\n");
+            rehashQueue->print();
+            while (!rehashQueue->isEmpty()) {         
+                keytype next = rehashQueue->pop();
+                if (!insertIntoTable(next, T, hs, depth)) { return false; }
+                
+            }
+
+            return true;
+#else
             return false;
+#endif
         };
 
 #ifdef REHASH
         GPUHEADER_D
-        bool rehash(int depth, int* hs){
+        bool rehash(int depth){
             //Prevent recursion of rehashing
             if(depth >0){return false;}
 
-            ClearyCuckooEntry<addtype, remtype>* T_copy;
-
-#ifdef GPUCODE
-            gpuErrchk(cudaMalloc(&T_copy, tablesize * sizeof(ClearyCuckooEntry<addtype, remtype>)));
-#else
-            T_copy = new ClearyCuckooEntry<addtype, remtype>[tablesize];
-#endif
-
-            //Initialize the table copy
             for (int i = 0; i < tablesize; i++) {
-                new (&T_copy[i]) ClearyCuckooEntry<addtype, remtype>();
-            }
-
-            //Copy entries into new table
-            for (int i = 0; i < tablesize; i++) {
-                if (T[i].getO()) {
+                //printf("Checking %i\n", i);
+                //Check Occupied
+                if (!T[i].getO()) {
+                    continue;
+                }
+                //Check if permissible under new hashlist
+                if(!containsHash(hashlist, T[i].getH())) {
+                    //Reform Val
                     hashtype h_old = reformKey(i, T[i].getR(), AS);
-                    hashtype k = RHASH_INVERSE(T[i].getH(), h_old);
-
-                    if (!insertIntoTable(k, T_copy, hs, depth + 1)) {
-            #ifdef GPUCODE
-                        gpuErrchk(cudaFree(T_copy));
-            #else
-                        delete[] T_copy;
-            #endif
-
+                    keytype x = RHASH_INVERSE(T[i].getH(), h_old);
+                    //Clear Entry
+                    T[i].clear();
+                    //Reinsert using new hashlist
+                    //printf("Reinserting %" PRIu64 "\n", x);
+                    if (!insertIntoTable(x, T, hashlist, depth)) {
                         return false;
                     }
                 }
             }
-            //Copy the table into the table
-            for (int i = 0; i < tablesize; i++) {
-                T[i].setValue(T_copy[i].getValue());
-            }
-
-            //set the new hashlist
-            for (int i = 0; i < hn; i++) {
-                hashlist[i] = hs[i];
-            }
-
-#ifdef GPUCODE
-            gpuErrchk(cudaFree(T_copy));
-#else
-            delete[] T_copy;
-#endif
 
             return true;
         };
@@ -287,6 +284,10 @@ class ClearyCuckoo : HashTable{
             AS = adressSize;
             RS = HS-AS;
             tablesize = (int) pow(2,AS);
+
+            int queueSize = std::max(100, (int)(tablesize / 10));
+
+            rehashQueue = new SharedQueue<keytype>(queueSize);
 
             hn = hashNumber;
 #ifdef GPUCODE
@@ -342,17 +343,6 @@ class ClearyCuckoo : HashTable{
                 //printf("\t%i:FailFlag\n", getThreadID());
                 return false;
             }
-            //printf("\t%i:Rehash Flag\n", getThreadID());
-            if(rehashFlag){
-              __syncthreads();
-            }
-
-            while (rehashFlag) {
-
-                if (failFlag) {
-                    return false;
-                }
-            }
             //printf("\t%i:Rehash Flag Not Set\n", getThreadID());
 #else
             if (failFlag.load()) {
@@ -396,46 +386,17 @@ class ClearyCuckoo : HashTable{
             //printf("\t%i:Start Rehash\n", getThreadID());
             hashcounter++;
             //printf("Rehash call %i\n", hashcounter);
-#ifdef GPUCODE
-            int oldFlag = 1;
-            while(oldFlag != 0){
-              //printf("\toldFlag\n");
-              __syncthreads();
-              oldFlag = atomicCAS(&rehashFlag, 0, 1);
-            }
-            //printf("\tSync\n");
-            
-#else
-            rehashFlag.store(1);
-#endif
 
-            //Create the new hashlist
-            int* hashlist_new;
-#ifdef GPUCODE
-            gpuErrchk(cudaMalloc(&hashlist_new, hn * sizeof(int)));
-#else
-            hashlist_new = new int[hn];
-#endif
-            for (int i = 0; i < hn; i++) {
-                hashlist_new[i] = hashlist[i];
-            }
-
-            iterateHashList(hashlist_new);
+            iterateHashList(hashlist);
 
             //Local counter for number of rehashes
 
-            while(!rehash(0, hashlist_new) && hashcounter<MAXREHASHES){
+            while(!rehash(0) && hashcounter<MAXREHASHES){
                 //printf("\tRehash call %i\n", hashcounter);
-                iterateHashList(hashlist_new);
+                iterateHashList(hashlist);
                 hashcounter++;
             };
 
-
-#ifdef GPUCODE
-            gpuErrchk(cudaFree(hashlist_new));
-#else
-            delete[] hashlist_new;
-#endif
 
             //If counter tripped return
             if(hashcounter >= MAXREHASHES){
@@ -481,6 +442,19 @@ class ClearyCuckoo : HashTable{
             return res;
         }
 
+        GPUHEADER_H
+        std::vector<uint64_cu> toList() {
+            std::vector<uint64_cu> list;
+            for (int i = 0; i < tablesize; i++) {
+                if (T[i].getO()) {
+                    hashtype h_old = reformKey(i, T[i].getR(), AS);
+                    keytype x = RHASH_INVERSE(T[i].getH(), h_old);
+                    list.push_back(x);
+                }
+            }
+            return list;
+        }
+
         void readEverything(int N) {
             int j = 0;
             int step = 1;
@@ -498,8 +472,15 @@ class ClearyCuckoo : HashTable{
             }
         }
 
+        
+
         GPUHEADER
         void print(){
+            printf("Hashlist:");
+            for (int i = 0; i < hn; i++) {
+                printf("%i,", hashlist[i]);
+            }
+            printf("\n");
             print(T);
         }
 

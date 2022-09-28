@@ -102,6 +102,11 @@ public:
     }
 
     GPUHEADER
+    void clear() {
+        TableEntry<ADD, REM>::val = 0;
+    }
+
+    GPUHEADER
     void print() {
 #ifdef GPUCODE
         printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val);

@@ -7,43 +7,61 @@
 
 #ifdef REHASH
 bool testRehash(int N, uint64_cu* vals){
-    int tablesize = std::pow(2, N);;
+    int tablesize = std::pow(2, N);
+    int fillSize = (int) (((float)tablesize) * 0.75);
 
 #ifdef GPUCODE
     ClearyCuckoo* cc;
     gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
     new (cc) ClearyCuckoo(tablesize, 16);
 #else
-    ClearyCuckoo* cc = new ClearyCuckoo(N, 2);
+    ClearyCuckoo* cc = new ClearyCuckoo(N, 4);
 #endif
 
     //Fill an eigth of the table
 #ifdef GPUCODE
-    fillClearyCuckoo << <1, 8 >> > (tablesize / 4, vals, cc);
+    fillClearyCuckoo << <1, 8 >> > (fillSize, vals, cc);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
 #else
-    fillClearyCuckoo(tablesize / 4, vals, cc);
+    fillClearyCuckoo(fillSize, vals, cc);
 #endif
 
+    printf("Before Rehash\n");
+    cc->print();
 
     //Rehash
-    #ifndef GPUCODE
+    #ifdef GPUCODE
+    callRehash<<<1,1>>>(cc);
+    #else
     cc->rehash();
     #endif
 
-    //Check if all values are still present
+    printf("After Rehash\n");
+    cc->print();
+
+    //Check if all values from vals are still present
     bool res = true;
 #ifdef GPUCODE
-    checkClearyCuckoo << <1, 8 >> > (tablesize / 4, vals, cc, &res);
+    checkClearyCuckoo << <1, 8 >> > (fillSize, vals, cc, &res);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
 #else
-    checkClearyCuckoo(tablesize / 4, vals, cc, &res);
+    checkClearyCuckoo(fillSize, vals, cc, &res);
 #endif
 
+    //Check or duplicates
+    std::vector<uint64_cu> ccList = cc->toList();
+    std::set<uint64_cu> ccSet(ccList.begin(), ccList.end());
+
+    res = res && (ccSet.size() == ccList.size());
 
     return res;
 }
 
 #endif
+
+GPUHEADER_G
+void callRehash(ClearyCuckoo* T) {
+    T->rehash();
+}
