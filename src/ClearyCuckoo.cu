@@ -192,7 +192,7 @@ class ClearyCuckoo : HashTable{
             }
 
             //printf("Inserting RehashQueue\n");
-            rehashQueue->print();
+            //rehashQueue->print();
             while (!rehashQueue->isEmpty()) {         
                 keytype next = rehashQueue->pop();
                 if (!insertIntoTable(next, T, hs, depth)) { return false; }
@@ -588,7 +588,7 @@ void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res, int i
 
     for (int i = index; i < N; i += stride) {
         if (!(H->lookup(vals[i]))) {
-            //printf("\tSetting Res:Val %" PRIu64 " Missing\n", vals[i]);
+            //printf("\t\tVal %" PRIu64 " Missing\n", vals[i]);
             res[0] = false;
         }
     }

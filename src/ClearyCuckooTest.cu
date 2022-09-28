@@ -50,7 +50,7 @@ bool testRehash(int N, uint64_cu* vals){
     checkClearyCuckoo(fillSize, vals, cc, &res);
 #endif
 
-    //Check or duplicates
+    //Check for duplicates
     std::vector<uint64_cu> ccList = cc->toList();
     std::set<uint64_cu> ccSet(ccList.begin(), ccList.end());
 

@@ -74,6 +74,16 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
             //testres = false;
             printf("!---------------------Vals Missing---------------------!\n");
         }
+
+        //Check for duplicates
+        std::vector<uint64_cu> ccList = cc->toList();
+        std::set<uint64_cu> ccSet(ccList.begin(), ccList.end());
+
+        if (ccSet.size() != ccList.size()) {
+            printf("Duplicates Detected\n");
+            testres = false;
+        }
+
 #ifdef GPUCODE
         gpuErrchk(cudaFree(cc));
 #else

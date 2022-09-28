@@ -117,4 +117,15 @@ public:
         }
         printf("------------------------------------------------------------\n");
     }
+
+    GPUHEADER_H
+    std::vector<uint64_cu> toVector() {
+        std::vector<uint64_cu> list;
+        for (int i = 0; i < maxSize; i++) {
+            if (Occ[i]) {
+                list.push_back(queue[i]);
+            }
+        }
+        return list;
+    }
 };
