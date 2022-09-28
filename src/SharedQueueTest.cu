@@ -1,4 +1,7 @@
+#ifndef SHAREDQUEUE
+#define SHAREDQUEUE
 #include "SharedQueue.cu"
+#endif
 
 GPUHEADER_G
 void fillQueue(int N, SharedQueue<int>* queue, int id = 0, int s = 1)
