@@ -125,31 +125,38 @@ class ClearyCuckoo : HashTable{
 
 #ifdef GPUCODE
         GPUHEADER_D
-        void setFlag(int* loc, int val) {
+        bool setFlag(int* loc, int val, bool strict=true) {
             int val_i = val == 0 ? 1 : 0;
 
             while (true) {
+                //printf("Attempting exch val:%i val_i%i\n", val ,val_i);
+                if(failFlag){
+                  return false;
+                }
                 //In devices, atomically exchange
                 uint64_cu res = atomicCAS(loc, val_i, val);
                 //Make sure the value hasn't changed in the meantime
-                if (res == val_i) {
-                    //printf("%i:\t:Rehash Flag Set\n", getThreadID());
-                    break;
+                if (res != val_i && strict) {
+                    continue;
                 }
-                continue;
+                ////printf("%i:\t:Flag Set to %i\n", getThreadID(), val);
+                return true;
             }
         }
 
 #else
         GPUHEADER
-        void setFlag(std::atomic<int>* loc, int val) {
+        bool setFlag(std::atomic<int>* loc, int val) {
             int val_i = val == 0 ? 1 : 0;
 
             while (true) {
+                if(failFlag){
+                  return false;
+                }
                 //printf("%i:\t:Attempting CAS\n", getThreadID());
                 if (std::atomic_compare_exchange_strong(loc, &val_i, val)) {
                     //printf("%i:\t:Flag Set\n", getThreadID());
-                    break;
+                    return true;
                 }
             }
         }
@@ -402,9 +409,11 @@ class ClearyCuckoo : HashTable{
                 */
                 return true;
             }
+            ////printf("Set FailFlag\n");
 #ifdef REHASH
-            setFlag(&failFlag, 1);
+            setFlag(&failFlag, 1, false);
 #endif
+            ////printf("Insert Fail\n");
             return false;
         };
 
@@ -414,7 +423,9 @@ class ClearyCuckoo : HashTable{
             ////printf("%i:\t:Start Rehash\n", getThreadID());
             //printf("Rehash call %i\n", hashcounter);
 
-            setFlag(&rehashFlag, 1);
+            if(!setFlag(&rehashFlag, 1)){
+                return false;
+            }
             //printf("%i:\t\t:Rehash Flag Set\n", getThreadID());
 
             //Looping Rehash
@@ -444,7 +455,8 @@ class ClearyCuckoo : HashTable{
             //If counter tripped return
             if(hashcounter >= MAXREHASHES){
                 ////printf("\t +++++++++++++++++++++++++++++++++++++++Rehash Loop FAIL++++++++++++++++++++++++++++++++++++++\n");
-                setFlag(&failFlag, 1);
+                setFlag(&failFlag, 1, false);
+                ////printf("Returning\n");
                 return false;
             }
             //Rehash done
