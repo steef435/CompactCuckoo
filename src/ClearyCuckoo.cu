@@ -139,8 +139,8 @@ class ClearyCuckoo : HashTable{
                 continue;
             }
         }
-#endif
 
+#else
         GPUHEADER
         void setFlag(std::atomic<int>* loc, int val) {
             int val_i = val == 0 ? 1 : 0;
@@ -153,6 +153,9 @@ class ClearyCuckoo : HashTable{
                 }
             }
         }
+#endif
+
+
 
         /**
          * Function to label which hash function was used on this value
@@ -366,7 +369,7 @@ class ClearyCuckoo : HashTable{
             if (failFlag) {
                 //printf("%i:\t:FailFlag\n", getThreadID());
                 return false;
-            }while (rehash) {
+            }while (rehashFlag) {
                 if (failFlag) {
                     return false;
                 }

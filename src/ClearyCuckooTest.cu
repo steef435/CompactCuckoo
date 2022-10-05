@@ -5,6 +5,11 @@
 #endif
 
 
+GPUHEADER_G
+void callRehash(ClearyCuckoo* T) {
+    T->rehash();
+}
+
 #ifdef REHASH
 bool testRehash(int N, uint64_cu* vals){
     int tablesize = std::pow(2, N);
@@ -66,8 +71,3 @@ bool testRehash(int N, uint64_cu* vals){
 }
 
 #endif
-
-GPUHEADER_G
-void callRehash(ClearyCuckoo* T) {
-    T->rehash();
-}
