@@ -324,7 +324,8 @@ class ClearyCuckoo : HashTable{
             #ifdef GPUCODE
             gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>)));
             gpuErrchk(cudaMallocManaged(&hashlist, hn * sizeof(int)));
-            gpuErrchk(cudaMallocManaged(&rehashQueue, sizeof(SharedQueue<keytype>)));
+            gpuErrchk(cudaMallocManaged((void**)&rehashQueue, sizeof(SharedQueue<int>)));
+            new (rehashQueue) SharedQueue<int>(queueSize);
             #else
             T = new ClearyCuckooEntry<addtype, remtype>[tablesize];
             hashlist = new int[hn];

@@ -22,8 +22,9 @@ private:
 
 
 public:
-    SharedQueue(int maxSize) {
-        this->maxSize = maxSize;
+    SharedQueue(int max) {
+        //printf("Making SharedQueue size %i \n", max);
+        maxSize = max;
 
 #ifdef GPUCODE
         insertIndex = 0;
@@ -91,11 +92,12 @@ public:
         //Otherwise return a default value
         return 0;
     }
-    
+
     GPUHEADER_D
     bool isEmpty() {
 #ifdef GPUCODE
-        return Occ[headIndex%maxSize];
+        //printf("IsEmptyIndex: %i, headIndex %i, maxSize %i\n", headIndex % maxSize, headIndex, maxSize);
+        return !Occ[headIndex % maxSize];
 #else
         //printf("\tChecking %i", headIndex.load() % maxSize);
         return !Occ[headIndex.load() % maxSize];
