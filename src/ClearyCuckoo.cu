@@ -72,7 +72,7 @@ class ClearyCuckoo : HashTable{
         int occupation = 0;
         int rehashFlag = 0;
 #else
-        std::atomic<bool> failFlag;
+        std::atomic<int> failFlag;
         std::atomic<int> occupation;
         std::atomic<int> rehashFlag;
 #endif
@@ -123,12 +123,43 @@ class ClearyCuckoo : HashTable{
             return false;
         }
 
+#ifdef GPUCODE
+        GPUHEADER_D
+        void setFlag(int* loc, int val) {
+            int val_i = val == 0 ? 1 : 0;
+
+            while (true) {
+                //In devices, atomically exchange
+                uint64_cu res = atomicCAS(loc, val_i, val);
+                //Make sure the value hasn't changed in the meantime
+                if (res == val_i) {
+                    //printf("%i:\t:Rehash Flag Set\n", getThreadID());
+                    break;
+                }
+                continue;
+            }
+        }
+#endif
+
+        GPUHEADER
+        void setFlag(std::atomic<int>* loc, int val) {
+            int val_i = val == 0 ? 1 : 0;
+
+            while (true) {
+                //printf("%i:\t:Attempting CAS\n", getThreadID());
+                if (std::atomic_compare_exchange_strong(loc, &val_i, val)) {
+                    //printf("%i:\t:Flag Set\n", getThreadID());
+                    break;
+                }
+            }
+        }
+
         /**
          * Function to label which hash function was used on this value
          **/
         GPUHEADER_D
         bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, int depth=0){
-            //printf("\t%i:InsertintoTable\n", getThreadID());
+            ////printf("%i:\t\t:InsertintoTable\n", getThreadID());
             keytype x = k;
             int hash = hs[0];
 
@@ -144,37 +175,37 @@ class ClearyCuckoo : HashTable{
             while(c < MAXLOOPS){
                 //printf("%i:Loop %i ", getThreadID(), c);
                 //Get the key of k
-                //printf("\t%i:GetKey\n", getThreadID());
+                //printf("%i:\t:GetKey\n", getThreadID());
                 hashtype hashed1 = RHASH(hash, x);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
 
                 //Place new value
-                //printf("\t%i:Placing New Value at %" PRIu32 "\n", getThreadID(), add);
+                //printf("%i:\t:Placing New Value at %" PRIu32 "\n", getThreadID(), add);
                 ClearyCuckooEntry<addtype, remtype> entry(rem, hash, true, false);
-                //printf("\t%i:ExchValue at %" PRIu32 " \n", getThreadID(), add);
+                //printf("%i:\t:ExchValue at %" PRIu32 " \n", getThreadID(), add);
                 T[add].exchValue(&entry);
 
                 //Store the old value
-                //printf("\t%i:Store Old Value at %" PRIu32 "\n", getThreadID(), add);
+                //printf("%i:\t:Store Old Value at %" PRIu32 "\n", getThreadID(), add);
                 remtype temp = entry.getR();
                 bool wasoccupied = entry.getO();
                 int oldhash = entry.getH();
 
-                //printf("\t%i:Occ Check\n", getThreadID());
+                //printf("%i:\t:Occ Check\n", getThreadID());
                 //If the first spot was open return
                 if(!wasoccupied){
-                    //printf("\t%i:WasEmpty\n", getThreadID());
+                    //printf("%i:\t:WasEmpty\n", getThreadID());
                     return true;
                 }
 
                 //Otherwise rebuild the original key
-                //printf("\t%i:Rebuild Key\n", getThreadID());
+                //printf("%i:\t:Rebuild Key\n", getThreadID());
                 hashtype h_old = reformKey(add, temp, AS);
                 x = RHASH_INVERSE(oldhash, h_old);
 
                 //Hash with the next hash value
-                //printf("\t%i:GetNextHash\n", getThreadID());
+                //printf("%i:\t:GetNextHash\n", getThreadID());
                 hash = getNextHash(hs, oldhash);
 
                 c++;
@@ -190,15 +221,6 @@ class ClearyCuckoo : HashTable{
                 //If rehash fails, return
                 return false;
             }
-
-            //printf("Inserting RehashQueue\n");
-            //rehashQueue->print();
-            while (!rehashQueue->isEmpty()) {         
-                keytype next = rehashQueue->pop();
-                if (!insertIntoTable(next, T, hs, depth)) { return false; }
-                
-            }
-
             return true;
 #else
             return false;
@@ -226,7 +248,7 @@ class ClearyCuckoo : HashTable{
                     T[i].clear();
                     //Reinsert using new hashlist
                     //printf("Reinserting %" PRIu64 "\n", x);
-                    if (!insertIntoTable(x, T, hashlist, depth)) {
+                    if (!insertIntoTable(x, T, hashlist, depth+1)) {
                         return false;
                     }
                 }
@@ -336,14 +358,18 @@ class ClearyCuckoo : HashTable{
         GPUHEADER_D
         bool insert(uint64_cu k){
             //Succesful Insertion
-            //printf("\tInserting val %" PRIu64 "\n", k);
+            ////printf("%i:\tInserting val %" PRIu64 "\n", getThreadID(), k);
 #ifdef REHASH
 #ifdef GPUCODE
             if (failFlag) {
-                //printf("\t%i:FailFlag\n", getThreadID());
+                //printf("%i:\t:FailFlag\n", getThreadID());
                 return false;
+            }while (rehash) {
+                if (failFlag) {
+                    return false;
+                }
             }
-            //printf("\t%i:Rehash Flag Not Set\n", getThreadID());
+            //printf("%i:\t:Rehash Flag Not Set\n", getThreadID());
 #else
             if (failFlag.load()) {
                 return false;
@@ -371,11 +397,7 @@ class ClearyCuckoo : HashTable{
                 return true;
             }
 #ifdef REHASH
-#ifdef GPUCODE
-            atomicExch(&failFlag, 1);
-#else
-            failFlag.store(true);
-#endif
+            setFlag(&failFlag, 1);
 #endif
             return false;
         };
@@ -383,34 +405,48 @@ class ClearyCuckoo : HashTable{
 #ifdef REHASH
         GPUHEADER_D
         bool rehash(){
-            //printf("\t%i:Start Rehash\n", getThreadID());
-            hashcounter++;
+            ////printf("%i:\t:Start Rehash\n", getThreadID());
             //printf("Rehash call %i\n", hashcounter);
 
-            iterateHashList(hashlist);
+            setFlag(&rehashFlag, 1);
+            //printf("%i:\t\t:Rehash Flag Set\n", getThreadID());
 
-            //Local counter for number of rehashes
-
-            while(!rehash(0) && hashcounter<MAXREHASHES){
+            //Looping Rehash
+            while(hashcounter<MAXREHASHES){
                 //printf("\tRehash call %i\n", hashcounter);
                 iterateHashList(hashlist);
                 hashcounter++;
+
+                if (!rehash(0)) {
+                    continue;
+                }
+
+                ////printf("Inserting RehashQueue\n");
+                //rehashQueue->print();
+                while (!rehashQueue->isEmpty()) {
+                    keytype next = rehashQueue->pop();
+                    if (!insertIntoTable(next, T, hashlist, 1)) { break; }
+                }
+
+                if (rehashQueue->isEmpty()) {
+                    break;
+                }
+                
             };
 
 
             //If counter tripped return
             if(hashcounter >= MAXREHASHES){
-                //printf("\t +++++++++++++++++++++++++++++++++++++++Rehash FAIL++++++++++++++++++++++++++++++++++++++\n");
+                ////printf("\t +++++++++++++++++++++++++++++++++++++++Rehash Loop FAIL++++++++++++++++++++++++++++++++++++++\n");
+                setFlag(&failFlag, 1);
                 return false;
             }
             //Rehash done
-            //printf("\t +++++++++++++++++++++++++++++++++++++++Rehash SUCCESS++++++++++++++++++++++++++++++++++++++\n");
+            ////printf("\t +++++++++++++++++++++++++++++++++++++++Rehash Loop SUCCESS++++++++++++++++++++++++++++++++++++++\n");
 
-#ifdef GPUCODE
-            rehashFlag = 0;
-#else
-            rehashFlag.store(0);
-#endif
+            
+
+            setFlag(&rehashFlag, 0);
 
             return true;
         }

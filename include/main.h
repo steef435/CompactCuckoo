@@ -82,10 +82,6 @@ inline int getThreadID()
 #endif
 
 
-
-
-
-
 /**
 *
 * OTHER HELPER METHODS
