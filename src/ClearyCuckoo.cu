@@ -309,8 +309,6 @@ class ClearyCuckoo : HashTable{
 
             int queueSize = std::max(100, (int)(tablesize / 10));
 
-            rehashQueue = new SharedQueue<keytype>(queueSize);
-
             hn = hashNumber;
 #ifdef GPUCODE
             failFlag = false;
@@ -323,9 +321,11 @@ class ClearyCuckoo : HashTable{
             #ifdef GPUCODE
             gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>)));
             gpuErrchk(cudaMallocManaged(&hashlist, hn * sizeof(int)));
+            gpuErrchk(cudaMallocManaged(&rehashQueue, sizeof(SharedQueue<keytype>)));
             #else
             T = new ClearyCuckooEntry<addtype, remtype>[tablesize];
             hashlist = new int[hn];
+            rehashQueue = new SharedQueue<keytype>(queueSize);
             #endif
 
             //Default MAXLOOPS Value
@@ -349,9 +349,11 @@ class ClearyCuckoo : HashTable{
             #ifdef GPUCODE
             gpuErrchk(cudaFree(T));
             gpuErrchk(cudaFree(hashlist));
+            gpuErrchk(cudaFree(rehashQueue));
             #else
             delete[] T;
             delete[] hashlist;
+            delete rehashQueue;
             #endif
         }
 
@@ -431,7 +433,7 @@ class ClearyCuckoo : HashTable{
                 if (rehashQueue->isEmpty()) {
                     break;
                 }
-                
+
             };
 
 
@@ -444,7 +446,7 @@ class ClearyCuckoo : HashTable{
             //Rehash done
             ////printf("\t +++++++++++++++++++++++++++++++++++++++Rehash Loop SUCCESS++++++++++++++++++++++++++++++++++++++\n");
 
-            
+
 
             setFlag(&rehashFlag, 0);
 
@@ -508,7 +510,7 @@ class ClearyCuckoo : HashTable{
             }
         }
 
-        
+
 
         GPUHEADER
         void print(){

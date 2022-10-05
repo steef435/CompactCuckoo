@@ -56,6 +56,12 @@ bool testRehash(int N, uint64_cu* vals){
 
     res = res && (ccSet.size() == ccList.size());
 
+#ifdef GPUCODE
+    gpuErrchk(cudaFree(cc));
+#else
+    delete cc;
+#endif
+
     return res;
 }
 
