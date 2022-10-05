@@ -34,7 +34,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 
         printf("Filling ClearyCuckoo\n");
 #ifdef GPUCODE
-        fillClearyCuckoo << <1, 1 >> > (N, vals, cc);
+        fillClearyCuckoo << <1, numThreads >> > (N, vals, cc);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
@@ -290,7 +290,7 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
     printf("                                          REHASH TEST                                                         \n");
     
     uint64_cu* testset3 = generateRandomSet(testSize);
-    if (!testRehash(N, testset3)) {
+    if (!testRehash(addressSize, testset3)) {
         printf("TEST FAILED\n");
         res = false;
     }

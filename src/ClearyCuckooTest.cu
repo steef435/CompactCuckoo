@@ -15,10 +15,12 @@ bool testRehash(int N, uint64_cu* vals){
     int tablesize = std::pow(2, N);
     int fillSize = (int) (((float)tablesize) * 0.75);
 
+    printf("Tablesize %i, FillSize %i\n", tablesize, fillSize);
+
 #ifdef GPUCODE
     ClearyCuckoo* cc;
     gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
-    new (cc) ClearyCuckoo(tablesize, 16);
+    new (cc) ClearyCuckoo(N, 4);
 #else
     ClearyCuckoo* cc = new ClearyCuckoo(N, 4);
 #endif
@@ -38,6 +40,8 @@ bool testRehash(int N, uint64_cu* vals){
     //Rehash
     #ifdef GPUCODE
     callRehash<<<1,1>>>(cc);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
     #else
     cc->rehash();
     #endif
