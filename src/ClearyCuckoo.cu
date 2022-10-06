@@ -143,7 +143,7 @@ class ClearyCuckoo : HashTable{
                 }
                 uint64_cu res = atomicCAS(loc, val_i, val);
                 if(!strict){
-                printf("%i:\t\t\tAtomicCASDone\n");
+                printf("%i:\t\t\tAtomicCASDone\n", getThreadID());
                 }
                 //Make sure the value hasn't changed in the meantime
                 if ( (res != val_i) && strict) {
