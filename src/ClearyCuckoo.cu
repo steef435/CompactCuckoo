@@ -659,3 +659,19 @@ void checkClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, bool* res, int i
         }
     }
 }
+
+
+GPUHEADER_G
+void lookupClearyCuckoo(int N, int start, int end, uint64_cu* vals, ClearyCuckoo* H, int id = 0, int s = 1) {
+#ifdef GPUCODE
+    int index = threadIdx.x;
+    int stride = blockDim.x;
+#else
+    int index = id;
+    int stride = s;
+#endif
+
+    for (int i = index; i < N; i += stride) {
+        H->lookup(vals[(i + start) % end]);
+    }
+}

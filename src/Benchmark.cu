@@ -77,7 +77,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
     printf("File Opened\n");
 
     if (!params) {
-        myfile << "tablesize,numthreads,loops,hashes,rehashes,collision_percentage,collision_depth,samples,type,interval,time\n";
+        myfile << "tablesize,numthreads,loops,hashes,rehashes,collision_percentage,collision_depth,samples,type,interval,time,test\n";
     }
 
     printf("=====================================================================\n");
@@ -93,6 +93,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
 
         int size = std::pow(2, N);
         int setsize = (int)(size / INTERVAL);
+        int lookupSize = size / 4;
 
         if (setsize == 0) {
             printf("Error: Number of Intervals is greater than number of elements\n");
@@ -208,11 +209,36 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                             //End the timer
                                             end = std::chrono::steady_clock::now();
 
-                                            myfile << N << "," << numThreads << "," << L << "," << H << "," << R << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
+                                            myfile << N << "," << numThreads << "," << L << "," << H << "," << R << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS, \n";
                                         }
 
                                         if (failFlag) {
-                                            myfile << N << "," << numThreads << "," << L << "," << H << "," << R << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << -1 << ",\n";
+                                            myfile << N << "," << numThreads << "," << L << "," << H << "," << R << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << -1 << ", INS,\n";
+                                        }
+
+                                        //Lookup Time Test
+                                        if (j >= WARMUP && !(*failFlag)) {
+                                            begin = std::chrono::steady_clock::now();
+#ifdef GPUCODE
+                                            lookupClearyCuckoo << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP), vals, cc);
+                                            gpuErrchk(cudaPeekAtLastError());
+                                            gpuErrchk(cudaDeviceSynchronize());
+#else
+                                            std::vector<std::thread> vecThread(numThreads);
+                                            for (int i = 0; i < numThreads; i++) {
+                                                //printf("Starting Threads\n");
+                                                vecThread.at(i) = std::thread(lookupClearyCuckoo, lookupSize, 0, setsize * (j - WARMUP), vals, cc, i, numThreads);
+                                            }
+
+                                            //Join Threads
+                                            for (int i = 0; i < numThreads; i++) {
+                                                vecThread.at(i).join();
+                                            }
+#endif
+                                            //End the timer
+                                            end = std::chrono::steady_clock::now();
+
+                                            myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                                         }
 
                                     }
@@ -348,7 +374,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
     }
     printf("File Opened\n");
 
-    myfile << "tablesize,numthreads,collision_percentage,collision_depth,samples,type,interval,time\n";
+    myfile << "tablesize,numthreads,collision_percentage,collision_depth,samples,type,interval,time,test\n";
 
     printf("=====================================================================\n");
     printf("                     Starting Cleary-Cuckoo                \n\n");
@@ -359,6 +385,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
         int size = std::pow(2, N);
         int setsize = (int)(size / INTERVAL);
+        int lookupSize = size / 4;
 
         if (setsize == 0) {
             printf("Error: Number of Intervals is greater than number of elements\n");
@@ -445,13 +472,39 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag) {
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << -1 << ",\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << -1 << ",INS,\n";
+                            }
+
+                            //Lookup Time Test
+                            if(j >= WARMUP && !(*failFlag)) {
+                                begin = std::chrono::steady_clock::now();
+#ifdef GPUCODE
+                                lookupClearyCuckoo << <1, std::pow(2, T) >> > (lookupSize, 0, setsize*(j- WARMUP), vals, cc);
+                                gpuErrchk(cudaPeekAtLastError());
+                                gpuErrchk(cudaDeviceSynchronize());
+#else
+                                std::vector<std::thread> vecThread(numThreads);
+                                for (int i = 0; i < numThreads; i++) {
+                                    //printf("Starting Threads\n");
+                                    vecThread.at(i) = std::thread(lookupClearyCuckoo, lookupSize, 0, setsize * (j - WARMUP), vals, cc, i, numThreads);
+                                }
+
+                                //Join Threads
+                                for (int i = 0; i < numThreads; i++) {
+                                    vecThread.at(i).join();
+                                }
+#endif
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                         }
+
                         //printf("Delete CC Vars\n");
 #ifdef GPUCODE
                         gpuErrchk(cudaFree(cc));
@@ -502,7 +555,32 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 #endif
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",INS,\n";
+                            }
+
+                            //Lookup
+                            if (j >= WARMUP && !(*failFlag)) {
+                                begin = std::chrono::steady_clock::now();
+#ifdef GPUCODE
+                                lookupCleary << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP), vals, c);
+                                gpuErrchk(cudaPeekAtLastError());
+                                gpuErrchk(cudaDeviceSynchronize());
+#else
+                                std::vector<std::thread> vecThread(numThreads);
+                                for (int i = 0; i < numThreads; i++) {
+                                    //printf("Starting Threads\n");
+                                    vecThread.at(i) = std::thread(lookupCleary, lookupSize, 0, setsize * (j - WARMUP), vals, c, i, numThreads);
+                                }
+
+                                //Join Threads
+                                for (int i = 0; i < numThreads; i++) {
+                                    vecThread.at(i).join();
+                                }
+#endif
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                         }
