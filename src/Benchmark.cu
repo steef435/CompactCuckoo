@@ -220,14 +220,14 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                         if (j >= WARMUP && !(*failFlag)) {
                                             begin = std::chrono::steady_clock::now();
 #ifdef GPUCODE
-                                            lookupClearyCuckoo << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP), vals, cc);
+                                            lookupClearyCuckoo << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals, cc);
                                             gpuErrchk(cudaPeekAtLastError());
                                             gpuErrchk(cudaDeviceSynchronize());
 #else
                                             std::vector<std::thread> vecThread(numThreads);
                                             for (int i = 0; i < numThreads; i++) {
                                                 //printf("Starting Threads\n");
-                                                vecThread.at(i) = std::thread(lookupClearyCuckoo, lookupSize, 0, setsize * (j - WARMUP), vals, cc, i, numThreads);
+                                                vecThread.at(i) = std::thread(lookupClearyCuckoo, lookupSize, 0, setsize * (j - WARMUP + 1), vals, cc, i, numThreads);
                                             }
 
                                             //Join Threads
@@ -238,7 +238,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                             //End the timer
                                             end = std::chrono::steady_clock::now();
 
-                                            myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                            myfile << N << "," << numThreads << "," << L << "," << H << "," << R << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ", LOOK, \n";
                                         }
 
                                     }
@@ -482,14 +482,14 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             if(j >= WARMUP && !(*failFlag)) {
                                 begin = std::chrono::steady_clock::now();
 #ifdef GPUCODE
-                                lookupClearyCuckoo << <1, std::pow(2, T) >> > (lookupSize, 0, setsize*(j- WARMUP), vals, cc);
+                                lookupClearyCuckoo << <1, std::pow(2, T) >> > (lookupSize, 0, setsize*(j- WARMUP + 1), vals, cc);
                                 gpuErrchk(cudaPeekAtLastError());
                                 gpuErrchk(cudaDeviceSynchronize());
 #else
                                 std::vector<std::thread> vecThread(numThreads);
                                 for (int i = 0; i < numThreads; i++) {
                                     //printf("Starting Threads\n");
-                                    vecThread.at(i) = std::thread(lookupClearyCuckoo, lookupSize, 0, setsize * (j - WARMUP), vals, cc, i, numThreads);
+                                    vecThread.at(i) = std::thread(lookupClearyCuckoo, lookupSize, 0, setsize * (j - WARMUP + 1), vals, cc, i, numThreads);
                                 }
 
                                 //Join Threads
@@ -562,14 +562,14 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             if (j >= WARMUP && !(*failFlag)) {
                                 begin = std::chrono::steady_clock::now();
 #ifdef GPUCODE
-                                lookupCleary << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP), vals, c);
+                                lookupCleary << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals, c);
                                 gpuErrchk(cudaPeekAtLastError());
                                 gpuErrchk(cudaDeviceSynchronize());
 #else
                                 std::vector<std::thread> vecThread(numThreads);
                                 for (int i = 0; i < numThreads; i++) {
                                     //printf("Starting Threads\n");
-                                    vecThread.at(i) = std::thread(lookupCleary, lookupSize, 0, setsize * (j - WARMUP), vals, c, i, numThreads);
+                                    vecThread.at(i) = std::thread(lookupCleary, lookupSize, 0, setsize * (j - WARMUP + 1), vals, c, i, numThreads);
                                 }
 
                                 //Join Threads
@@ -580,7 +580,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP ) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                         }

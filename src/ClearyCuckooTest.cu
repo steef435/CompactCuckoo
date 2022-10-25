@@ -4,13 +4,13 @@
 #include "Cleary.cu"
 #endif
 
-
+#ifdef REHASH
 GPUHEADER_G
 void callRehash(ClearyCuckoo* T) {
     T->rehash();
 }
 
-#ifdef REHASH
+
 bool testRehash(int N, uint64_cu* vals){
     int tablesize = std::pow(2, N);
     int fillSize = (int) (((float)tablesize) * 0.75);
