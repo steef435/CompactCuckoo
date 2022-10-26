@@ -129,29 +129,21 @@ class ClearyCuckoo : HashTable{
             int val_i = val == 0 ? 1 : 0;
             ////printf("%i:\t\tAttempting exch val:%i val_i:%i actual:%i, strict:%i\n", getThreadID(), val ,val_i, (*loc), strict);
             //TODO Remove
-            int counter = 0;
-            while (true) {
-                counter++;
-                //assert(counter < 300);
-                if(failFlag){
-                  //printf("%i:\t\tFailFlag\n", getThreadID());
-                  return false;
-                }
-                //In devices, atomically exchange
-                if(!strict){
-                ////printf("%i:\t\t\tAtomicCAS:%i val_i:%i actual:%i, strict:%i\n", getThreadID(), val ,val_i, (*loc), strict);
-                }
-                uint64_cu res = atomicCAS(loc, val_i, val);
-                if(!strict){
-                ////printf("%i:\t\t\tAtomicCASDone\n", getThreadID());
-                }
-                //Make sure the value hasn't changed in the meantime
-                if ( (res != val_i) && strict) {
-                    continue;
-                }
-                ////printf("%i:\t\t:Flag Set to %i\n", getThreadID(), val);
-                return true;
+
+            //In devices, atomically exchange
+            if(!strict){
+            ////printf("%i:\t\t\tAtomicCAS:%i val_i:%i actual:%i, strict:%i\n", getThreadID(), val ,val_i, (*loc), strict);
             }
+            uint64_cu res = atomicCAS(loc, val_i, val);
+            if(!strict){
+            ////printf("%i:\t\t\tAtomicCASDone\n", getThreadID());
+            }
+            //Make sure the value hasn't changed in the meantime
+            if ( (res != val_i) && strict) {
+                return false;
+            }
+            ////printf("%i:\t\t:Flag Set to %i\n", getThreadID(), val);
+            return true;
         }
 
 #else
@@ -234,7 +226,7 @@ class ClearyCuckoo : HashTable{
             }
 
 #ifdef REHASH
-            //printf("Pushing %" PRIu64 "\n", x);
+            ////printf("%i:\t\t:Pushing %" PRIu64 "\n", getThreadID(), x);
             rehashQueue->push(x);
             if(depth>0){return false;}
             //If MAXLOOPS is reached rehash the whole table
@@ -390,7 +382,11 @@ class ClearyCuckoo : HashTable{
                 ////printf("%i:\t:Check FailFlag\n", getThreadID());
                 return false;
             }while (rehashFlag) {
+                printf("%i:\t\tSync Pre\n", getThreadID());
                 __syncthreads();
+                printf("%i:\t\tSync Wait\n", getThreadID());
+                __syncthreads();
+                printf("%i:\t\tSync Done\n", getThreadID());
                 if (failFlag) {
                     return false;
                 }
@@ -424,7 +420,7 @@ class ClearyCuckoo : HashTable{
             }
             ////printf("Set FailFlag\n");
 #ifdef REHASH
-            setFlag(&failFlag, 1, false);
+            while(!setFlag(&failFlag, 1, false)){}
 #endif
             ////printf("Insert Fail\n");
             return false;
@@ -439,6 +435,10 @@ class ClearyCuckoo : HashTable{
             if(!setFlag(&rehashFlag, 1)){
                 return false;
             }
+
+            printf("%i:\t\tSendHaltSync Pre\n", getThreadID());
+            __syncthreads();
+            printf("%i:\t\tSendHaltSync After\n", getThreadID());
             //printf("%i:\t\t:Rehash Flag Set\n", getThreadID());
 
             //Looping Rehash
@@ -468,9 +468,10 @@ class ClearyCuckoo : HashTable{
             //If counter tripped return
             if(hashcounter >= MAXREHASHES){
                 ////printf("\t +++++++++++++++++++++++++++++++++++++++Rehash Loop FAIL++++++++++++++++++++++++++++++++++++++\n");
-                setFlag(&failFlag, 1, false);
+                while(!setFlag(&failFlag, 1, false)){};
+                printf("%i:\t\tFailSync Pre\n", getThreadID());
                 __syncthreads();
-                ////printf("Returning\n");
+                printf("%i:\t\tFailSync After\n", getThreadID());
                 return false;
             }
             //Rehash done
@@ -478,8 +479,10 @@ class ClearyCuckoo : HashTable{
 
 
 
-            setFlag(&rehashFlag, 0);
+            while(!setFlag(&rehashFlag, 0)){};
+            printf("%i:\t\tSuccessSync Pre\n", getThreadID());
             __syncthreads();
+            printf("%i:\t\tSuccessSync After\n", getThreadID());
 
             return true;
         }
