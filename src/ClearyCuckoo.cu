@@ -382,11 +382,11 @@ class ClearyCuckoo : HashTable{
                 ////printf("%i:\t:Check FailFlag\n", getThreadID());
                 return false;
             }while (rehashFlag) {
-                printf("%i:\t\tSync Pre\n", getThreadID());
+                printf("%i:\t\tReceive Sync Pre\n", getThreadID());
                 __syncthreads();
-                printf("%i:\t\tSync Wait\n", getThreadID());
+                printf("%i:\t\tReceive Sync Wait\n", getThreadID());
                 __syncthreads();
-                printf("%i:\t\tSync Done\n", getThreadID());
+                printf("%i:\t\tReceive Sync Done\n", getThreadID());
                 if (failFlag) {
                     return false;
                 }
@@ -578,7 +578,7 @@ class ClearyCuckoo : HashTable{
 GPUHEADER_G
 void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, int* failFlag=nullptr, addtype begin = 0, int id = 0, int s = 1)
 {
-    //printf("\tThread Started\n");
+    printf("%i:\tThread Started\n", getThreadID());
 #ifdef GPUCODE
     int index = threadIdx.x;
     int stride = blockDim.x;
@@ -595,6 +595,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, int* failFlag=nul
             break;
         }
     }
+    printf("%i:\tThread Stopped\n", getThreadID());
 }
 
 #ifdef GPUCODE
