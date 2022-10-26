@@ -100,7 +100,8 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
         }
 
         //Number of Threads
-        for (int T = 0; T < NUM_THREADS; T++) {
+        //TODO change start to 0
+        for (int T = 1; T < NUM_THREADS; T++) {
             if (params && setup) {
                 T = std::stoi(params->at(1));
             }

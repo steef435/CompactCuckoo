@@ -127,22 +127,17 @@ class ClearyCuckoo : HashTable{
         GPUHEADER_D
         bool setFlag(int* loc, int val, bool strict=true) {
             int val_i = val == 0 ? 1 : 0;
-            ////printf("%i:\t\tAttempting exch val:%i val_i:%i actual:%i, strict:%i\n", getThreadID(), val ,val_i, (*loc), strict);
+            printf("%i:\t\tFlag Attempting exch val:%i val_i:%i actual:%i, strict:%i\n", getThreadID(), val ,val_i, (*loc), strict);
             //TODO Remove
 
             //In devices, atomically exchange
-            if(!strict){
-            ////printf("%i:\t\t\tAtomicCAS:%i val_i:%i actual:%i, strict:%i\n", getThreadID(), val ,val_i, (*loc), strict);
-            }
             uint64_cu res = atomicCAS(loc, val_i, val);
-            if(!strict){
-            ////printf("%i:\t\t\tAtomicCASDone\n", getThreadID());
-            }
             //Make sure the value hasn't changed in the meantime
             if ( (res != val_i) && strict) {
                 return false;
             }
-            ////printf("%i:\t\t:Flag Set to %i\n", getThreadID(), val);
+            __threadfence();
+            printf("%i:\t\t:Flag Set to %i\n", getThreadID(), val);
             return true;
         }
 
@@ -150,18 +145,12 @@ class ClearyCuckoo : HashTable{
         GPUHEADER
         bool setFlag(std::atomic<int>* loc, int val, bool strict=true) {
             int val_i = val == 0 ? 1 : 0;
-
-            while (true) {
-                if(failFlag){
-                  return false;
-                }
                 //printf("%i:\t:Attempting CAS\n", getThreadID());
-                if (std::atomic_compare_exchange_strong(loc, &val_i, val)) {
-                    //printf("%i:\t:Flag Set\n", getThreadID());
-                    return true;
-                }else if(!strict){
-                    return true;
-                }
+            if (std::atomic_compare_exchange_strong(loc, &val_i, val)) {
+                //printf("%i:\t:Flag Set\n", getThreadID());
+                return true;
+            }else{
+              return false;
             }
         }
 #endif
@@ -173,7 +162,7 @@ class ClearyCuckoo : HashTable{
          **/
         GPUHEADER_D
         bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, int depth=0){
-            ////printf("%i:\t\t:InsertintoTable\n", getThreadID());
+            printf("%i:\t\tInsertintoTable\n", getThreadID());
             keytype x = k;
             int hash = hs[0];
 
@@ -187,7 +176,7 @@ class ClearyCuckoo : HashTable{
             int c = 0;
 
             while(c < MAXLOOPS){
-                //printf("%i:Loop %i ", getThreadID(), c);
+                printf("%i:\t\t\tLoop %i\n", getThreadID(), c);
                 //Get the key of k
                 //printf("%i:\t:GetKey\n", getThreadID());
                 hashtype hashed1 = RHASH(hash, x);
@@ -197,41 +186,41 @@ class ClearyCuckoo : HashTable{
                 //Place new value
                 //printf("%i:\t:Placing New Value at %" PRIu32 "\n", getThreadID(), add);
                 ClearyCuckooEntry<addtype, remtype> entry(rem, hash, true, false);
-                //printf("%i:\t:ExchValue at %" PRIu32 " \n", getThreadID(), add);
+                printf("%i:\t\t\t\tExchValue at %" PRIu32 " \n", getThreadID(), add);
                 T[add].exchValue(&entry);
 
                 //Store the old value
-                //printf("%i:\t:Store Old Value at %" PRIu32 "\n", getThreadID(), add);
+                printf("%i:\t\t\t\tStore Old Value at %" PRIu32 "\n", getThreadID(), add);
                 remtype temp = entry.getR();
                 bool wasoccupied = entry.getO();
                 int oldhash = entry.getH();
 
-                //printf("%i:\t:Occ Check\n", getThreadID());
+                printf("%i:\t\t\t\tOcc Check\n", getThreadID());
                 //If the first spot was open return
                 if(!wasoccupied){
-                    //printf("%i:\t:WasEmpty\n", getThreadID());
+                    printf("%i:\t\t\t\tWasEmpty\n", getThreadID());
                     return true;
                 }
 
                 //Otherwise rebuild the original key
-                //printf("%i:\t:Rebuild Key\n", getThreadID());
+                printf("%i:\t\t\t\tRebuild Key\n", getThreadID());
                 hashtype h_old = reformKey(add, temp, AS);
                 x = RHASH_INVERSE(oldhash, h_old);
 
                 //Hash with the next hash value
-                //printf("%i:\t:GetNextHash\n", getThreadID());
+                printf("%i:\t\t\t\tGetNextHash\n", getThreadID());
                 hash = getNextHash(hs, oldhash);
 
                 c++;
             }
 
 #ifdef REHASH
-            ////printf("%i:\t\t:Pushing %" PRIu64 "\n", getThreadID(), x);
+            printf("%i:\t\t:Pushing %" PRIu64 "\n", getThreadID(), x);
             rehashQueue->push(x);
             if(depth>0){return false;}
             //If MAXLOOPS is reached rehash the whole table
             if(!rehash()){
-              //printf("Outer Rehash Call\n");
+                printf("%i:\t\tRehash Attempt Failed\n", getThreadID());
                 //If rehash fails, return
                 return false;
             }
@@ -248,7 +237,7 @@ class ClearyCuckoo : HashTable{
             if(depth >0){return false;}
 
             for (int i = 0; i < tablesize; i++) {
-                //printf("Checking %i\n", i);
+                printf("%i:\tChecking %i\n", getThreadID(), i);
                 //Check Occupied
                 if (!T[i].getO()) {
                     continue;
@@ -261,10 +250,11 @@ class ClearyCuckoo : HashTable{
                     //Clear Entry
                     T[i].clear();
                     //Reinsert using new hashlist
-                    //printf("Reinserting %" PRIu64 "\n", x);
+                    printf("%i:\tReinserting %" PRIu64 "\n", getThreadID(), x);
                     if (!insertIntoTable(x, T, hashlist, depth+1)) {
                         return false;
                     }
+                    printf("%i:\tReinserted\n", getThreadID());
                 }
             }
 
@@ -289,10 +279,10 @@ class ClearyCuckoo : HashTable{
 
         GPUHEADER
         void print(ClearyCuckooEntry<addtype, remtype>* T) {
-            ////printf("----------------------------------------------------------------\n");
-            ////printf("|    i     |     R[i]       | O[i] |        key         |label |\n");
-            ////printf("----------------------------------------------------------------\n");
-            ////printf("Tablesize %i\n", tablesize);
+            printf("----------------------------------------------------------------\n");
+            printf("|    i     |     R[i]       | O[i] |        key         |label |\n");
+            printf("----------------------------------------------------------------\n");
+            printf("Tablesize %i\n", tablesize);
             for (int i = 0; i < tablesize; i++) {
                 if (T[i].getO()) {
                     remtype rem = T[i].getR();
@@ -300,10 +290,10 @@ class ClearyCuckoo : HashTable{
                     hashtype h = reformKey(i, rem, AS);
                     keytype k = RHASH_INVERSE(label, h);
 
-                    ////printf("|%-10i|%-16" PRIu64 "|%-6i|%-20" PRIu64 "|%-6i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
+                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-20" PRIu64 "|%-6i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
                 }
             }
-            ////printf("------------------------------------------------------------\n");
+            printf("------------------------------------------------------------\n");
         }
 
 
@@ -375,23 +365,25 @@ class ClearyCuckoo : HashTable{
         GPUHEADER_D
         bool insert(uint64_cu k){
             //Succesful Insertion
-            ////printf("%i:\tInserting val %" PRIu64 "\n", getThreadID(), k);
+            printf("%i:\tInserting val %" PRIu64 "\n", getThreadID(), k);
 #ifdef REHASH
 #ifdef GPUCODE
             if (failFlag) {
-                ////printf("%i:\t:Check FailFlag\n", getThreadID());
+                printf("%i:\t:Check FailFlag\n", getThreadID());
                 return false;
-            }while (rehashFlag) {
-                printf("%i:\t\tReceive Sync Pre\n", getThreadID());
-                __syncthreads();
-                printf("%i:\t\tReceive Sync Wait\n", getThreadID());
-                __syncthreads();
-                printf("%i:\t\tReceive Sync Done\n", getThreadID());
+            }
+            printf("%i:Checking Rehash\n", getThreadID());
+            int count = 0;
+            while (rehashFlag) {
+                if(count > 10000){
+                  count = 0;
+                }
                 if (failFlag) {
                     return false;
                 }
+                count++;
             }
-            ////printf("%i:\t:Rehash/Fail Flag Not Set\n", getThreadID());
+            printf("%i:\t:Rehash/Fail Flag Not Set\n", getThreadID());
 #else
             if (failFlag.load()) {
                 return false;
@@ -418,27 +410,24 @@ class ClearyCuckoo : HashTable{
                 */
                 return true;
             }
-            ////printf("Set FailFlag\n");
+            printf("Set FailFlag\n");
 #ifdef REHASH
             while(!setFlag(&failFlag, 1, false)){}
 #endif
-            ////printf("Insert Fail\n");
+            printf("Insert Fail\n");
             return false;
         };
 
 #ifdef REHASH
         GPUHEADER_D
         bool rehash(){
-            ////printf("%i:\t:Start Rehash\n", getThreadID());
+            printf("%i:\t:Start Rehash\n", getThreadID());
             //printf("Rehash call %i\n", hashcounter);
 
-            if(!setFlag(&rehashFlag, 1)){
+            while(!setFlag(&rehashFlag, 1)){
                 return false;
             }
 
-            printf("%i:\t\tSendHaltSync Pre\n", getThreadID());
-            __syncthreads();
-            printf("%i:\t\tSendHaltSync After\n", getThreadID());
             //printf("%i:\t\t:Rehash Flag Set\n", getThreadID());
 
             //Looping Rehash
@@ -451,7 +440,7 @@ class ClearyCuckoo : HashTable{
                     continue;
                 }
 
-                ////printf("Inserting RehashQueue\n");
+                printf("Inserting RehashQueue\n");
                 //rehashQueue->print();
                 while (!rehashQueue->isEmpty()) {
                     keytype next = rehashQueue->pop();
@@ -467,15 +456,12 @@ class ClearyCuckoo : HashTable{
 
             //If counter tripped return
             if(hashcounter >= MAXREHASHES){
-                ////printf("\t +++++++++++++++++++++++++++++++++++++++Rehash Loop FAIL++++++++++++++++++++++++++++++++++++++\n");
+                printf("\t +++++++++++++++++++++++++++++++++++++++Rehash Loop FAIL++++++++++++++++++++++++++++++++++++++\n");
                 while(!setFlag(&failFlag, 1, false)){};
-                printf("%i:\t\tFailSync Pre\n", getThreadID());
-                __syncthreads();
-                printf("%i:\t\tFailSync After\n", getThreadID());
                 return false;
             }
             //Rehash done
-            ////printf("\t +++++++++++++++++++++++++++++++++++++++Rehash Loop SUCCESS++++++++++++++++++++++++++++++++++++++\n");
+            printf("\t +++++++++++++++++++++++++++++++++++++++Rehash Loop SUCCESS++++++++++++++++++++++++++++++++++++++\n");
 
 
 
@@ -548,11 +534,11 @@ class ClearyCuckoo : HashTable{
 
         GPUHEADER
         void print(){
-            ////printf("Hashlist:");
+            printf("Hashlist:");
             for (int i = 0; i < hn; i++) {
-                ////printf("%i,", hashlist[i]);
+                printf("%i,", hashlist[i]);
             }
-            ////printf("\n");
+            printf("\n");
             print(T);
         }
 
