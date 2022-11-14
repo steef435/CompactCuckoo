@@ -155,8 +155,17 @@ int main(int argc, char* argv[])
 
             queueTest(std::stoi(argv[3]), std::stoi(argv[4]));
         }
+        else if (strcmp(argv[2], "BARRIER") == 0) {
+            if (argc < 4) {
+                printf("Not Enough Arguments Passed\n");
+                printf("Required: NUM_THREADS \n");
+                return 0;
+            }
+
+            BarrierTest(std::stoi(argv[3]));
+        }
         else {
-            printf("Possible Tests:\nTABLE, NUMGEN\n");
+            printf("Possible Tests:\nTABLE, NUMGEN, QUEUE\n");
         }
     }
     else if (strcmp(argv[1], "benchmax") == 0) {

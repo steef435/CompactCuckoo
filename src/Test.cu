@@ -40,9 +40,10 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #else
 
         std::vector<std::thread> vecThread1(numThreads);
+        Barrier barrier(numThreads);
 
         for (int i = 0; i < numThreads; i++) {
-            vecThread1.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, int*, addtype, int, int)>(fillClearyCuckoo), N, vals, cc, nullptr, 0, i, numThreads);
+            vecThread1.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, Barrier*, int*, addtype, int, int)>(fillClearyCuckoo), N, vals, cc, &barrier, nullptr, 0, i, numThreads);
             //Setting Thread Affinity
             //auto mask = (static_cast<DWORD_PTR>(1) << (i % 4));//core number starts from 0
             //auto ret = SetThreadAffinityMask(vecThread1.at(i).native_handle(), mask);
@@ -314,5 +315,46 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
         printf("==============================================================================================================\n");
         printf("                                             TEST(S) FAILED                                                 \n");
         printf("==============================================================================================================\n");
+    }
+}
+
+void barrierThread(Barrier* b) {
+    printf("%i: Waiting\n", getThreadID());
+    b->Wait();
+    printf("%i: Entering Phase\n", getThreadID());
+    b->Wait();
+    printf("%i: Phase Exited\n", getThreadID());
+}
+
+void barrierThreadWait(Barrier* b) {
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    printf("%i: Waiting\n", getThreadID());
+    b->Wait();
+    printf("%i: Entering Phase\n", getThreadID());
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    b->Wait();
+    printf("%i: Phase Exited\n", getThreadID());
+}
+
+void BarrierTest(int numThreads) {    
+    std::vector<std::thread> vecThread(numThreads);
+    Barrier barrier(numThreads);
+
+
+    printf("Starting Threads\n");
+    for (int i = 0; i < numThreads; i++) {
+        if (i < numThreads - 1) {
+            printf("\tStarting Thread %i\n", i);
+            vecThread.at(i) = std::thread(barrierThread, &barrier);
+        }
+        else {
+            printf("\tStarting WAIT Thread %i\n", i);
+            vecThread.at(i) = std::thread(barrierThreadWait, &barrier);
+        }
+    }
+
+    //Join Threads
+    for (int i = 0; i < numThreads; i++) {
+        vecThread.at(i).join();
     }
 }
