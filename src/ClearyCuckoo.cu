@@ -362,7 +362,7 @@ class ClearyCuckoo : HashTable{
 
             MAXLOOPS = ceil((A / (1.0 + exp(-k * (((double)AS) - x0)))) + off);
 
-            printf("Maxloops: %i\n", MAXLOOPS);
+            //printf("Maxloops: %i\n", MAXLOOPS);
 
             //printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
