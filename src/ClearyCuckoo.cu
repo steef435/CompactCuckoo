@@ -268,15 +268,19 @@ class ClearyCuckoo : HashTable{
             bool found = false;
 
             for (int i = 0; i < hn; i++) {
+                //printf("%i: \t\t\tChecking hash %i\n", getThreadID(), i);
                 uint64_cu hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
-                if (T[add].getR() == rem && T[add].getO()) {
+                if (T[add].getH() == hashlist[i] && T[add].getR() == rem && T[add].getO()) {
                     //If value was already found
+                    //printf("%i: \t\t\tDup: Value found\n", getThreadID());
                     if (found) {
+                        //printf("%i: \t\t\tDup: Duplicate Found\n", getThreadID());
                         //Mark as not occupied
                         T[add].setO(false);
                     }
+                    //printf("%i: \t\t\tMarking as Found\n", getThreadID());
                     found = true;
                 }
             }
@@ -625,7 +629,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, int* failFlag=nul
 void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, Barrier* barrier, int* failFlag = nullptr, addtype begin = 0, int id = 0, int s = 1)
 #endif
 {
-    //printf("%i:\tThread Started\n", getThreadID());
+    //printf("%i:Thread Started\n", getThreadID());
 #ifdef GPUCODE
     int index = threadIdx.x;
     int stride = blockDim.x;
@@ -635,7 +639,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, Barrier* barrier,
 #endif
 
     for (int i = index + begin; i < N + begin; i += stride) {
-        //printf("%i:Inserting %" PRIu64 "\n", getThreadID(), vals[i]);
+        //printf("%i:\tInserting %" PRIu64 "\n", getThreadID(), vals[i]);
 #ifdef GPUCODE
         if (!(H->insert(vals[i], stride))) {
 #else
