@@ -289,7 +289,7 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
 #ifdef REHASH
     printf("==============================================================================================================\n");
     printf("                                          REHASH TEST                                                         \n");
-    
+
     uint64_cu* testset3 = generateRandomSet(testSize);
     if (!testRehash(addressSize, testset3)) {
         printf("TEST FAILED\n");
@@ -318,6 +318,7 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
     }
 }
 
+#ifndef GPUCODE
 void barrierThread(Barrier* b) {
     printf("%i: Waiting\n", getThreadID());
     b->Wait();
@@ -336,7 +337,7 @@ void barrierThreadWait(Barrier* b) {
     printf("%i: Phase Exited\n", getThreadID());
 }
 
-void BarrierTest(int numThreads) {    
+void BarrierTest(int numThreads) {
     std::vector<std::thread> vecThread(numThreads);
     Barrier barrier(numThreads);
 
@@ -358,3 +359,4 @@ void BarrierTest(int numThreads) {
         vecThread.at(i).join();
     }
 }
+#endif

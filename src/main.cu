@@ -161,8 +161,11 @@ int main(int argc, char* argv[])
                 printf("Required: NUM_THREADS \n");
                 return 0;
             }
-
+#ifdef GPUCODE
+            printf("Not available on GPU Version");
+#else
             BarrierTest(std::stoi(argv[3]));
+#endif
         }
         else {
             printf("Possible Tests:\nTABLE, NUMGEN, QUEUE\n");

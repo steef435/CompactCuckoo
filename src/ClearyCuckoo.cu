@@ -463,7 +463,7 @@ class ClearyCuckoo : HashTable{
             barrier->Wait();
 #endif
             //printf("%i:\t\t:Dup Exited\n", getThreadID());
-            
+
             return finalRes;
         };
 
@@ -640,13 +640,15 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, Barrier* barrier,
         }
     }
 
+#ifndef GPUCODE
     barrier->signalThreadStop();
+#endif
     //printf("%i:Thread Stopped\n", getThreadID());
 }
 
 #ifdef GPUCODE
 GPUHEADER_G
-void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, Barrier* barrier, addtype* occupancy, int* failFlag, int id = 0, int s = 1)
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupancy, int* failFlag, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
     int index = threadIdx.x;
@@ -663,14 +665,13 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, Barrier* barrier,
 #ifdef GPUCODE
         if (!(H->insert(vals[i], stride))) {
 #else
-        if (!(H->insert(vals[i], stride, barrier))) {
+        if (!(H->insert(vals[i], stride))) {
 #endif
             atomicCAS(&(failFlag[0]), 0, 1);
             break;
         }
         atomicAdd(&occupancy[0], 1);
     }
-    barrier->signalThreadStop();
 }
 #endif
 
