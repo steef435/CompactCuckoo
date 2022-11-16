@@ -354,7 +354,15 @@ class ClearyCuckoo : HashTable{
             #endif
 
             //Default MAXLOOPS Value
-            MAXLOOPS = round(104.49226591 * log(3.80093894 * (AS - 3.54270024)) - 88.47034412);
+            //1.82372633e+04 -2.60749645e+02  1.76799265e-02 -1.80594901e+04
+            const double A = 18237.2633;
+            const double x0 = -260.749645;
+            const double k = .0176799265;
+            const double off = -18059.4901;
+
+            MAXLOOPS = ceil((A / (1.0 + exp(-k * (((double)AS) - x0)))) + off);
+
+            printf("Maxloops: %i\n", MAXLOOPS);
 
             //printf("\tInitializing Entries\n");
             for(int i=0; i<tablesize; i++){
