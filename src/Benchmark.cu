@@ -565,7 +565,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             }
 
                             //Lookup
-                            if (j >= WARMUP && !(*failFlag)) {
+                            if (j >= WARMUP) {
                                 begin = std::chrono::steady_clock::now();
 #ifdef GPUCODE
                                 lookupCleary << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals, c);
