@@ -458,6 +458,7 @@ class ClearyCuckoo : HashTable{
 
             //Duplicate Phase
             //printf("%i:\t\t:Waiting for Dup\n", getThreadID());
+#ifdef DUPCHECK
 #ifdef GPUCODE
             __syncthreads();
 #else
@@ -473,6 +474,7 @@ class ClearyCuckoo : HashTable{
             __syncthreads();
 #else
             barrier->Wait();
+#endif
 #endif
             //printf("%i:\t\t:Dup Exited\n", getThreadID());
 
@@ -651,9 +653,10 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, Barrier* barrier,
             break;
         }
     }
-
+#ifdef DUPCHECK
 #ifndef GPUCODE
     barrier->signalThreadStop();
+#endif
 #endif
     //printf("%i:Thread Stopped\n", getThreadID());
 }
@@ -713,7 +716,11 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, Barrier* barrier,
         }
         (*occupancy).fetch_add(1);
     }
+#ifdef DUPCHECK
+#ifndef GPUCODE
     barrier->signalThreadStop();
+#endif
+#endif
 }
 #endif
 
