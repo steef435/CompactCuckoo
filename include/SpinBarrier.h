@@ -1,3 +1,4 @@
+#ifndef GPUCODE
 #include <atomic>
 #include <Windows.h>
 
@@ -46,3 +47,4 @@ protected:
     /* Number of barrier syncronizations completed so far*/
     std::atomic<unsigned int> step_;
 };
+#endif
