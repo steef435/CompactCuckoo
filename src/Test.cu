@@ -40,10 +40,10 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #else
 
         std::vector<std::thread> vecThread1(numThreads);
-        Barrier barrier(numThreads);
+        SpinBarrier barrier(numThreads);
 
         for (int i = 0; i < numThreads; i++) {
-            vecThread1.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, Barrier*, int*, addtype, int, int)>(fillClearyCuckoo), N, vals, cc, &barrier, nullptr, 0, i, numThreads);
+            vecThread1.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, SpinBarrier*, int*, addtype, int, int)>(fillClearyCuckoo), N, vals, cc, &barrier, nullptr, 0, i, numThreads);
             //Setting Thread Affinity
             //auto mask = (static_cast<DWORD_PTR>(1) << (i % 4));//core number starts from 0
             //auto ret = SetThreadAffinityMask(vecThread1.at(i).native_handle(), mask);
@@ -319,7 +319,7 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
 }
 
 #ifndef GPUCODE
-void barrierThread(Barrier* b) {
+void barrierThread(SpinBarrier* b) {
     printf("%i: Waiting\n", getThreadID());
     b->Wait();
     printf("%i: Entering Phase\n", getThreadID());
@@ -327,7 +327,7 @@ void barrierThread(Barrier* b) {
     printf("%i: Phase Exited\n", getThreadID());
 }
 
-void barrierThreadWait(Barrier* b) {
+void barrierThreadWait(SpinBarrier* b) {
     std::this_thread::sleep_for(std::chrono::seconds(5));
     printf("%i: Waiting\n", getThreadID());
     b->Wait();
@@ -339,7 +339,7 @@ void barrierThreadWait(Barrier* b) {
 
 void BarrierTest(int numThreads) {
     std::vector<std::thread> vecThread(numThreads);
-    Barrier barrier(numThreads);
+    SpinBarrier barrier(numThreads);
 
 
     printf("Starting Threads\n");

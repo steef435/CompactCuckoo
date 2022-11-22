@@ -7,7 +7,7 @@
 #include <inttypes.h>
 #include <atomic>
 #include <random>
-#include "Barrier.h"
+#include "SpinBarrier.h"
 
 //For to List
 #include <vector>
@@ -398,7 +398,7 @@ class ClearyCuckoo : HashTable{
 #ifdef GPUCODE
         bool insert(uint64_cu k, int numThreads){
 #else
-        bool insert(uint64_cu k, int numThreads, Barrier* barrier) {
+        bool insert(uint64_cu k, int numThreads, SpinBarrier* barrier) {
 #endif
             //Succesful Insertion
             //printf("%i:\tInserting val %" PRIu64 "\n", getThreadID(), k);
@@ -628,7 +628,7 @@ GPUHEADER_G
 #ifdef GPUCODE
 void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, int* failFlag=nullptr, addtype begin = 0, int id = 0, int s = 1)
 #else
-void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, Barrier* barrier, int* failFlag = nullptr, addtype begin = 0, int id = 0, int s = 1)
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, SpinBarrier* barrier, int* failFlag = nullptr, addtype begin = 0, int id = 0, int s = 1)
 #endif
 {
     //printf("%i:Thread Started\n", getThreadID());
@@ -692,7 +692,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupanc
 
 #ifndef GPUCODE
 GPUHEADER_G
-void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, Barrier* barrier, std::atomic<addtype>* occupancy, std::atomic<bool>* failFlag, int id = 0, int s = 1)
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, SpinBarrier* barrier, std::atomic<addtype>* occupancy, std::atomic<bool>* failFlag, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
     int index = threadIdx.x;

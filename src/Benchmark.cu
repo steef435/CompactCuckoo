@@ -197,11 +197,11 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                             gpuErrchk(cudaDeviceSynchronize());
     #else
                                             std::vector<std::thread> vecThread(numThreads);
-                                            Barrier barrier(numThreads);
+                                            SpinBarrier barrier(numThreads);
                                             //printf("LAUNCHING THREADS\n");
                                             for (int i = 0; i < numThreads; i++) {
                                                 //printf("Starting Threads\n");
-                                                vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, Barrier*, int*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, &barrier, failFlag, setsize * (j - WARMUP), i, numThreads);
+                                                vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, SpinBarrier*, int*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, &barrier, failFlag, setsize * (j - WARMUP), i, numThreads);
                                             }
 
                                             //Join Threads
@@ -462,11 +462,11 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 gpuErrchk(cudaDeviceSynchronize());
 #else
                                 std::vector<std::thread> vecThread(numThreads);
-                                Barrier barrier(numThreads);
+                                SpinBarrier barrier(numThreads);
 
                                 for (int i = 0; i < numThreads; i++) {
                                     //printf("Starting Threads\n");
-                                    vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, Barrier*, int*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, &barrier, failFlag, setsize * (j - WARMUP), i, numThreads);
+                                    vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, SpinBarrier*, int*, addtype, int, int)>(fillClearyCuckoo), setsize, vals, cc, &barrier, failFlag, setsize * (j - WARMUP), i, numThreads);
                                 }
 
                                 //Join Threads
@@ -691,7 +691,7 @@ void BenchmarkMaxOccupancy(int TABLE_START, int NUM_TABLES, int HASH_START, int 
                         std::atomic<bool> failFlag(false);
                         std::atomic<addtype> occ(0);
                         //printf("Filling Table\n");
-                        Barrier barrier(1);
+                        SpinBarrier barrier(1);
 
                         fillClearyCuckoo(size, vals, cc, &barrier, &occ, &failFlag);
                         //printf("Writing\n");
