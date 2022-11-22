@@ -524,9 +524,9 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 #ifdef GPUCODE
                         Cleary* c;
                         gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
-                        new (c) Cleary(N);
+                        new (c) Cleary(N, numThreads);
 #else
-                        Cleary* c = new Cleary(N);
+                        Cleary* c = new Cleary(N, numThreads);
 #endif
 
                         //Loop over intervals

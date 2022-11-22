@@ -12,6 +12,8 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
+#include <time.h>
+
 #ifndef MAIN
 #define MAIN
 #include "main.h"
@@ -60,7 +62,9 @@ class Cleary : public HashTable{
         int occupancy = 0;
 
         //Random number generator
+#ifdef GPUCODE
         curandState* d_state;
+#endif
 
         addtype MAX_ADRESS;
         addtype MIN_ADRESS = 0;
@@ -194,7 +198,6 @@ class Cleary : public HashTable{
 
         GPUHEADER_D
         bool insertIntoTable(keytype k, addtype left, addtype right) {
-            printf("Insert\n");
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h, AS);
             remtype rem = getRem(h, AS);
@@ -246,10 +249,14 @@ class Cleary : public HashTable{
             }
 
             //Decide to shift mem up or down
-            //TODO: Maybe randomize
-            printf("Get Shift \n");
-            int shift = round(curand_uniform(&(d_state[threadIdx.x])));
-            printf("Shift %i \n", shift);
+#ifdef GPUCODE
+            int idx = threadIdx.x + blockDim.x * blockIdx.x;
+            int shift = round(curand_uniform(&(d_state[idx]))) == 0 ? 1 : -1;
+#else
+            //Slightly cheating for random direction
+            int ra = clock()%2;
+            int shift = ra == 0 ? 1 : -1;
+#endif
 
             //Prevent Overflows
             if (T[left].getO()) {
@@ -398,8 +405,7 @@ class Cleary : public HashTable{
         Cleary() {}
 
         //Constructor with size
-        Cleary(int adressSize){
-            printf("Init CLeary\n");
+        Cleary(int adressSize, int numThreads){
             //Init Variables
             AS = adressSize;
             RS = HS-AS;
@@ -421,16 +427,14 @@ class Cleary : public HashTable{
 
 #ifdef GPUCODE
             //Init random num gen
-            printf("Setup Kernel\n");
-            cudaMalloc(&d_state, sizeof(curandState));
-            setup_kernel << <1, 1 >> > (d_state);
+            cudaMalloc(&d_state, numThreads*sizeof(curandState));
+            setup_kernel << <1, numThreads >> > (d_state);
             gpuErrchk(cudaPeekAtLastError());
             gpuErrchk(cudaDeviceSynchronize());
 #endif
 
             //Hash function
             h1 = 0;
-            printf("Init done \n");
         }
 
         /**
@@ -439,6 +443,7 @@ class Cleary : public HashTable{
         ~Cleary() {
             #ifdef GPUCODE
             gpuErrchk(cudaFree(T));
+            gpuErrchk(cudaFree(d_state));
             #else
             delete[] T;
             #endif

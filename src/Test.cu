@@ -96,9 +96,9 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #ifdef GPUCODE
         Cleary* c;
         gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
-        new (c) Cleary(tablesize);
+        new (c) Cleary(tablesize, numThreads);
 #else
-        Cleary* c = new Cleary(tablesize);
+        Cleary* c = new Cleary(tablesize, numThreads);
 #endif
 
         printf("Filling Cleary\n");
