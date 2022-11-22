@@ -14,17 +14,14 @@ public:
 
     //Start Waiting
     void Wait() {
-        //printf("%i:\tWait - Threshold %zu Count %zu Generation %zu\n", getThreadID(), mThreshold, mCount, mGeneration);
         std::unique_lock<std::mutex> lLock{ mMutex };
         auto lGen = mGeneration;
         if (++mCount >= mThreshold) {
-            //printf("%i:\t\tThreshold Passed\n", getThreadID());
             mGeneration++;
             mCount = 0;
             mCond.notify_all();
         }
         else {
-            //printf("%i:\t\tWait\n", getThreadID());
             mCond.wait(lLock, [this, lGen] { return lGen != mGeneration; });
         }
     }
@@ -32,7 +29,6 @@ public:
     //Method for when a thread prematurely stops
     void signalThreadStop() {
         std::unique_lock<std::mutex> lLock{ mMutex };
-        //printf("%i:\tBarrier - Thread Stop %zu Count %zu Generation %zu\n", getThreadID(), mThreshold, mCount, mGeneration);
         if (mCount >= --mThreshold) {
             mGeneration++;
             mCount = 0;

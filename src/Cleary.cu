@@ -34,25 +34,33 @@
 
 enum direction{up, down, here};
 
+__global__ void setup_kernel(curandState* state) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    curand_init(1234, idx, 0, &state[idx]);
+}
+
 
 class Cleary : public HashTable{
     //Allows for easy changing of the types
 
     private:
         //Constant Vars
-        const static int HS = 59;       //HashSize
-        const static int BUFFER = 0; //Space assigned for overflow
+        const static int HS = 59;           //HashSize
+        const static int BUFFER = 0;        //Space assigned for overflow
         const static int MAXLOOPS = 24;
         const static int A_UNDEFINED = 0;
 
         bool GPU;
 
         //Vars assigned at construction
-        int AS;                  //AdressSize
-        int RS;                  //RemainderSize
-        int size;                //Allocated Size of Table
-        int tablesize;              //Actual size of table with buffer
+        int AS;                             //AdressSize 
+        int RS;                             //RemainderSize
+        int size;                           //Allocated Size of Table
+        int tablesize;                      //Actual size of table with buffer
         int occupancy = 0;
+
+        //Random number generator
+        curandState* d_state;
 
         addtype MAX_ADRESS;
         addtype MIN_ADRESS = 0;
@@ -63,6 +71,7 @@ class Cleary : public HashTable{
         //Hash function ID
         int h1;
 
+        //Insert Method
         GPUHEADER
         addtype findIndex(uint64_cu k){           
             hashtype h = RHASH(h1, k);
@@ -71,8 +80,6 @@ class Cleary : public HashTable{
 
             addtype i = j;
             int cnt = 0;
-
-            //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Finding Index from %" PRIu32 "\n", getThreadID(), i);
 
             //Find first well defined A value
             while(T[i].getA() == A_UNDEFINED && i>=MIN_ADRESS && T[i].getO()){
@@ -83,18 +90,14 @@ class Cleary : public HashTable{
                 }
             };
 
-            //printf("\t\t\t\t\t\t\t\t\t\t\t%i: First well defined: %" PRIu32 "\n", getThreadID(), i);
             if (i <= MAX_ADRESS && i >= MIN_ADRESS) {
                 cnt = cnt + T[i].getA();
-                //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Cnt: %i\n", getThreadID(), cnt);
             }
 
             //Look for the relevant group
-            //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Find relevant group\n", getThreadID());
             direction dir = up;
             if(cnt < 0){
                 dir = up;
-                //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Dir Up %" PRIu32 "\n", getThreadID(), i);
                 while(cnt != 0 && i != MAX_ADRESS){
                     i = i+1;
                     cnt = cnt + (T[i].getC() ? 1 : 0);
@@ -104,14 +107,12 @@ class Cleary : public HashTable{
                 }
             }else if(cnt > 0){
                 dir = down;
-                //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Dir down %" PRIu32 "\n", getThreadID(), i);
                 while(cnt != 0 && i != MIN_ADRESS){
                     cnt = cnt - (T[i].getC() ? 1 : 0);
                     i = i - 1;
                 }
                 if(T[i].getR() <= rem){dir = here;}
             }else{
-                //printf("\t\t\t\t\t\t\t\t\t\t\t%i: End Case\n", getThreadID());
                 if (i > MAX_ADRESS) {
                     i = 0;
                     //IF val is being inserted first time, stop here
@@ -123,22 +124,17 @@ class Cleary : public HashTable{
                 if(T[i].getR() > rem){dir = down;}
                 else if(T[i].getR() < rem){dir = up;}
                 else{
-                    //printf("\t\t\t\t\t\t\t\t\t\t\t%i: End Else Case\n", getThreadID());
                     dir = here;}
             }
-            //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Relevant Group: %" PRIu32 "\n", getThreadID(), i);
 
             //Look inside of the group
-            //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Look inside group\n", getThreadID());
             switch (dir){
                 case here:
-                    //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Here\n", getThreadID());
                     break;
 
                 case down:
                     while (dir != here) {
                         assert(i <= MAX_ADRESS);
-                        //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Going Down %" PRIu32 "\n", getThreadID(), i);
                         if (T[i].getC() == 1 || i == MIN_ADRESS) { dir = here; }
                         else {
                             i = i - 1;
@@ -152,7 +148,6 @@ class Cleary : public HashTable{
                 case up:
                     while (dir != here) {
                         assert(i <= MAX_ADRESS);
-                        //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Going Up %" PRIu32 "\n", getThreadID(), i);
                         if (i == MAX_ADRESS) {
                             dir = here;
                         }
@@ -197,10 +192,9 @@ class Cleary : public HashTable{
         }
 
 
-        GPUHEADER
+        GPUHEADER_D
         bool insertIntoTable(keytype k, addtype left, addtype right) {
-            //printf("\t\t\t\t\t\t\t%i: Inserting Into Table\n", getThreadID());
-
+            printf("Insert\n");
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h, AS);
             remtype rem = getRem(h, AS);
@@ -209,23 +203,19 @@ class Cleary : public HashTable{
 
             //Find insertion index
             addtype i = findIndex(k);
-            //printf("\t\t\t\t\t\t\t%i: Index Found %" PRIu32 "\n", getThreadID(), i);
 
             //Check virgin bit and set
             if (!T[j].getV()) {
-                //printf("\t\t\t\t\t\t\t%i: Set VBit at %" PRIu32 "\n", getThreadID(), j);
                 T[j].setV(true, true);
                 newgroup = true;
             }
 
-            //printf("\t\t\t\t\t\t\t%i: Group Start/Groupend\n", getThreadID());
             bool groupstart = T[i].getC() == 1 && T[i].getO() != false;
             bool groupend;
             if (i != MAX_ADRESS) { groupend = T[i + 1].getC() == 1 && T[i].getO() != false; }
             else { groupend = true; }
 
             //Check whether i should be 0 (Check all smaller Vs
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Check if i is 0 \n", getThreadID());
             bool setStart = false;
             
             if (i == MIN_ADRESS && j != MIN_ADRESS && !T[MIN_ADRESS].getV()) {
@@ -237,7 +227,7 @@ class Cleary : public HashTable{
                     }
                 }
             }
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Look for new group\n",getThreadID());
+
             //If a new group needs to be formed, look for the end of the group
             if (newgroup && T[i].getO() && !setStart) {
                 direction dir = up;
@@ -257,8 +247,10 @@ class Cleary : public HashTable{
 
             //Decide to shift mem up or down
             //TODO: Maybe randomize
-            int shift = 1;
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Prevent Overflows %" PRIu32 "\n", getThreadID(), i);
+            printf("Get Shift \n");
+            int shift = round(curand_uniform(&(d_state[threadIdx.x])));
+            printf("Shift %i \n", shift);
+
             //Prevent Overflows
             if (T[left].getO()) {
                 shift = 1;
@@ -269,22 +261,17 @@ class Cleary : public HashTable{
             
 
             //Edge cases where the location must be shifted
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Edge Cases %" PRIu32 "\n", getThreadID(), i);
             bool setC = false;
             if (shift == -1) {
-                //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift -1\n",getThreadID());
                 if (groupstart && (!newgroup) && (T[i].getR() > rem) && T[i].getO() && (i != MIN_ADRESS)) {
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 1\n",getThreadID());
                     T[i].setC(false, true);
                     setC = true;
                     i--;
                 }
                 else if (!newgroup && T[i].getR() > rem && T[i].getO() && i != MIN_ADRESS) {
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 2\n",getThreadID());
                     i--;
                 }
                 else if (newgroup && T[i].getO() && i != MIN_ADRESS) {
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 3\n",getThreadID());
                     if (i == MAX_ADRESS && j != MAX_ADRESS) {
                         bool checkPos = true;
                         for (int m = j + 1; m <= MAX_ADRESS; m++) {
@@ -295,33 +282,23 @@ class Cleary : public HashTable{
                         }
                     }
                     else if (i != MAX_ADRESS) {
-                        //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 4\n",getThreadID());
                         i--;
                     }
                 }
             }
             if (shift == 1) {
-                //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift 1\n", getThreadID());
                 if (groupend && (!newgroup) && (T[i].getR() < rem) && T[i].getO() && (i != MAX_ADRESS)) {
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 5:%" PRIu32 "\n",getThreadID(),i);
                     i++;
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Iter Case 5:%" PRIu32 "\n",getThreadID(),i);
                     T[i].setC(false, true);
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: SetC 5:%" PRIu32 "\n",getThreadID(),i);
                     setC = true;
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Done Shift Case 5\n",getThreadID());
                 }
                 else if (!newgroup && T[i].getR() < rem && T[i].getO() && i != MAX_ADRESS) {
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 6\n",getThreadID());
                     i++;
                 }
                 else if (j == MIN_ADRESS && newgroup) {
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift Case 7\n",getThreadID());
                     i = MIN_ADRESS;
                 }
             }
-
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Storing searchstart %" PRIu32 "\n", getThreadID(), i);
 
             //Store where the search started for later
             addtype startloc = i;
@@ -330,14 +307,12 @@ class Cleary : public HashTable{
             //Check whether location is empty
             bool wasoccupied = T[i].getO();
 
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Storing old Values at %" PRIu32 "\n", getThreadID(), i);
             //Store values at found location
             remtype R_old = T[i].getR();
             bool C_old = T[i].getC();
             bool O_old = T[i].getO();
 
             //Insert new values
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Setting new Values at %" PRIu32 "\n", getThreadID(), i);
             T[i].setR(rem, true);
 
             T[i].setO(true, true);
@@ -348,7 +323,6 @@ class Cleary : public HashTable{
                 T[i].setC(newgroup);
             }
 
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Update C %" PRIu32 "\n", getThreadID(), i);
             if (setC && shift == -1) { T[i].setC(true, true); }
             //Update C Value
             if (shift == 1 && !newgroup) {
@@ -356,10 +330,8 @@ class Cleary : public HashTable{
             }
 
             //If the space was occupied shift mem
-            //printf("\t\t\t\t\t\t\t\t\t\t%i: Shifting Mem from %" PRIu32 "\n", getThreadID(), i);
             if (wasoccupied) {
                 while (O_old) {
-                    //printf("\t\t\t\t\t\t\t\t\t\t%i: Shift%" PRIu32 "\n", getThreadID(), i);
                     i += shift;
                     boundaryAssert(i, MIN_ADRESS, MAX_ADRESS);
                     //Store the values
@@ -386,7 +358,6 @@ class Cleary : public HashTable{
 
             if(A_UNDEFINED != 0){
                 //Find the first well-defined A
-                //printf("\t\t\t\t\t\t\t\t\t\t%i: Find Start of Group %" PRIu32 "\n", getThreadID(), i);
                 addtype x = startloc;
                 while(T[x].getA() == A_UNDEFINED && x!=MIN_ADRESS) {
                     x--;
@@ -396,10 +367,8 @@ class Cleary : public HashTable{
                 }
 
                 //Update the A values
-                //printf("\t\t\t\t\t\t\t\t\t\t%i: Updating A from %" PRIu32 "\n", getThreadID(), x);
                 int A_old = 0;
                 while (T[x].getO() && x <= MAX_ADRESS) {
-                    //printf("\t\t\t\t\t\t\t\t\t\t\t%i: Setting A %" PRIu32 "\n", getThreadID(), x);
                     boundaryAssert(x, MIN_ADRESS, MAX_ADRESS);
                     //Update Based on C and V
                     if (T[x].getC()) {
@@ -416,8 +385,6 @@ class Cleary : public HashTable{
                 }
             }
 
-            //printf("\t\tAfterallupdates");
-
             return true;
         }
 
@@ -430,28 +397,40 @@ class Cleary : public HashTable{
         //Default constructor for mem-alloc
         Cleary() {}
 
+        //Constructor with size
         Cleary(int adressSize){
-            //printf("Creating Cleary Table\n");
+            printf("Init CLeary\n");
+            //Init Variables
             AS = adressSize;
             RS = HS-AS;
             tablesize = (int) pow(2,AS) + 2*BUFFER;
             size = (int) pow(2,AS);
             MAX_ADRESS = tablesize - 1;
 
-            //printf("\tAllocating Memory\n");
-            #ifdef GPUCODE
+            //Allocate Memory
+#ifdef GPUCODE
             gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyEntry<addtype, remtype>)));
-            #else
+#else
             T = new ClearyEntry<addtype, remtype>[tablesize];
-            #endif
+#endif
 
-            //printf("\tInitializing Entries\n");
+            //Init Entries
             for(int i=0; i<tablesize; i++){
                 new (&T[i]) ClearyEntry<addtype, remtype>();
             }
 
+#ifdef GPUCODE
+            //Init random num gen
+            printf("Setup Kernel\n");
+            cudaMalloc(&d_state, sizeof(curandState));
+            setup_kernel << <1, 1 >> > (d_state);
+            gpuErrchk(cudaPeekAtLastError());
+            gpuErrchk(cudaDeviceSynchronize());
+#endif
+
+            //Hash function
             h1 = 0;
-            //printf("\tDone\n");
+            printf("Init done \n");
         }
 
         /**
@@ -465,9 +444,9 @@ class Cleary : public HashTable{
             #endif
         }
 
+        //Parallel Insertion Method
         GPUHEADER_D
         bool insert(keytype k){
-            //printf("\tInserting %" PRIu64 "\n", k);
             //Calculate Hash
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h, AS);
@@ -476,13 +455,10 @@ class Cleary : public HashTable{
             int counter=0;
 
             while (true) {
-                //__syncthreads();
                 counter++;
                 boundaryAssert(j, MIN_ADRESS, MAX_ADRESS);
-                //assert(counter < 30000);
 
                 //Try Non-Exclusive Write
-                //printf("\t\t\t\t\t\t\t\t%i: Trying Non-Exclusive Write at %" PRIu32 "\n", getThreadID(), j);
                 ClearyEntry<addtype, remtype> def(0, false, false, true, 0, false, false);
                 ClearyEntry<addtype, remtype> newval(rem, true, true, true, 0, false, false);
 
@@ -490,7 +466,6 @@ class Cleary : public HashTable{
 
                 //If not locked + not occupied then success
                 if ((!old.getL()) && (!old.getO())) {
-                    //printf("\t\t\t\t\t\t\t\t%i: Non-Exclusive Success\n", getThreadID());
                     return true;
                 }
 
@@ -502,48 +477,32 @@ class Cleary : public HashTable{
                 boundaryAssert(right, MIN_ADRESS, MAX_ADRESS);
 
                 if (!T[left].lock(left == MIN_ADRESS)) {
-                    //printf("\t\t\t\t\t\t\t\t%i: Left Failed at%" PRIu32 "\n", getThreadID(), left);
-                    //__nanosleep(1000);
                     continue;
                 }
-                //printf("\t\t\t\t\t\t\t\t%i: Left Retrieved at%" PRIu32 "\n", getThreadID(), left);
-                //printf("\t\t\t\t\t\t\t\t%i: Trying Right at%" PRIu32 "\n", getThreadID(), right);
                 if (!T[right].lock(right == MAX_ADRESS)) {
-                    //printf("\t\t\t\t\t\t\t\t%i: Right Failed at%" PRIu32 "\n", getThreadID(), right);
                     T[left].unlock();
-                    //printf("\t\t\t\t\t\t\t\t%i: Left Unlocked at%" PRIu32 "\n", getThreadID(), left);
-                    //__nanosleep(1000);
                     continue;
                 }
-                //printf("\t\t\t\t\t\t\t\t%i: Right Retrieved at%" PRIu32 "\n", getThreadID(), right);
 
                 //Do a read
                 if (lookup(k)) {
                     //Val already exists
-                    //printf("\t\tVal Already Exists\n");
                     T[left].unlock();
                     T[right].unlock();
-                    //printf("\t\t\t\t\t\t\t\t%i: Left Unlocked at%" PRIu32 "\n", getThreadID(), left);
-                    //printf("\t\t\t\t\t\t\t\t%i: Right Unlocked at%" PRIu32 "\n", getThreadID(), right);
                     return false;
                 }
 
                 //Write
-                //printf("\t\t\t\t\t\t\t\t%i: Exclusive Write\n", getThreadID());
                 bool res = insertIntoTable(k, left, right);
                 T[left].unlock();
                 T[right].unlock();
-                //printf("\t\t\t\t\t\t\t\t%i: Left Unlocked at%" PRIu32 "\n", getThreadID(), left);
-                //printf("\t\t\t\t\t\t\t\t%i: Right Unlocked at%" PRIu32 "\n", getThreadID(), right);
-                //printf("\t\t\t\t\t\t\t\t%i: Insertion Success\n", getThreadID());
-                //printf("\tAfterInsertion");
                 return res;
             }
         };
 
+        //Lookup
         GPUHEADER
         bool lookup(uint64_cu k){
-            //printf("\t\tLookup %" PRIu64 "\n", k);
             //Hash Key
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h, AS);
@@ -551,26 +510,22 @@ class Cleary : public HashTable{
 
             //If no values with add exist, return
             if(T[j].getV() == 0){
-                //printf("\t\t\tV not set\n");
                 return false;
             };
 
+            //Find Index of value
             addtype i = findIndex(k);
             boundaryAssert(i, MIN_ADRESS, MAX_ADRESS);
-            //printf("\t\tFind Add   %" PRIu32 "\n", j);
-            //printf("\t\tFind Index %" PRIu32 "\n", i);
 
+            //If remainders are the same FOUND
             if(T[i].getR() == rem){
                 return true;
-            }
-            else {
-                //printf("\t\t\tOriginalIndex:%" PRIu32 " FoundIndex:%" PRIu32 "\n",j, i);
-                //printf("\t\t\tFoundR:%" PRIu64 " ActualR:%" PRIu64 "\n", T[i].getR(), rem);
             }
 
             return false;
         };
 
+        //Clear Entries in table
         GPUHEADER
         void clear(){
             for(int i=0; i<tablesize; i++){
@@ -578,11 +533,13 @@ class Cleary : public HashTable{
             }
         }
 
+        //Return size of table
         GPUHEADER
         int getSize(){
             return size;
         }
 
+        //Read all entries in the tables
         void readEverything(int N) {
             int j = 0;
             for (int i = 0; i < N; i++) {
@@ -593,6 +550,7 @@ class Cleary : public HashTable{
             }
         }
 
+        //Print table
         GPUHEADER
         void print(){
             printf("----------------------------------------------------------------\n");
@@ -612,6 +570,7 @@ class Cleary : public HashTable{
 
 };
 
+//Insert list of vals into table
 GPUHEADER_G
 void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin = 0, int id = 0, int s = 1)
 {
@@ -622,7 +581,6 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin = 0, int id = 0
     int index = id;
     int stride = s;
 #endif
-    //std::cout << "ThreadID: " << GetCurrentProcessorNumber() << "\n";
     for (int i = index + begin; i < N + begin; i += stride) {
         if (!(H->insert(vals[i]))) {
             break;
@@ -630,6 +588,7 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin = 0, int id = 0
     }
 }
 
+//Check if list of vals are all contained in table
 GPUHEADER_G
 void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int id = 0, int s = 1)
 {
@@ -649,7 +608,7 @@ void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int id = 0, int s
     }
 }
 
-
+//Lookup list of values in the table
 GPUHEADER_G
 void lookupCleary(int N, int start, int end, uint64_cu* vals, Cleary* H, int id = 0, int s = 1) {
 #ifdef GPUCODE

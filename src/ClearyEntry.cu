@@ -77,7 +77,6 @@ public:
     GPUHEADER
     void setV(bool x, bool onDevice = true) {
         TableEntry<ADD, REM>::setBits(Vindex[0], Vindex[1], x, onDevice);
-        //printf("\t\t\t\t\t\t\t\t\t\tV is Set\n");
         return;
     }
 
@@ -101,8 +100,6 @@ public:
     void setA(int x, bool onDevice = true) {
         int Amin = -pow(2, (Aindex[1] - Aindex[0]) - 1);
         int Amax = pow(2, (Aindex[1] - Aindex[0]) - 1);
-
-        //printf("Amin:%i Amax:%i", Amin, Amax);
 
         if (x > Amax-1) {
             x = Amax;
@@ -138,42 +135,39 @@ public:
 #ifdef GPUCODE
         //Store old TableEntry<ADD, REM>::value
         uint64_cu oldval = TableEntry<ADD, REM>::val;
-        //printf("\t\t\t\t\t\t\t\t\t%i: Lock-Creating new Val\n", threadIdx.x);
         //Make the new value with lock locked
         uint64_cu newval = TableEntry<ADD, REM>::val;
         TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], ((uint64_cu) 1), &newval, false);
 #else
         //Store old TableEntry<ADD, REM>::value
         uint64_cu oldval = TableEntry<ADD, REM>::val.load();
-        //printf("\t\t\t\t\t\t\t\t\t Lock-Creating new Val\n");
+
         //Make the new value with lock locked
         uint64_cu newval = TableEntry<ADD, REM>::val.load();
         TableEntry<ADD, REM>::setBits(Lindex[0], Lindex[1], 1, &newval, false);
 #endif
+        //If not on edge of table, and location occupied, then return false
         if (!edgeVal) {
             if (TableEntry<ADD, REM>::getBits(Oindex[0], Oindex[1], &oldval)) {
-                //printf("\t\t\tValue updated Recently\n");
                 return false;
             }
         }
 
-        //If Lockbit was set return false
+        //If Lockbit was already set return false
         if (TableEntry<ADD, REM>::getBits(Lindex[0], Lindex[1], &oldval)) {
-            //printf("\t\t\tLockbit Already Set\n");
             return false;
         }
-        //printf("\t\t\t\t\t\t\t\t\t Lock-Swapping\n");
-        //Swap if the old value hasn't changed
 
+        //Swap if the old value hasn't changed
         #ifdef GPUCODE
             uint64_cu res = atomicCAS(TableEntry<ADD, REM>::getValPtr(), oldval, newval);
 
             if (res == oldval) {
-                //printf("\t\t\t\t\t\t\t\t\t%i: Lock-Success\n", threadIdx.x);
+                //If val was oldVal, operation was success
                 return true;
             }
             else {
-                //printf("\t\t\t\t\t\t\t\t\t%i: Lock-Fail\n", threadIdx.x);
+                //Else lock failed
                 return false;
             }
         #else
@@ -220,16 +214,18 @@ public:
         }
     }
 
+    //Print the value in an entry
     GPUHEADER
     void print() {
 #ifdef GPUCODE
-        //printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val);
+        printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val);
 #else
-        //printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val.load());
+        printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val.load());
 #endif
         return;
     }
 
+    //Do a compare and swap between two entries
     GPUHEADER
     uint64_cu compareAndSwap(ClearyEntry<ADD, REM>* comp, ClearyEntry<ADD, REM>* swap) {
         #ifdef GPUCODE
