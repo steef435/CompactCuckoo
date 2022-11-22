@@ -37,7 +37,6 @@ protected:
 
     GPUHEADER
     void setBits(int start, int end, uint64_cu ins, bool onDevice=true) {
-        //printf("\tSetBits %i, %i, %p, %i \n", start, end, &val, onDevice);
 #ifdef GPUCODE
         if(onDevice){
           setBitsDevice(start, end, ins, &val, onDevice);
@@ -50,7 +49,6 @@ protected:
 
     GPUHEADER
     void setBits(int start, int end, uint64_cu ins, std::atomic<uint64_cu>* loc, bool onDevice = true) {
-        //printf("\t\t\tSetting Bits\n");
         while (true) {
 
             uint64_cu oldval = (*loc).load();
@@ -60,7 +58,6 @@ protected:
                 break;
             }
         }
-        //printf("\t\t\tNewVal After: %" PRIu64 " \n", (*loc).load());
     }
 
 
@@ -68,7 +65,6 @@ protected:
 #ifdef GPUCODE
     GPUHEADER_D
     void setBitsDevice(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
-        //printf("SetBits Device\n");
         while (true) {
             uint64_cu oldval = *loc;
             uint64_cu newval = setValBits(start, end, ins, loc);
@@ -85,7 +81,6 @@ protected:
 
     GPUHEADER
     void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
-        //printf("SetBits Normal\n");
         while (true) {
             uint64_cu newval = setValBits(start, end, ins, loc);
 
@@ -96,7 +91,6 @@ protected:
 #else
     GPUHEADER
     void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
-            //printf("Default SetBits\n");
             uint64_cu newval = setValBits(start, end, ins, loc);
             *loc = newval;
             return;

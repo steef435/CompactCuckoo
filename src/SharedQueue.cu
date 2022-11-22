@@ -23,7 +23,6 @@ private:
 
 public:
     SharedQueue(int max) {
-        //printf("Making SharedQueue size %i \n", max);
         maxSize = max;
 
 #ifdef GPUCODE
@@ -65,7 +64,6 @@ public:
 #else
         int index = insertIndex.fetch_add(1) % maxSize;
 #endif
-        //printf("\tPushIndex %i\n", index);
         if (!Occ[index]) {
             queue[index] = val;
             Occ[index] = true;
@@ -73,7 +71,6 @@ public:
         else {
             printf("WARNING: Value in queue was overwritten\n");
         }
-        //print();
     }
 
     GPUHEADER_D
@@ -88,7 +85,6 @@ public:
             Occ[index] = false;
             return queue[index];
         }
-        //print();
         //Otherwise return a default value
         return 0;
     }
@@ -96,10 +92,8 @@ public:
     GPUHEADER_D
     bool isEmpty() {
 #ifdef GPUCODE
-        //printf("IsEmptyIndex: %i, headIndex %i, maxSize %i\n", headIndex % maxSize, headIndex, maxSize);
         return !Occ[headIndex % maxSize];
 #else
-        //printf("\tChecking %i", headIndex.load() % maxSize);
         return !Occ[headIndex.load() % maxSize];
 #endif
     }

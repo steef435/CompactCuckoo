@@ -31,7 +31,6 @@ void shuffle(uint64_cu* arr, int len)
     for (auto i = 0; i < len; i++) {
         std::uniform_int_distribution<int> d(i, len-1);
         int loc= d(rd_ng);
-        //printf("\tLength:%i, Loc:%i\n", len, loc);
         std::swap(arr[i], arr[loc]);
     }
 }
@@ -113,7 +112,6 @@ void firstPassGenSet(curandState* state, uint64_cu* res, int N, int setsize, int
 
 __global__
 void secondPassGenSet(curandState* state, uint64_cu* res, int N, int setsize, int begin) {
-    //printf("Setsize: %i Begin:%i\n", setsize, begin);
 
     int index = threadIdx.x;
     int stride = blockDim.x;
@@ -122,10 +120,8 @@ void secondPassGenSet(curandState* state, uint64_cu* res, int N, int setsize, in
     curandState localState = state[idx];
 
     int maxVal = setsize + begin < N ? setsize + begin : N;
-    //printf("MaxVal: %i\n", maxVal);
 
     for (int i = index + begin; i < maxVal; i += stride) {
-        //printf("Index: %i\n", i);
         if (contains(res, res[i], i)) {
             while (true) {
                 float myrandf = curand_uniform(&localState);
@@ -167,15 +163,6 @@ uint64_cu* generateTestSetParallel(int size, int NUM_THREADS) {
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
     }
-
-    //Check for Duplicates
-    /*
-    for (int i = 0; i < split; i++) {
-        secondPassGenSet << <1, NUM_THREADS >> > (states, res, size, setsize, i * setsize);
-        printf("New Set %i\n", i);
-        gpuErrchk(cudaPeekAtLastError());
-        gpuErrchk(cudaDeviceSynchronize());
-    }*/
 
     return res;
 
@@ -225,7 +212,6 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     std::uniform_int_distribution<long long int> dist64(0, std::llround(std::pow(2, 58)));
     std::uniform_int_distribution<long long int> dist16(0, std::llround(std::pow(2, 16)));
 
-    //printf("\t\t\t\t\t\t\tgenerateCollisionSet N:%i H:%i perc:%i maxperc:%f\n", N, H, percentage, 100.0 / ((float)H));
     int maxPercentage = std::floor(100.0 / ((float)H));
     if (percentage > maxPercentage) {
         printf("Error: Percentage too Large - 1/H being used instead");
@@ -244,30 +230,22 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     int n = 0;
 
     //Generate the Clean set first
-    //printf("\t\t\t\t\t\t\t\tGenClean\n");
     int fullSet = (int)(((float)N * (float)percentage) / 100.0);
     int halfSet = std::floor(((float)N * (float)percentage) / (100.0 * ((float)depth + 1)));
-
-    //printf("\t\t\t\t\t\t\t\tFullSet %i, Halfset:%i\n", fullSet, halfSet);
 
     for (int i = 0; i < halfSet*H; i++) {
         uint64_cu rand = dist64(e2_ng);
         if (!(insertedSet.find(rand) != insertedSet.end())) {
-            //printf("\t\t\t\t\t\t\t\t\tInsertingVal1 at %i\n", i);
             insertedSet.insert(rand);
             res[i] = rand;
             n++;
         }
         else {
-            //printf("\t\t\t\t\t\t\t\t\tAlready in Table1\n");
             i--;
         }
     }
 
-    //printf("\t\t\t\t\t\t\t\tClean Set to %i\n", n);
-
     if (percentage != 0) {
-        //printf("\t\t\t\t\t\t\t\tGenColliding\n");
         for (int h = 0; h < H; h++) {
             //Generate Half the Set First
             int start = n;
@@ -286,48 +264,36 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
                     uint64_cu hashed = RHASH(hash, res[r]);
                     add = getAdd(hashed, AS);
                 }
-                //printf("\t\t\t\t\t\t\t\t\t\tRetrieved Val from %i is %" PRIu64 " with add %" PRIu32 "\n", r, res[r], add);
 
                 //Create a new value
                 uint64_cu newVal = reformKey(add, dist16(e2_ng), AS);
                 uint64_cu toInsert = RHASH_INVERSE(hash, newVal);
 
-                //printf("Trying Insert at %i\n", i);
                 //Check if value exists
                 if (!(insertedSet.find(toInsert) != insertedSet.end())) {
-                    //printf("\t\t\t\t\t\t\t\t\tInsertingVal2 at %" PRIu64 "\n", n);
                     insertedSet.insert(toInsert);
                     res[n] = toInsert;
                     n++;
                 }
                 else {
-                    //printf("\t\t\t\t\t\t\t\t\tAlready in Table2\n");
                     i--;
                 }
             }
-            //printf("\t\t\t\t\t\t\t\tGenerated Set from %i to %i\n", start, n);
         }
     }
 
-    //printf("\t\t\t\t\t\t\t\tFill Leftover space\n");
     for (int i = n; i < N; i++) {
         uint64_cu rand = dist64(e2_ng);
         if (!(insertedSet.find(rand) != insertedSet.end())) {
-            //printf("\t\t\t\t\t\t\t\t\tInsertingVal1 at %i\n", i);
             insertedSet.insert(rand);
             res[i] = rand;
         }
         else {
-            //printf("\t\t\t\t\t\t\t\t\tAlready in Table\n");
             i--;
         }
     }
-    //printf("\t\t\t\t\t\t\tShuffle\n");
 
     shuffle(res, N);
-
-    //printf("\t\t\t\t\t\t\tReturn\n");
-
 
     return res;
 }
