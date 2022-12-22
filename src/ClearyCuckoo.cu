@@ -616,7 +616,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, SpinBarrier* barr
     int index = id;
     int stride = s;
 #endif
-
+    //printf("Thread %i Starting\n", getThreadID());
     for (int i = index + begin; i < N + begin; i += stride) {
 #ifdef GPUCODE
         if (!(H->insert(vals[i], stride))) {
@@ -629,6 +629,7 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, SpinBarrier* barr
             break;
         }
     }
+    //printf("Insertions %i Over\n", getThreadID());
 #ifdef DUPCHECK
 #ifndef GPUCODE
     barrier->signalThreadStop();
