@@ -297,3 +297,60 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
 
     return res;
 }
+
+//Read CSV
+uint64_cu* readCSV(std::string filename) {
+    std::vector<uint64_cu> vec;
+    printf("Reading CSV\n");
+    std::ifstream file;
+
+    // Helper vars
+    std::string line, colname;
+    uint64_cu val;
+
+
+    file.open(filename);
+    if (!file.is_open()) {
+        printf("File Failed to Open\n");
+        return nullptr;
+    }
+    printf("File Opened");
+
+    // Read data, line by line
+    while (std::getline(file, line))
+    {
+        // Create a stringstream of the current line
+        std::stringstream ss(line);
+
+        // Extract each integer
+        while (ss >> val) {
+
+            // Add the current integer to the 'colIdx' column's values vector
+            vec.push_back(val);
+
+            // If the next token is a comma, ignore it and move on
+            if (ss.peek() == ',') { ss.ignore(); };
+        }
+    }
+
+    file.close();
+
+    int size = vec.size();
+
+#ifdef GPUCODE
+    uint64_cu* res;
+    gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
+#else
+    uint64_cu* res = new uint64_cu[size];
+#endif
+
+    int j = 0;
+    for (uint64_cu i : vec) {
+        res[j++] = i;
+    }
+
+
+   
+    return res;
+
+}

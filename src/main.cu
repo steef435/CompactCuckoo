@@ -208,7 +208,16 @@ int main(int argc, char* argv[])
     }
 
     else if (strcmp(argv[1], "debug") == 0) {
+        uint64_cu* list = readCSV(argv[2]);
 
+        printf("Elmt %i: %" PRIu64 "\n", std::stoi(argv[3]), list[std::stoi(argv[3])]);
+
+#ifdef GPUCODE
+        gpuErrchk(cudaFree(list));
+#else
+        //printf("Deleting\n");
+        delete[] list;
+#endif
     }
 
     return 0;
