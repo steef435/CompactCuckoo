@@ -7,9 +7,10 @@
 #define TABLES
 #include "ClearyCuckoo.cu"
 #include "Cleary.cu"
+#include "ClearyCuckooBucketed.cu"
 #endif
 
-bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc_bool) {
+bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc_bool, bool b_bool) {
     bool testres = true;
     printf("TestRes\n");
     //Init Var
@@ -151,6 +152,67 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #endif
     }
 
+    if (b_bool) {
+        //Create Table 2
+        printf("Creating Bucketed\n");
+#ifdef GPUCODE
+        ClearyCuckooBucketed* b;
+        gpuErrchk(cudaMallocManaged((void**)&b, sizeof(ClearyCuckooBucketed)));
+        new (b) ClearyCuckooBucketed(tablesize, 4, 4);
+#else
+        ClearyCuckooBucketed* b = new ClearyCuckooBucketed(tablesize, 4, 4);
+#endif
+
+        printf("Filling Bucketed\n");
+
+#ifdef GPUCODE
+        fillClearyCuckooBucketed << <1, 1 >> > (N, vals, b);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+#else
+        std::vector<std::thread> vecThread2(numThreads);
+
+        for (int i = 0; i < numThreads; i++) {
+            vecThread2.at(i) = std::thread(fillClearyCuckooBucketed, N, vals, b, 0, i, numThreads);
+        }
+
+        //Join Threads
+        for (int i = 0; i < numThreads; i++) {
+            vecThread2.at(i).join();
+        }
+#endif
+
+        printf("Devices Synced\n");
+        b->print();
+
+        //Checking
+        res[0] = true;
+        printf("Checking Bucketed\n");
+
+#ifdef GPUCODE
+        checkClearyCuckooBucketed << <1, 1 >> > (N, vals, b, res);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+#else
+        checkClearyCuckooBucketed(N, vals, b, res);
+#endif
+
+        printf("Devices Synced\n");
+        if (res[0]) {
+            printf("All still in the table\n");
+        }
+        else {
+            testres = false;
+            printf("!---------------------Vals Missing---------------------!\n");
+        }
+
+#ifdef GPUCODE
+        gpuErrchk(cudaFree(b));
+#else
+        delete b;
+#endif
+    }
+
     //Destroy Vars
 #ifdef GPUCODE
     gpuErrchk(cudaFree(res));
@@ -235,7 +297,7 @@ void entryTest() {
 
 
 
-void TableTest(int N, int T, int L, bool c, bool cc) {
+void TableTest(int N, int T, int L, bool c, bool cc, bool b) {
     bool res = true;
 
     const int addressSize = N;
@@ -252,7 +314,7 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
         printf("                              BASIC TEST                              \n");
         printf("==============================================================================================================\n");
         uint64_cu* testset1 = generateRandomSet(testSize);
-        if (!TestFill(testSize, T, addressSize, testset1, c, cc)) {
+        if (!TestFill(testSize, T, addressSize, testset1, c, cc, b)) {
             res = false;
         }
 #ifdef GPUCODE
@@ -265,7 +327,7 @@ void TableTest(int N, int T, int L, bool c, bool cc) {
         printf("                            COLLISION TEST                            \n");
         printf("==============================================================================================================\n");
         uint64_cu* testset2 = generateCollidingSet(testSize, addressSize);
-        if (!TestFill(testSize, T, addressSize, testset2, c, cc)) {
+        if (!TestFill(testSize, T, addressSize, testset2, c, cc, b)) {
             res = false;
         }
 #ifdef GPUCODE

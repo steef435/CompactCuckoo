@@ -2,6 +2,7 @@
 #define TABLES
 #include "ClearyCuckoo.cu"
 #include "Cleary.cu"
+#include "ClearyCuckooBucketed.cu"
 #endif
 
 #ifdef REHASH

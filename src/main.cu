@@ -37,6 +37,7 @@
 #define TABLES
 #include "ClearyCuckoo.cu"
 #include "Cleary.cu"
+#include "ClearyCuckooBucketed.cu"
 #endif
 
 
@@ -120,22 +121,24 @@ int main(int argc, char* argv[])
         if (strcmp(argv[2], "TABLE") == 0) {
             bool c = false;
             bool cc = false;
+            bool b = false;
 
             if (argc < 6) {
                 printf("Not Enough Arguments Passed\n");
-                printf("Required: TABLESIZE, NUM_THREADS, SAMPLES, TABlETYPE (c cc ccc)\n");
+                printf("Required: TABLESIZE, NUM_THREADS, SAMPLES, TABlETYPE (c cc ccc b)\n");
                 return 0;
             }
 
             std::string s = argv[6];
             c = s == "c";
             cc = s == "cc";
+            b = s == "b";
             if (s == "ccc") {
                 c = true;
                 cc = true;
             }
 
-            TableTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), c, cc);
+            TableTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), c, cc, b);
         }
         else if (strcmp(argv[2], "NUMGEN") == 0) {
             if (argc < 7) {
@@ -197,6 +200,15 @@ int main(int argc, char* argv[])
         BenchmarkGeneralFilling(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), std::stoi(argv[10]), std::stoi(argv[11]), std::stoi(argv[12]), std::stoi(argv[13]), std::stoi(argv[14]));
     }
 
+    else if (strcmp(argv[1], "benchmax2") == 0) {
+        if (argc < 6) {
+            printf("Not Enough Arguments Passed\n");
+            printf("Required: TABLE_START, NUM_TABLES, HASH_START, NUM_HASHES, HASH_STEP, NUM_LOOPS, LOOP_STEP, BUCKET_SIZE, REHASH_STEP, NUM_SAMPLES\n");
+            return 0;
+        }
+        BenchmarkMaxOccupancyBucket(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), std::stoi(argv[10]), std::stoi(argv[11]));
+    }
+
     else if (strcmp(argv[1], "benchspeed") == 0) {
         if (argc < 10) {
             printf("Not Enough Arguments Passed\n");
@@ -207,7 +219,7 @@ int main(int argc, char* argv[])
         BenchmarkSpeed(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]));
     }
 
-    else if (strcmp(argv[1], "debug") == 0) {
+    else if (strcmp(argv[1], "readInput") == 0) {
         uint64_cu* list = readCSV(argv[2]);
 
         printf("Elmt %i: %" PRIu64 "\n", std::stoi(argv[3]), list[std::stoi(argv[3])]);
@@ -218,6 +230,10 @@ int main(int argc, char* argv[])
         //printf("Deleting\n");
         delete[] list;
 #endif
+    }
+
+    else if (strcmp(argv[1], "debug") == 0) {
+
     }
 
     return 0;
