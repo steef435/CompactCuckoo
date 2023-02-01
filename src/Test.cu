@@ -8,9 +8,10 @@
 #include "ClearyCuckoo.cu"
 #include "Cleary.cu"
 #include "ClearyCuckooBucketed.cu"
+#include "Cuckoo.cu"
 #endif
 
-bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc_bool, bool b_bool) {
+bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc_bool, bool b_bool, bool cuc_bool) {
     bool testres = true;
     printf("TestRes\n");
     //Init Var
@@ -213,6 +214,67 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #endif
     }
 
+    if (cuc_bool) {
+        //Create Table 2
+        printf("Creating Cuckoo\n");
+#ifdef GPUCODE
+        Cuckoo* cuc;
+        gpuErrchk(cudaMallocManaged((void**)&cuc, sizeof(Cuckoo)));
+        new (cuc) Cuckoo(tablesize, 4);
+#else
+        Cuckoo* cuc = new Cuckoo(tablesize, 4);
+#endif
+
+        printf("Filling Cuckoo\n");
+
+#ifdef GPUCODE
+        fillCuckoo << <1, 1 >> > (N, vals, cuc);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+#else
+        std::vector<std::thread> vecThread2(numThreads);
+
+        for (int i = 0; i < numThreads; i++) {
+            vecThread2.at(i) = std::thread(fillCuckoo, N, vals, b, 0, i, numThreads);
+        }
+
+        //Join Threads
+        for (int i = 0; i < numThreads; i++) {
+            vecThread2.at(i).join();
+        }
+#endif
+
+        printf("Devices Synced\n");
+        cuc->print();
+
+        //Checking
+        res[0] = true;
+        printf("Checking Cuckoo\n");
+
+#ifdef GPUCODE
+        checkCuckoo << <1, 1 >> > (N, vals, cuc, res);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+#else
+        checkCuckoo(N, vals, cuc, res);
+#endif
+
+        printf("Devices Synced\n");
+        if (res[0]) {
+            printf("All still in the table\n");
+        }
+        else {
+            testres = false;
+            printf("!---------------------Vals Missing---------------------!\n");
+        }
+
+#ifdef GPUCODE
+        gpuErrchk(cudaFree(cuc));
+#else
+        delete cuc;
+#endif
+    }
+
     //Destroy Vars
 #ifdef GPUCODE
     gpuErrchk(cudaFree(res));
@@ -297,7 +359,7 @@ void entryTest() {
 
 
 
-void TableTest(int N, int T, int L, bool c, bool cc, bool b) {
+void TableTest(int N, int T, int L, bool c, bool cc, bool b, bool cuc) {
     bool res = true;
 
     const int addressSize = N;
@@ -313,8 +375,8 @@ void TableTest(int N, int T, int L, bool c, bool cc, bool b) {
         printf("==============================================================================================================\n");
         printf("                              BASIC TEST                              \n");
         printf("==============================================================================================================\n");
-        uint64_cu* testset1 = generateRandomSet(testSize);
-        if (!TestFill(testSize, T, addressSize, testset1, c, cc, b)) {
+        uint64_cu* testset1 = generateRandomSet(testSize, std::pow(2, 50));
+        if (!TestFill(testSize, T, addressSize, testset1, c, cc, b, cuc)) {
             res = false;
         }
 #ifdef GPUCODE
@@ -327,7 +389,7 @@ void TableTest(int N, int T, int L, bool c, bool cc, bool b) {
         printf("                            COLLISION TEST                            \n");
         printf("==============================================================================================================\n");
         uint64_cu* testset2 = generateCollidingSet(testSize, addressSize);
-        if (!TestFill(testSize, T, addressSize, testset2, c, cc, b)) {
+        if (!TestFill(testSize, T, addressSize, testset2, c, cc, b, cuc)) {
             res = false;
         }
 #ifdef GPUCODE
@@ -349,7 +411,7 @@ void TableTest(int N, int T, int L, bool c, bool cc, bool b) {
     printf("==============================================================================================================\n");
     printf("                                          REHASH TEST                                                         \n");
 
-    uint64_cu* testset3 = generateRandomSet(testSize);
+    uint64_cu* testset3 = generateRandomSet(testSize, std::pow(2, 50));
     if (!testRehash(addressSize, testset3)) {
         printf("TEST FAILED\n");
         res = false;

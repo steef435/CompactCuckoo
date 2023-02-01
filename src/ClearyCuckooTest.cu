@@ -3,6 +3,7 @@
 #include "ClearyCuckoo.cu"
 #include "Cleary.cu"
 #include "ClearyCuckooBucketed.cu"
+#include "Cuckoo.cu"
 #endif
 
 #ifdef REHASH

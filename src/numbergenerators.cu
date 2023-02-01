@@ -37,9 +37,9 @@ void shuffle(uint64_cu* arr, int len)
 
 
 
-uint64_cu* generateRandomSet(int size) {
+uint64_cu* generateRandomSet(int size, long long int max=std::pow(2, 58)) {
     //Random Number generator
-    std::uniform_int_distribution<long long int> dist(0, std::llround(std::pow(2, 58)));
+    std::uniform_int_distribution<long long int> dist(0, std::llround(max));
 
 #ifdef GPUCODE
     uint64_cu* res;

@@ -38,6 +38,7 @@
 #include "ClearyCuckoo.cu"
 #include "Cleary.cu"
 #include "ClearyCuckooBucketed.cu"
+#include "Cuckoo.cu"
 #endif
 
 
@@ -122,6 +123,7 @@ int main(int argc, char* argv[])
             bool c = false;
             bool cc = false;
             bool b = false;
+            bool cuc = false;
 
             if (argc < 6) {
                 printf("Not Enough Arguments Passed\n");
@@ -133,12 +135,13 @@ int main(int argc, char* argv[])
             c = s == "c";
             cc = s == "cc";
             b = s == "b";
+            cuc = s == "cuc";
             if (s == "ccc") {
                 c = true;
                 cc = true;
             }
 
-            TableTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), c, cc, b);
+            TableTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), c, cc, b, cuc);
         }
         else if (strcmp(argv[2], "NUMGEN") == 0) {
             if (argc < 7) {

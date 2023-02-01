@@ -34,7 +34,11 @@
 #define SHAREDQUEUE
 #include "SharedQueue.cu"
 #endif
+
+#ifndef CCENTRY
+#define CCENTRY
 #include "ClearyCuckooEntry.cu"
+#endif
 
 
 
@@ -392,9 +396,9 @@ class ClearyCuckoo : HashTable{
         //Public insertion call
         GPUHEADER_D
 #ifdef GPUCODE
-        bool insert(uint64_cu k, int numThreads){
+        bool insert(uint64_cu k){
 #else
-        bool insert(uint64_cu k, int numThreads, SpinBarrier* barrier) {
+        bool insert(uint64_cu k, SpinBarrier* barrier) {
 #endif
 #ifdef REHASH
 #ifdef GPUCODE
@@ -619,9 +623,9 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, SpinBarrier* barr
     //printf("Thread %i Starting\n", getThreadID());
     for (int i = index + begin; i < N + begin; i += stride) {
 #ifdef GPUCODE
-        if (!(H->insert(vals[i], stride))) {
+        if (!(H->insert(vals[i]))) {
 #else
-        if (!(H->insert(vals[i], stride, barrier))) {
+        if (!(H->insert(vals[i], barrier))) {
 #endif
             if (failFlag != nullptr) {
                 (*failFlag) = true;
@@ -656,9 +660,9 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, addtype* occupanc
             break;
         }
 #ifdef GPUCODE
-        if (!(H->insert(vals[i], stride))) {
+        if (!(H->insert(vals[i]))) {
 #else
-        if (!(H->insert(vals[i], stride))) {
+        if (!(H->insert(vals[i]))) {
 #endif
             atomicCAS(&(failFlag[0]), 0, 1);
             break;
