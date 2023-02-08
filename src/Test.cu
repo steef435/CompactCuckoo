@@ -157,24 +157,24 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         //Create Table 2
         printf("Creating Bucketed\n");
 #ifdef GPUCODE
-        ClearyCuckooBucketed* b;
-        gpuErrchk(cudaMallocManaged((void**)&b, sizeof(ClearyCuckooBucketed)));
-        new (b) ClearyCuckooBucketed(tablesize, 4, 4);
+        ClearyCuckooBucketed<TILESIZE>* b;
+        gpuErrchk(cudaMallocManaged((void**)&b, sizeof(ClearyCuckooBucketed<TILESIZE>))); //TODO
+        new (b) ClearyCuckooBucketed<TILESIZE>(tablesize, 3);
 #else
-        ClearyCuckooBucketed* b = new ClearyCuckooBucketed(tablesize, 4, 4);
+        ClearyCuckooBucketed* b = new ClearyCuckooBucketed<TILESIZE>(tablesize, 3);
 #endif
 
         printf("Filling Bucketed\n");
 
 #ifdef GPUCODE
-        fillClearyCuckooBucketed << <1, 1 >> > (N, vals, b);
+        fillClearyCuckooBucketed<TILESIZE> << <1, numThreads >> > (N, vals, b);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
         std::vector<std::thread> vecThread2(numThreads);
 
         for (int i = 0; i < numThreads; i++) {
-            vecThread2.at(i) = std::thread(fillClearyCuckooBucketed, N, vals, b, 0, i, numThreads);
+            vecThread2.at(i) = std::thread(fillClearyCuckooBucketed<TILESIZE>, N, vals, b, 0, i, numThreads);
         }
 
         //Join Threads
@@ -191,11 +191,11 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         printf("Checking Bucketed\n");
 
 #ifdef GPUCODE
-        checkClearyCuckooBucketed << <1, 1 >> > (N, vals, b, res);
+        checkClearyCuckooBucketed<TILESIZE> << <1, numThreads >> > (N, vals, b, res);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
-        checkClearyCuckooBucketed(N, vals, b, res);
+        checkClearyCuckooBucketed<TILESIZE>(N, vals, b, res);
 #endif
 
         printf("Devices Synced\n");

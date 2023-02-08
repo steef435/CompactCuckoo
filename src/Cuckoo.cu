@@ -613,7 +613,7 @@ void fillCuckoo(int N, uint64_cu* vals, Cuckoo* H, SpinBarrier* barrier, int* fa
 #endif
     //printf("Thread %i Starting\n", getThreadID());
     for (int i = index + begin; i < N + begin; i += stride) {
-        printf("Inserting %" PRIu64 "\n", vals[i]);
+        //printf("Inserting %" PRIu64 "\n", vals[i]);
 #ifdef GPUCODE
         if (!(H->insert(vals[i]))) {
 #else
@@ -624,7 +624,7 @@ void fillCuckoo(int N, uint64_cu* vals, Cuckoo* H, SpinBarrier* barrier, int* fa
             }
             break;
         }
-        H->print();
+        //H->print();
     }
     //printf("Insertions %i Over\n", getThreadID());
 #ifdef DUPCHECK

@@ -28,6 +28,15 @@ using keytype = uint64_cu;
 #define DUPCHECK
 
 /**
+* 
+* 
+*  DEFINE variables
+* 
+* */
+
+const int TILESIZE = 16;
+
+/**
 *
 * GPU Headers
 *

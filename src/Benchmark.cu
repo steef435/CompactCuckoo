@@ -262,86 +262,6 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
             }
         }
     }
-    /*
-    printf("=====================================================================\n");
-    printf("                     Starting Cleary                \n\n");
-
-    for (int N = NUM_TABLES_start; N < NUM_TABLES_start + NUM_TABLES; N++) {
-        if (params && setup) {
-            N = std::stoi(params->at(0));
-        }
-        printf("Table Size:%i\n", N);
-
-        int size = std::pow(2, N);
-        int setsize = (int)(size / INTERVAL);
-        for (int T = 0; T < NUM_THREADS; T++) {
-            printf("\tNumber of Threads:%i\n", T);
-#ifdef GPUCODE
-            int numThreads = std::pow(2, T);
-#else
-            int numThreads = T + 1;
-#endif
-            for (int S = 0; S < NUM_SAMPLES; S++) {
-                printf("\t\t\t\tSample Number:%i\n", S);
-                //uint64_cu* vals = generateTestSetParallel(size, NUM_GEN_THREADS);
-                uint64_cu* vals = generateRandomSet(size);
-
-                //Init Cleary
-#ifdef GPUCODE
-                Cleary* c;
-                gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
-                new (c) Cleary(N);
-#else
-                Cleary* c = new Cleary(N);
-#endif
-
-                //Loop over intervals
-                for (int j = 0; j < INTERVAL + WARMUP; j++) {
-                    std::chrono::steady_clock::time_point begin;
-                    std::chrono::steady_clock::time_point end;
-
-                    //Fill the table
-                    if (j >= WARMUP) {
-                        begin = std::chrono::steady_clock::now();
-#ifdef GPUCODE
-
-                        fillCleary << <1, numThreads >> > (setsize, vals, c, setsize * (j - WARMUP));
-                        gpuErrchk(cudaPeekAtLastError());
-                        gpuErrchk(cudaDeviceSynchronize());
-#else
-
-                        std::vector<std::thread> vecThread(numThreads);
-                        //uint64_cu** valCopy = (uint64_cu**) malloc(sizeof(uint64_cu*) * numThreads);
-
-                        for (int i = 0; i < numThreads; i++) {
-                            //valCopy[i] = (uint64_cu*) malloc(sizeof(uint64_cu) * size);
-                            //copyArray(vals, valCopy[i], size);
-                            vecThread.at(i) = std::thread(fillCleary, setsize, vals, c, setsize * (j - WARMUP), i, numThreads);
-                        }
-
-                        //Join Threads
-                        for (int i = 0; i < numThreads; i++) {
-                            vecThread.at(i).join();
-                            //delete[] valCopy[i];
-                        }
-#endif
-                        //End the timer
-                        end = std::chrono::steady_clock::now();
-                        myfile << N << "," << numThreads << "," << -1 << "," << -1 << "," << -1 << "," << -1 << "," << -1 << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",\n";
-                    }
-
-                }
-#ifdef GPUCODE
-                gpuErrchk(cudaFree(c));
-                gpuErrchk(cudaFree(vals));
-#else
-                delete c;
-                delete[] vals;
-#endif
-            }
-        }
-    }
-    */
 
     myfile.close();
     printf("\nBenchmark Done\n");
@@ -410,8 +330,13 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                     //Number of samples
                     for (int S = 0; S < NUM_SAMPLES; S++) {
                         printf("\t\t\t\tSample:%i\n", S);
-                        //Init Cleary Cuckoo
 
+                        /***********************************************************************************************
+                        * 
+                        * ClearyCuckoo Speed Test
+                        *
+                        ***********************************************************************************************/
+                        printf("\t\t\t\t\tClearyCuckoo\n");
 #ifdef GPUCODE
                         ClearyCuckoo* cc;
                         gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
@@ -477,10 +402,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag) {
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccuc," << (j - WARMUP) << "," << -1 << ",INS,\n";
                             }
 
                             //Lookup Time Test
@@ -506,7 +431,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                         }
@@ -520,7 +445,12 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         delete failFlag;
 #endif
 
-                        //Init Cleary
+                        /***********************************************************************************************
+                        *
+                        * Cleary Speed Test
+                        *
+                        ***********************************************************************************************/
+                        printf("\t\t\t\t\tCleary\n");
 #ifdef GPUCODE
                         Cleary* c;
                         gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
@@ -593,10 +523,217 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
 #ifdef GPUCODE
                         gpuErrchk(cudaFree(c));
-                        gpuErrchk(cudaFree(vals));
 #else
                         delete c;
-                        delete[] vals;
+#endif
+                        /***********************************************************************************************
+                        *
+                        * Cuckoo Speed Test
+                        *
+                        ***********************************************************************************************/
+                        printf("\t\t\t\t\tCuckoo\n");
+#ifdef GPUCODE
+                        Cuckoo* cuc;
+                        gpuErrchk(cudaMallocManaged((void**)&cuc, sizeof(Cuckoo)));
+                        new (cuc) Cuckoo(N);
+                        int* failFlag2;
+                        gpuErrchk(cudaMallocManaged((void**)&failFlag2, sizeof(int)));
+                        (*failFlag2) = false;
+#else
+                        Cuckoo* cuc = new Cuckoo(N);
+
+                        int* failFlag2 = new int;
+                        (*failFlag2) = false;
+#endif
+
+
+                        //Warmup
+                        //printf("Warmup\n");
+                        readList(vals, size, 20);
+                        cuc->readEverything(size * 50);
+                        warmupThreads(numThreads, vals, size, 20);
+
+
+                        //printf("Reading\n");
+                        //Loop over intervals
+                        for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                            //Fill the table
+                            std::chrono::steady_clock::time_point begin;
+                            std::chrono::steady_clock::time_point end;
+
+                            if (j < WARMUP) {
+                                //cc->readEverything(20);
+                            }
+
+                            if (j >= WARMUP && !(*failFlag2)) {
+                                begin = std::chrono::steady_clock::now();
+#ifdef GPUCODE
+                                fillCuckoo << <1, std::pow(2, T) >> > (setsize, vals, cuc, failFlag2, setsize * (j - WARMUP));
+                                gpuErrchk(cudaPeekAtLastError());
+                                gpuErrchk(cudaDeviceSynchronize());
+#else
+                                std::vector<std::thread> vecThread(numThreads);
+                                SpinBarrier barrier(numThreads);
+
+                                for (int i = 0; i < numThreads; i++) {
+                                    //printf("Starting Threads\n");
+                                    vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, Cuckoo*, SpinBarrier*, int*, addtype, int, int)>(fillCuckoo), setsize, vals, cuc, &barrier, failFlag2, setsize * (j - WARMUP), i, numThreads);
+                                }
+
+                                //Join Threads
+                                for (int i = 0; i < numThreads; i++) {
+                                    vecThread.at(i).join();
+                                }
+#endif
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                            }
+                            if (*failFlag2) {
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << -1 << ",INS,\n";
+                            }
+
+                            //Lookup Time Test
+                            if (j >= WARMUP && !(*failFlag2)) {
+                                begin = std::chrono::steady_clock::now();
+#ifdef GPUCODE
+                                lookupCuckoo << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals, cuc);
+                                gpuErrchk(cudaPeekAtLastError());
+                                gpuErrchk(cudaDeviceSynchronize());
+#else
+                                std::vector<std::thread> vecThread(numThreads);
+
+                                for (int i = 0; i < numThreads; i++) {
+                                    //printf("Starting Threads\n");
+                                    vecThread.at(i) = std::thread(lookupCuckoo, lookupSize, 0, setsize * (j - WARMUP + 1), vals, cuc, i, numThreads);
+                                }
+
+                                //Join Threads
+                                for (int i = 0; i < numThreads; i++) {
+                                    vecThread.at(i).join();
+                                }
+#endif
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                            }
+
+                        }
+
+                        //printf("Delete CC Vars\n");
+#ifdef GPUCODE
+                        gpuErrchk(cudaFree(cuc));
+                        gpuErrchk(cudaFree(failFlag2));
+#else
+                        delete cuc;
+                        delete failFlag2;
+#endif
+                        /***********************************************************************************************
+                        *
+                        * ClearyCuckooBucketed Speed Test
+                        *
+                        ***********************************************************************************************/
+#ifdef GPUCODE
+                        printf("\t\t\t\t\tClearyCuckooBucketed\n");
+                        ClearyCuckooBucketed<TILESIZE>* ccb;
+                        gpuErrchk(cudaMallocManaged((void**)&ccb, sizeof(ClearyCuckooBucketed<TILESIZE>)));
+                        new (ccb) ClearyCuckooBucketed<TILESIZE>(N, 4);
+                        int* failFlag3;
+                        gpuErrchk(cudaMallocManaged((void**)&failFlag3, sizeof(int)));
+                        (*failFlag3) = false;
+#else
+                        ClearyCuckooBucketed<TILESIZE>* ccb = new ClearyCuckooBucketed<TILESIZE>(N);
+
+                        int* failFlag3 = new int;
+                        (*failFlag3) = false;
+#endif
+
+                        //Warmup
+                        //printf("Warmup\n");
+                        readList(vals, size, 20);
+                        ccb->readEverything(size * 50);
+                        warmupThreads(numThreads, vals, size, 20);
+
+
+                        //printf("Reading\n");
+                        //Loop over intervals
+                        for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                            //Fill the table
+                            std::chrono::steady_clock::time_point begin;
+                            std::chrono::steady_clock::time_point end;
+
+                            if (j < WARMUP) {
+                                //cc->readEverything(20);
+                            }
+
+                            if (j >= WARMUP && !(*failFlag3)) {
+                                begin = std::chrono::steady_clock::now();
+#ifdef GPUCODE
+                                fillClearyCuckooBucketed<TILESIZE> << <1, std::pow(2, T) >> > (setsize, vals, ccb, failFlag3, setsize * (j - WARMUP));
+                                gpuErrchk(cudaPeekAtLastError());
+                                gpuErrchk(cudaDeviceSynchronize());
+#else
+                                std::vector<std::thread> vecThread(numThreads);
+                                SpinBarrier barrier(numThreads);
+
+                                for (int i = 0; i < numThreads; i++) {
+                                    //printf("Starting Threads\n");
+                                    vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckooBucketed<TILESIZE>*, SpinBarrier*, int*, addtype, int, int)>(fillClearyCuckooBucketed), setsize, vals, ccb, &barrier, failFlag3, setsize * (j - WARMUP), i, numThreads);
+                                }
+
+                                //Join Threads
+                                for (int i = 0; i < numThreads; i++) {
+                                    vecThread.at(i).join();
+                                }
+#endif
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccbuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                            }
+                            if (*failFlag3) {
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccbuc," << (j - WARMUP) << "," << -1 << ",INS,\n";
+                            }
+
+                            //Lookup Time Test
+                            if (j >= WARMUP && !(*failFlag3)) {
+                                begin = std::chrono::steady_clock::now();
+#ifdef GPUCODE
+                                lookupClearyCuckooBucketed<TILESIZE> << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals, ccb);
+                                gpuErrchk(cudaPeekAtLastError());
+                                gpuErrchk(cudaDeviceSynchronize());
+#else
+                                std::vector<std::thread> vecThread(numThreads);
+
+                                for (int i = 0; i < numThreads; i++) {
+                                    //printf("Starting Threads\n");
+                                    vecThread.at(i) = std::thread(lookupClearyCuckooBucketed<TILESIZE>, lookupSize, 0, setsize * (j - WARMUP + 1), vals, ccb, i, numThreads);
+                                }
+
+                                //Join Threads
+                                for (int i = 0; i < numThreads; i++) {
+                                    vecThread.at(i).join();
+                                }
+#endif
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccbuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                            }
+
+                        }
+
+                        //printf("Delete CC Vars\n");
+#ifdef GPUCODE
+                        gpuErrchk(cudaFree(ccb));
+                        gpuErrchk(cudaFree(failFlag3));
+                        gpuErrchk(cudaFree(vals));
+#else
+                        delete ccb;
+                        delete failFlag3;
+                        delete vals;
 #endif
                     }
                 }
@@ -772,11 +909,11 @@ void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START
                         //Init Cleary Cuckoo
                         //printf("INit Table\n");
 #ifdef GPUCODE
-                        ClearyCuckooBucketed* cc;
-                        gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckooBucketed)));
-                        new (cc) ClearyCuckooBucketed(N, BS, H);
+                        ClearyCuckooBucketed<TILESIZE>* cc;
+                        gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckooBucketed<TILESIZE>)));
+                        new (cc) ClearyCuckooBucketed<TILESIZE>(N, H);
 #else
-                        ClearyCuckooBucketed* cc = new ClearyCuckooBucketed(N, BS, H);
+                        ClearyCuckooBucketed* cc = new ClearyCuckooBucketed<TILESIZE>(N, BS, H);
 #endif
                         cc->setMaxLoops(L);
 
@@ -791,7 +928,7 @@ void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START
                         gpuErrchk(cudaMallocManaged(&occ, sizeof(addtype)));
                         occ[0] = 0;
 
-                        fillClearyCuckooBucketed << <1, 1 >> > (size * BS, vals, cc, occ, failFlag);
+                        fillClearyCuckooBucketed<TILESIZE> << <1, 1 >> > (size * BS, vals, cc, occ, failFlag);
                         gpuErrchk(cudaPeekAtLastError());
                         gpuErrchk(cudaDeviceSynchronize());
 
@@ -802,7 +939,7 @@ void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START
                         //printf("Filling Table\n");
                         SpinBarrier barrier(1);
 
-                        fillClearyCuckooBucketed(size * BS, vals, cc, &barrier, &occ, &failFlag);
+                        fillClearyCuckooBucketed<TILESIZE>(size * BS, vals, cc, &barrier, &occ, &failFlag);
                         //printf("Writing\n");
                         myfile << N << "," << H << "," << L << "," << BS << "," << S << "," << occ.load() << ",\n";
 #endif
@@ -894,15 +1031,15 @@ void BenchmarkBucketed(int NUM_BUCKETS, int BUCKET_SIZE, int INTERVAL, int NUM_S
                             printf("\t\t\t\tSample:%i\n", S);
                             //Init Cleary Cuckoo Bucketed
 #ifdef GPUCODE
-                            ClearyCuckooBucketed* cc;
-                            gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckooBucketed)));
-                            new (cc) ClearyCuckooBucketed(B, Bs, H);
+                            ClearyCuckooBucketed<TILESIZE>* cc;
+                            gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckooBucketed<TILESIZE>)));
+                            new (cc) ClearyCuckooBucketed<TILESIZE>(B, H);
 
                             int* failFlag;
                             gpuErrchk(cudaMallocManaged((void**)&failFlag, sizeof(int)));
                             (*failFlag) = false;
 #else
-                            ClearyCuckooBucketed* cc = new ClearyCuckooBucketed(B, Bs, H);
+                            ClearyCuckooBucketed* cc = new ClearyCuckooBucketed<TILESIZE>(B, Bs, H);
 
                             int* failFlag = new int;
                             (*failFlag) = false;
@@ -922,7 +1059,7 @@ void BenchmarkBucketed(int NUM_BUCKETS, int BUCKET_SIZE, int INTERVAL, int NUM_S
                                     //printf("Insertion %i\n", j);
                                     begin = std::chrono::steady_clock::now();
 #ifdef GPUCODE
-                                    fillClearyCuckooBucketed << <1, std::pow(2, T) >> > (setsize, vals, cc, failFlag, setsize * (j - WARMUP));
+                                    fillClearyCuckooBucketed<TILESIZE> << <1, std::pow(2, T) >> > (setsize, vals, cc, failFlag, setsize * (j - WARMUP));
                                     gpuErrchk(cudaPeekAtLastError());
                                     gpuErrchk(cudaDeviceSynchronize());
 #else
@@ -931,7 +1068,7 @@ void BenchmarkBucketed(int NUM_BUCKETS, int BUCKET_SIZE, int INTERVAL, int NUM_S
                                     //printf("LAUNCHING THREADS\n");
                                     for (int i = 0; i < numThreads; i++) {
                                         //printf("Starting Threads\n");
-                                        vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, SpinBarrier*, int*, addtype, int, int)>(fillClearyCuckooBucketed), setsize, vals, cc, &barrier, failFlag, setsize * (j - WARMUP), i, numThreads);
+                                        vecThread.at(i) = std::thread(static_cast<void(*)(int, uint64_cu*, ClearyCuckoo*, SpinBarrier*, int*, addtype, int, int)>(fillClearyCuckooBucketed<TILESIZE>), setsize, vals, cc, &barrier, failFlag, setsize * (j - WARMUP), i, numThreads);
                                     }
 
                                     //Join Threads
@@ -953,14 +1090,14 @@ void BenchmarkBucketed(int NUM_BUCKETS, int BUCKET_SIZE, int INTERVAL, int NUM_S
                                 if (j >= WARMUP && !(*failFlag)) {
                                     begin = std::chrono::steady_clock::now();
 #ifdef GPUCODE
-                                    lookupClearyCuckooBucketed << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals, cc);
+                                    lookupClearyCuckooBucketed<TILESIZE> << <1, std::pow(2, T) >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals, cc);
                                     gpuErrchk(cudaPeekAtLastError());
                                     gpuErrchk(cudaDeviceSynchronize());
 #else
                                     std::vector<std::thread> vecThread(numThreads);
                                     for (int i = 0; i < numThreads; i++) {
                                         //printf("Starting Threads\n");
-                                        vecThread.at(i) = std::thread(lookupClearyCuckooBucketed, lookupSize, 0, setsize * (j - WARMUP + 1), vals, cc, i, numThreads);
+                                        vecThread.at(i) = std::thread(lookupClearyCuckooBucketed<TILESIZE>, lookupSize, 0, setsize * (j - WARMUP + 1), vals, cc, i, numThreads);
                                     }
 
                                     //Join Threads
