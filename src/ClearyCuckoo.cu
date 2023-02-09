@@ -286,7 +286,7 @@ class ClearyCuckoo : HashTable{
                 uint64_cu hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
-                if (T[add].getR() == rem && T[add].getO()) {
+                if ( (T[add].getR() == rem) && T[add].getO() && (T[add].getH() == hashlist[i]) ) {
                     return true;
                 }
             }

@@ -419,7 +419,7 @@ class ClearyCuckooBucketed: HashTable{
         //Taken from Better GPU Hash Tables
         GPUHEADER_D
         bool coopInsert(bool to_insert, keytype k) {
-            printf("%i: \tcoopInsert %" PRIu64"\n", getThreadID(), k);
+            //printf("%i: \tcoopInsert %" PRIu64"\n", getThreadID(), k);
             cg::thread_block thb = cg::this_thread_block();
             auto tile = cg::tiled_partition<tile_sz>(thb);
             //printf("%i: \tTiledPartition\n", getThreadID());
@@ -438,11 +438,8 @@ class ClearyCuckooBucketed: HashTable{
                     success = cur_result;
                 }
                 //printf("%i: \tInsertion Done\n", getThreadID());
-                if (tile.thread_rank() == 0) {
-                    print();
-                }
             }
-            printf("%i: \tInsertion of  %" PRIu64" result:%i\n", getThreadID(), k, success);
+            //printf("%i: \tInsertion of  %" PRIu64" result:%i\n", getThreadID(), k, success);
             return success;
         }
 
@@ -507,7 +504,7 @@ class ClearyCuckooBucketed: HashTable{
                     success = cur_result;
                 }
             }
-            printf("%i: key:%" PRIu64 " result:%i\n", getThreadID(), k, success);
+            //printf("%i: key:%" PRIu64 " result:%i\n", getThreadID(), k, success);
             return success;
             //printf("\t\t Lookup Failed\n");
         };
