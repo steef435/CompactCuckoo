@@ -68,6 +68,31 @@ struct bucket {
         return tile_.shfl(true, key_lane - 1);
     }
 
+    // Find the value associated with a key
+    GPUHEADER_D
+    void removeDuplicates(const remtype rem, const int hID, bool* found) {
+        //CHeck if val in loc is key
+        bool key_exists = ((rem == ptr_[tIndex].getR()) && (ptr_[tIndex].getO()) && (ptr_[tIndex].getH() == hID));
+        auto dupMask = tile_.ballot(key_exists);
+
+        int realAdd = -1;
+
+        //If first group where val is encountered, keep the first entry
+        int num_vals = __popc(dupMask);
+        if ( num_vals > 0 && !(*found) ) {
+            //Mark as found for next iteration
+            (*found) = true;
+            realAdd = __ffs(dupMask);
+        }
+
+        //If duplicate, mark as empty
+        if ( key_exists && (tile_.thread_rank() != realAdd) ) {
+            ptr_[tIndex].setO(false);
+        }
+
+        return;
+    }
+
     // Perform an exchange operation
     GPUHEADER_D
     ClearyCuckooEntry<addtype, remtype> exch_at_location(ClearyCuckooEntry<addtype, remtype> pair, const int loc) {
@@ -288,7 +313,7 @@ class ClearyCuckooBucketed: HashTable{
 
         //Method to check for duplicates after insertions
         GPUHEADER
-        void removeDuplicates(keytype k) {
+        void removeDuplicates(keytype k, cg::thread_block_tile<tile_sz> tile) {
             //To store whether value was already encountered
             bool found = false;
 
@@ -296,24 +321,15 @@ class ClearyCuckooBucketed: HashTable{
                 uint64_cu hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
-                for (int j = 0; j < Bs; j++) {
-
-                    if (T[add*Bs +j].getH() == hashlist[i] && T[add*Bs + j].getR() == rem && T[add*Bs +j].getO()) {
-                        //If value was already found
-                        if (found) {
-                            //Mark as not occupied
-                            T[add*Bs + j].setO(false);
-                        }
-                        //Mark value as found
-                        found = true;
-                    }
-                }
+                
+                auto cur_bucket = bucket<tile_sz>(T, tile, add, Bs);
+                cur_bucket.removeDuplicates(k, hashlist[i], &found);
             }
         }
 
         //Lookup internal method
         GPUHEADER_D
-        bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T, cg::thread_block_tile<tile_sz>& tile){
+        bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T, cg::thread_block_tile<tile_sz> tile){
             for (int i = 0; i < hn; i++) {
                 uint64_cu hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
@@ -418,6 +434,31 @@ class ClearyCuckooBucketed: HashTable{
 
         //Taken from Better GPU Hash Tables
         GPUHEADER_D
+        void coopDupCheck(bool to_check, keytype k) {
+            //printf("%i: \tcoopInsert %" PRIu64"\n", getThreadID(), k);
+            cg::thread_block thb = cg::this_thread_block();
+            auto tile = cg::tiled_partition<tile_sz>(thb);
+            //printf("%i: \tTiledPartition\n", getThreadID());
+            auto thread_rank = tile.thread_rank();
+            //Perform the insertions
+            uint32_t work_queue;
+            while (work_queue = tile.ballot(to_check)) {
+
+                auto cur_lane = __ffs(work_queue) - 1;
+                auto cur_k = tile.shfl(k, cur_lane);
+                //printf("%i: \tThread Starting Insertion of %" PRIu64 "\n", getThreadID(), cur_k);
+                removeDuplicates(cur_k, tile);
+                if (tile.thread_rank() == cur_lane) {
+                    to_check = false;
+                }
+                //printf("%i: \tInsertion Done\n", getThreadID());
+            }
+            //printf("%i: \tInsertion of  %" PRIu64" result:%i\n", getThreadID(), k, success);
+            return;
+        }
+
+        //Taken from Better GPU Hash Tables
+        GPUHEADER_D
         bool coopInsert(bool to_insert, keytype k) {
             //printf("%i: \tcoopInsert %" PRIu64"\n", getThreadID(), k);
             cg::thread_block thb = cg::this_thread_block();
@@ -469,7 +510,7 @@ class ClearyCuckooBucketed: HashTable{
 #endif
             //Do duplicate Check if insertion was successful
             if (finalRes) {
-                removeDuplicates(k);
+                coopDupCheck(true,k);
             }
 
 #ifdef GPUCODE

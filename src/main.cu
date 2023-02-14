@@ -41,6 +41,7 @@
 #include "Cuckoo.cu"
 #endif
 
+#include "ClearyCuckooEntryCompact.cu"
 
 /*
  *
@@ -237,7 +238,12 @@ int main(int argc, char* argv[])
     }
 
     else if (strcmp(argv[1], "debug") == 0) {
-
+        ClearyCuckooEntryCompact<uint32_t, uint64_t> test = ClearyCuckooEntryCompact<uint32_t, uint64_t>();
+        printf("Pre Insertion\n");
+        test.print();
+        test.setR(std::stoi(argv[2]),1, false);
+        printf("R Set to %i\n", std::stoi(argv[2]));
+        test.print();
     }
 
     return 0;
