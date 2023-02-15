@@ -17,17 +17,11 @@ protected:
 
     GPUHEADER
     uint64_cu setValBits(int start, int end, uint64_cu ins, uint64_cu* loc) {
-        printf("SetValBits\n");
         uint64_cu mask = ((((uint64_cu)1) << end) - 1) ^ ((((uint64_cu)1) << (start - 1)) - 1);
-        printf("Mask\n");
         uint64_cu oldval = *loc;
-        printf("OldVal\n");
         uint64_cu tempval = oldval & ~mask;      //Remove all of the bits currently in the positions
-        printf("Tempval\n");
         ins = ins << (start - 1);   //Shift new val to correct position
-        printf("Shift\n");
         ins = ins & mask;       //Mask the new val to prevent overflow
-        printf("Mask\n");
         return tempval | ins;        //Place the new val
     }
 
@@ -87,11 +81,9 @@ protected:
 
     GPUHEADER
     void setBits(int start, int end, uint64_cu ins, uint64_cu* loc, bool onDevice = true) {
-        printf("Set Bits\n");
         uint64_cu newval = setValBits(start, end, ins, loc);
 
         *loc = newval;
-        printf("Bits Set\n");
         return;
     }
 #else

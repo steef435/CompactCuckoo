@@ -48,9 +48,7 @@ public:
 
     GPUHEADER
     void setR(REM x, int locIndex,  bool onDevice=true) {
-        printf("\tIndex1:%i Index2:%i\n", indexCalc(locIndex, Rindex[0]), indexCalc(locIndex, Rindex[1]));
         TableEntry<ADD, REM>::setBits(indexCalc(locIndex, Rindex[0]), indexCalc(locIndex, Rindex[1]), x, onDevice);
-        printf("R Set\n");
         return;
 
     }
