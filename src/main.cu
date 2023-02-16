@@ -242,7 +242,10 @@ int main(int argc, char* argv[])
         printf("Pre Insertion\n");
         test.print();
         test.setR(std::stoi(argv[2]),1, false);
-        printf("R Set to %i\n", std::stoi(argv[2]));
+        printf("R Set to %" PRIu64 "\n", test.getR(1));
+        test.print();
+        test.setR(std::stoi(argv[3]), 0, false);
+        printf("R Set to %" PRIu64 "\n", test.getR(0));
         test.print();
     }
 
