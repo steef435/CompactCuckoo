@@ -487,7 +487,7 @@ class ClearyCuckooBucketed: HashTable{
         //Public insertion call
         GPUHEADER_D
 #ifdef GPUCODE
-            bool insert(uint64_cu k) {
+            bool insert(uint64_cu k, bool to_check = true) {
 #else
             bool insert(uint64_cu k, SpinBarrier * barrier) {
 #endif
@@ -495,7 +495,7 @@ class ClearyCuckooBucketed: HashTable{
 
             //Stores success/failure of rehash
             bool finalRes = false;
-            if (coopInsert(true, k)) {
+            if (coopInsert(to_check, k)) {
                 //Reset the Hash Counter
 
                 finalRes = true;
@@ -510,7 +510,7 @@ class ClearyCuckooBucketed: HashTable{
 #endif
             //Do duplicate Check if insertion was successful
             if (finalRes) {
-                coopDupCheck(true,k);
+                coopDupCheck(to_check, k);
             }
 
 #ifdef GPUCODE
@@ -645,11 +645,17 @@ class ClearyCuckooBucketed: HashTable{
             return hn;
         }
 
+        GPUHEADER
         int getBucketSize() {
             return Bs;
         }
 
 };
+
+GPUHEADER_D
+int calcBlockSize(int N, int Bs) {
+    return Bs * ((int)ceilf(N / Bs));
+}
 
 //Method to fill ClearyCuckooBucketedtable
 template <int tile_sz>
@@ -667,16 +673,22 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
     int index = id;
     int stride = s;
 #endif
+
+    int max = calcBlockSize(N, H->getBucketSize());
+
     ////printf("Thread %i Starting\n", getThreadID());
-    for (int i = index + begin; i < N + begin; i += stride) {
-#ifdef GPUCODE
-        if (!(H->insert(vals[i]))) {
-#else
-        if (!(H->insert(vals[i]))) {
-#endif
-            if (failFlag != nullptr) {
-                (*failFlag) = true;
+    for (int i = index + begin; i < max; i += stride) {
+        if(i < max + begin){
+
+            if (!(H->insert(vals[i]))) {
+                if (failFlag != nullptr) {
+                    (*failFlag) = true;
+                }
             }
+        }
+        else {
+            //Insert fake val to keep even num of threads
+            H->insert(0, false);
         }
 
         //H->print();
@@ -696,63 +708,29 @@ template <int tile_sz>
 GPUHEADER_G
 void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_sz> * H, addtype* occupancy, int* failFlag, int id = 0, int s = 1)
 {
-#ifdef GPUCODE
     int index = threadIdx.x;
     int stride = blockDim.x;
-#else
-    int index = id;
-    int stride = s;
-#endif
 
-    for (int i = index; i < N; i += stride) {
+
+    int max = calcBlockSize(N, H->getBucketSize());
+
+    for (int i = index; i < max; i += stride) {
         if (failFlag[0]) {
             break;
         }
-#ifdef GPUCODE
-        if (!(H->insert(vals[i]))) {
-#else
-        if (!(H->insert(vals[i]))) {
-#endif
-            atomicCAS(&(failFlag[0]), 0, 1);
-            break;
+        if (i < N) {
+            if (!(H->insert(vals[i]))) {
+
+                atomicCAS(&(failFlag[0]), 0, 1);
+                break;
+            }
+        }
+        else {
+            //Insert fake val to keep even num of threads
+            H->insert(0, false);
         }
         atomicAdd(&occupancy[0], 1);
     }
-}
-#endif
-
-#ifndef GPUCODE
-//Method to fill ClearyCuckooBucketed table with a failCheck on every insertion
-GPUHEADER_G
-void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_sz> * H, SpinBarrier* barrier, std::atomic<addtype>* occupancy, std::atomic<bool>* failFlag, int id = 0, int s = 1)
-{
-#ifdef GPUCODE
-    int index = threadIdx.x;
-    int stride = blockDim.x;
-#else
-    int index = id;
-    int stride = s;
-#endif
-
-    for (int i = index; i < N; i += stride) {
-        if ((*failFlag).load()) {
-            break;
-        }
-#ifdef GPUCODE
-        if (!(H->insert(vals[i]))) {
-#else
-        if (!(H->insert(vals[i]))) {
-#endif
-            (*failFlag).store(true);
-            break;
-        }
-        (*occupancy).fetch_add(1);
-    }
-#ifdef DUPCHECK
-#ifndef GPUCODE
-    barrier->signalThreadStop();
-#endif
-#endif
 }
 #endif
 
@@ -769,9 +747,16 @@ void checkClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile
     int stride = s;
 #endif
 
-    for (int i = index; i < N; i += stride) {
-        if ( !(H->coopLookup(true, vals[i])) ) {
-            res[0] = false;
+    int max = calcBlockSize(N, H->getBucketSize());
+
+    for (int i = index; i < max; i += stride) {
+        if (i < N) {
+            if (!(H->coopLookup(true, vals[i]))) {
+                res[0] = false;
+            }
+        }
+        else {
+            H->coopLookup(false, 0);
         }
     }
 }
@@ -788,8 +773,15 @@ void lookupClearyCuckooBucketed(int N, int start, int end, uint64_cu* vals, Clea
     int stride = s;
 #endif
 
-    for (int i = index; i < N; i += stride) {
-        H->coopLookup(true, vals[(i + start) % end]);
+    int max = calcBlockSize(N, H->getBucketSize());
+
+    for (int i = index; i < max; i += stride) {
+        if (i < N) {
+            H->coopLookup(true, vals[(i + start) % end]);
+        }
+        else {
+            H->coopLookup(false, 0);
+        }
     }
 }
 

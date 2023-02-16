@@ -34,7 +34,7 @@ using keytype = uint64_cu;
 * 
 * */
 
-const int TILESIZE = 4;
+const int TILESIZE = 16;
 
 /**
 *

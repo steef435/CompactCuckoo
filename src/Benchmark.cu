@@ -315,13 +315,14 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
         }
 
         //Number of Threads
-        for (int T = 0; T < NUM_THREADS; T++) {
-            printf("\tNumber of Threads:%i\n", T);
+        int minThreads = std::log2(TILESIZE);
+        for (int T = minThreads; T < minThreads+ NUM_THREADS; T++) {
 #ifdef GPUCODE
             int numThreads = std::pow(2, T);
 #else
             int numThreads = T + 1;
 #endif
+            printf("\tNumber of Threads:%i\n", T);
 
             for (int P = 0; P <= PERCENTAGE; P += P_STEPSIZE) {
                 printf("\t\tPercentage:%i\n", P);
