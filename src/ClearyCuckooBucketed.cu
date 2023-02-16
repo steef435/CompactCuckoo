@@ -499,7 +499,7 @@ class ClearyCuckooBucketed: HashTable{
 #else
             bool insert(uint64_cu k, SpinBarrier * barrier) {
 #endif
-            //printf("%i:Insert %" PRIu64 "\n", getThreadID(), k);
+            printf("%i:Insert %" PRIu64 "\n", getThreadID(), k);
 
             //Stores success/failure of rehash
             bool finalRes = false;
@@ -507,6 +507,8 @@ class ClearyCuckooBucketed: HashTable{
                 //Reset the Hash Counter
 
                 finalRes = true;
+            }else{
+                printf("%i: \tInsert Failed\n", getThreadID());
             }
 
             //Duplicate Check Phase
@@ -517,9 +519,7 @@ class ClearyCuckooBucketed: HashTable{
             barrier->Wait();
 #endif
             //Do duplicate Check if insertion was successful
-            if (finalRes) {
-                coopDupCheck(to_check, k);
-            }
+            coopDupCheck(finalRes, k);
 
 #ifdef GPUCODE
             __syncthreads();
@@ -527,7 +527,7 @@ class ClearyCuckooBucketed: HashTable{
             barrier->Wait();
 #endif
 #endif
-
+            printf("%i: \tReturning\n", getThreadID());
             return finalRes;
         };
 
@@ -684,7 +684,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
 
     int max = calcBlockSize(N, H->getBucketSize());
 
-    ////printf("Thread %i Starting\n", getThreadID());
+    printf("Thread %i Starting\n", getThreadID());
     for (int i = index + begin; i < max; i += stride) {
         if(i < max + begin){
 
@@ -701,7 +701,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
 
         //H->print();
     }
-    ////printf("Insertions %i Over\n", getThreadID());
+    printf("Insertions %i Stopped\n", getThreadID());
 #ifdef DUPCHECK
 #ifndef GPUCODE
     barrier->signalThreadStop();
@@ -724,7 +724,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
 
     for (int i = index; i < max; i += stride) {
         if (failFlag[0]) {
-            break;
+            //break;
         }
         if (i < N) {
             if (!(H->insert(vals[i]))) {
