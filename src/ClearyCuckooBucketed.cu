@@ -245,7 +245,7 @@ class ClearyCuckooBucketed: HashTable{
          **/
         GPUHEADER_D
         bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, cg::thread_block_tile<tile_sz> tile, int depth=0){
-            printf("%i: \t\tInsert into Table\n", getThreadID());
+            //printf("%i: \t\tInsert into Table\n", getThreadID());
             keytype x = k;
             int hash = hs[0];
 
@@ -294,7 +294,7 @@ class ClearyCuckooBucketed: HashTable{
                 //If the old val was empty return
                 if (!wasoccupied) {
                     return true;
-                    printf("%i: \t\tInsert Success\n", getThreadID());
+                    //printf("%i: \t\tInsert Success\n", getThreadID());
                 }
 
                 //Otherwise rebuild the original key
@@ -309,7 +309,7 @@ class ClearyCuckooBucketed: HashTable{
 
                 c++;
             }
-            printf("%i: \t\tInsert Fail\n", getThreadID());
+            //printf("%i: \t\tInsert Fail\n", getThreadID());
             return false;
         };
 
@@ -317,7 +317,7 @@ class ClearyCuckooBucketed: HashTable{
         //Method to check for duplicates after insertions
         GPUHEADER_D
         void removeDuplicates(keytype k, cg::thread_block_tile<tile_sz> tile) {
-            printf("%i: \t\tRemove Dups\n", getThreadID());
+            //printf("%i: \t\tRemove Dups\n", getThreadID());
             //To store whether value was already encountered
             bool found = false;
 
@@ -329,13 +329,13 @@ class ClearyCuckooBucketed: HashTable{
                 auto cur_bucket = bucket<tile_sz>(T, tile, add, Bs);
                 cur_bucket.removeDuplicates(k, hashlist[i], &found);
             }
-            printf("%i: \t\tDups Removed\n", getThreadID());
+            //printf("%i: \t\tDups Removed\n", getThreadID());
         }
 
         //Lookup internal method
         GPUHEADER_D
         bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T, cg::thread_block_tile<tile_sz> tile){
-            printf("%i: \t\tLookup\n", getThreadID());
+            //printf("%i: \t\tLookup\n", getThreadID());
             for (int i = 0; i < hn; i++) {
                 uint64_cu hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
@@ -346,11 +346,11 @@ class ClearyCuckooBucketed: HashTable{
                 auto cur_bucket = bucket<tile_sz>(T, tile, add , Bs);
                 auto res = cur_bucket.find(rem, hashlist[i]);
                 if (res) {
-                    printf("%i: \t\tLookup Success\n", getThreadID());
+                    //printf("%i: \t\tLookup Success\n", getThreadID());
                     return true;
                 }
             }
-            printf("%i: \t\tLookup Fail\n", getThreadID());
+            //printf("%i: \t\tLookup Fail\n", getThreadID());
             return false;
         };
 
@@ -499,7 +499,7 @@ class ClearyCuckooBucketed: HashTable{
 #else
             bool insert(uint64_cu k, SpinBarrier * barrier) {
 #endif
-            printf("%i:Insert %" PRIu64 "\n", getThreadID(), k);
+            //printf("%i:Insert %" PRIu64 "\n", getThreadID(), k);
 
             //Stores success/failure of rehash
             bool finalRes = false;
@@ -508,7 +508,7 @@ class ClearyCuckooBucketed: HashTable{
 
                 finalRes = true;
             }else{
-                printf("%i: \tInsert Failed\n", getThreadID());
+                //printf("%i: \tInsert Failed\n", getThreadID());
             }
 
             //Duplicate Check Phase
@@ -527,7 +527,7 @@ class ClearyCuckooBucketed: HashTable{
             barrier->Wait();
 #endif
 #endif
-            printf("%i: \tReturning\n", getThreadID());
+            //printf("%i: \tReturning\n", getThreadID());
             return finalRes;
         };
 
@@ -684,7 +684,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
 
     int max = calcBlockSize(N, H->getBucketSize());
 
-    printf("Thread %i Starting\n", getThreadID());
+    //printf("Thread %i Starting\n", getThreadID());
     for (int i = index + begin; i < max; i += stride) {
         if(i < max + begin){
 
@@ -701,7 +701,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
 
         //H->print();
     }
-    printf("Insertions %i Stopped\n", getThreadID());
+    //printf("Insertions %i Stopped\n", getThreadID());
 #ifdef DUPCHECK
 #ifndef GPUCODE
     barrier->signalThreadStop();
@@ -724,7 +724,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
 
     for (int i = index; i < max; i += stride) {
         if (failFlag[0]) {
-            //break;
+            break;
         }
         if (i < N) {
             if (!(H->insert(vals[i]))) {
