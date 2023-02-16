@@ -132,7 +132,7 @@ class ClearyCuckooBucketed: HashTable{
         const int AS;                         //AdressSize
         const int B;                          //NumBuckets
         const int Bs = tile_sz;               //BucketSize
-        
+
         int tablesize;
         int occupancy = 0;
 
@@ -245,7 +245,7 @@ class ClearyCuckooBucketed: HashTable{
          **/
         GPUHEADER_D
         bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, cg::thread_block_tile<tile_sz> tile, int depth=0){
-            //printf("%i: \t\tInsert into Table\n", getThreadID());
+            printf("%i: \t\tInsert into Table\n", getThreadID());
             keytype x = k;
             int hash = hs[0];
 
@@ -283,7 +283,7 @@ class ClearyCuckooBucketed: HashTable{
                 ClearyCuckooEntry<addtype, remtype> entry(rem, hash, true, false);
                 entry = cur_bucket.exch_at_location(entry, bAdd);
 
-                
+
                 //Store the old value
                 remtype temp = entry.getR();
                 bool wasoccupied = entry.getO();
@@ -294,6 +294,7 @@ class ClearyCuckooBucketed: HashTable{
                 //If the old val was empty return
                 if (!wasoccupied) {
                     return true;
+                    printf("%i: \t\tInsert Success\n", getThreadID());
                 }
 
                 //Otherwise rebuild the original key
@@ -301,19 +302,22 @@ class ClearyCuckooBucketed: HashTable{
                 x = RHASH_INVERSE(oldhash, h_old);
 
                 //printf("%i: \t\t\tRebuilt key:%" PRIu64 "\n", getThreadID(), x);
-                
+
 
                 //Hash with the next hash value
                 hash = getNextHash(hs, oldhash);
 
                 c++;
             }
+            printf("%i: \t\tInsert Fail\n", getThreadID());
+            return false;
         };
 
 
         //Method to check for duplicates after insertions
-        GPUHEADER
+        GPUHEADER_D
         void removeDuplicates(keytype k, cg::thread_block_tile<tile_sz> tile) {
+            printf("%i: \t\tRemove Dups\n", getThreadID());
             //To store whether value was already encountered
             bool found = false;
 
@@ -321,28 +325,32 @@ class ClearyCuckooBucketed: HashTable{
                 uint64_cu hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
-                
+
                 auto cur_bucket = bucket<tile_sz>(T, tile, add, Bs);
                 cur_bucket.removeDuplicates(k, hashlist[i], &found);
             }
+            printf("%i: \t\tDups Removed\n", getThreadID());
         }
 
         //Lookup internal method
         GPUHEADER_D
         bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T, cg::thread_block_tile<tile_sz> tile){
+            printf("%i: \t\tLookup\n", getThreadID());
             for (int i = 0; i < hn; i++) {
                 uint64_cu hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
 
                 //printf("%i: Searching for %" PRIu64 " at %" PRIu32 "\n", getThreadID(), k, add);
-                
+
                 auto cur_bucket = bucket<tile_sz>(T, tile, add , Bs);
                 auto res = cur_bucket.find(rem, hashlist[i]);
                 if (res) {
+                    printf("%i: \t\tLookup Success\n", getThreadID());
                     return true;
                 }
             }
+            printf("%i: \t\tLookup Fail\n", getThreadID());
             return false;
         };
 
@@ -352,7 +360,7 @@ class ClearyCuckooBucketed: HashTable{
             printf("|    i     |     R[i]       | O[i] |        key         |label |\n");
             printf("----------------------------------------------------------------\n");
             printf("Tablesize %i\n", tablesize);
-            
+
             for (int i = 0; i < B; i++) {
                 printf("----------------------------------------------------------------\n");
                 printf("|                   Bucket %i                                   \n", i);
@@ -383,7 +391,7 @@ class ClearyCuckooBucketed: HashTable{
             //printf("AS:%i tile_sz:%i, log2(tile_sz):%i", AS, tile_sz, (int) log2(tile_sz));
 
             tablesize = B * Bs;
-            
+
             int queueSize = std::max(100, (int)(tablesize / 10));
 
             hn = hashNumber;
@@ -469,7 +477,7 @@ class ClearyCuckooBucketed: HashTable{
             //Perform the insertions
             uint32_t work_queue;
             while (work_queue = tile.ballot(to_insert)) {
-                
+
                 auto cur_lane = __ffs(work_queue) - 1;
                 auto cur_k = tile.shfl(k, cur_lane);
                 //printf("%i: \tThread Starting Insertion of %" PRIu64 "\n", getThreadID(), cur_k);
@@ -539,7 +547,7 @@ class ClearyCuckooBucketed: HashTable{
                 auto cur_lane = __ffs(work_queue) - 1;
                 auto cur_k = tile.shfl(k, cur_lane);
                 auto cur_result = lookup(cur_k, T, tile);
-                
+
                 if (tile.thread_rank() == cur_lane) {
                     to_lookup = false;
                     success = cur_result;
@@ -792,5 +800,3 @@ void lookupClearyCuckooBucketed(int N, int start, int end, uint64_cu* vals, Clea
         H->coopLookup(true, vals[(i + start) % end]);
     }
 }
-
-
