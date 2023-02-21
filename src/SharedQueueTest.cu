@@ -7,7 +7,7 @@ GPUHEADER_G
 void fillQueue(int N, SharedQueue<int>* queue, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -24,7 +24,7 @@ GPUHEADER_G
 void checkQueue(int N, SharedQueue<int>* queue, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -41,7 +41,7 @@ GPUHEADER_G
 void fillPopQueue(int N, SharedQueue<int>* queue, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;

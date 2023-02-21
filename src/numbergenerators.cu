@@ -93,7 +93,7 @@ void setup_kernel(int seed, curandState* state) {
 
 __global__
 void firstPassGenSet(curandState* state, uint64_cu* res, int N, int setsize, int begin) {
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -113,7 +113,7 @@ void firstPassGenSet(curandState* state, uint64_cu* res, int N, int setsize, int
 __global__
 void secondPassGenSet(curandState* state, uint64_cu* res, int N, int setsize, int begin) {
 
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 
     int idx = threadIdx.x + blockDim.x * blockIdx.x;

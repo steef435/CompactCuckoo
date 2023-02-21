@@ -253,28 +253,6 @@ class Cuckoo : HashTable{
         };
 #endif
 
-        //Method to check for duplicates after insertions
-        GPUHEADER
-        void removeDuplicates(keytype k) {
-            //To store whether value was already encountered
-            bool found = false;
-
-            for (int i = 0; i < hn; i++) {
-                uint64_cu hashed1 = RHASH(hashlist[i], k);
-                addtype add = getAdd(hashed1, AS);
-
-                if (T[add].getH() == hashlist[i] && T[add].getR() == hashed1 && T[add].getO()) {
-                    //If value was already found
-                    if (found) {
-                        //Mark as not occupied
-                        T[add].setO(false);
-                    }
-                    //Mark value as found
-                    found = true;
-                }
-            }
-        }
-
         //Lookup internal method
         GPUHEADER
         bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T){
@@ -435,25 +413,6 @@ class Cuckoo : HashTable{
             }
 #endif
 
-            //Duplicate Check Phase
-#ifdef DUPCHECK
-#ifdef GPUCODE
-            __syncthreads();
-#else
-            barrier->Wait();
-#endif
-            //Do duplicate Check if insertion was successful
-            if (finalRes) {
-                removeDuplicates(k);
-            }
-
-#ifdef GPUCODE
-            __syncthreads();
-#else
-            barrier->Wait();
-#endif
-#endif
-
             return finalRes;
         };
 
@@ -504,6 +463,28 @@ class Cuckoo : HashTable{
         bool lookup(uint64_cu k){
             return lookup(k, T);
         };
+
+        //Method to check for duplicates after insertions
+        GPUHEADER
+            void removeDuplicates(keytype k) {
+            //To store whether value was already encountered
+            bool found = false;
+
+            for (int i = 0; i < hn; i++) {
+                uint64_cu hashed1 = RHASH(hashlist[i], k);
+                addtype add = getAdd(hashed1, AS);
+
+                if (T[add].getH() == hashlist[i] && T[add].getR() == hashed1 && T[add].getO()) {
+                    //If value was already found
+                    if (found) {
+                        //Mark as not occupied
+                        T[add].setO(false);
+                    }
+                    //Mark value as found
+                    found = true;
+                }
+            }
+        }
 
         //Clear all Table Entries
         GPUHEADER
@@ -605,7 +586,7 @@ void fillCuckoo(int N, uint64_cu* vals, Cuckoo* H, SpinBarrier* barrier, int* fa
 #endif
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -613,7 +594,7 @@ void fillCuckoo(int N, uint64_cu* vals, Cuckoo* H, SpinBarrier* barrier, int* fa
 #endif
     //printf("Thread %i Starting\n", getThreadID());
     for (int i = index + begin; i < N + begin; i += stride) {
-        //printf("Inserting %" PRIu64 "\n", vals[i]);
+        //printf("\t\t\t\t\t\t\t%i\n", i);
 #ifdef GPUCODE
         if (!(H->insert(vals[i]))) {
 #else
@@ -641,7 +622,7 @@ GPUHEADER_G
 void fillCuckoo(int N, uint64_cu* vals, Cuckoo* H, addtype* occupancy, int* failFlag, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -671,7 +652,7 @@ GPUHEADER_G
 void fillCuckoo(int N, uint64_cu* vals, Cuckoo* H, SpinBarrier* barrier, std::atomic<addtype>* occupancy, std::atomic<bool>* failFlag, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -705,7 +686,7 @@ GPUHEADER_G
 void checkCuckoo(int N, uint64_cu* vals, Cuckoo* H, bool* res, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -723,7 +704,7 @@ void checkCuckoo(int N, uint64_cu* vals, Cuckoo* H, bool* res, int id = 0, int s
 GPUHEADER_G
 void lookupCuckoo(int N, int start, int end, uint64_cu* vals, Cuckoo* H, int id = 0, int s = 1) {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -733,4 +714,19 @@ void lookupCuckoo(int N, int start, int end, uint64_cu* vals, Cuckoo* H, int id 
     for (int i = index; i < N; i += stride) {
         H->lookup(vals[(i + start) % end]);
     }
+}
+
+//Method to fill ClearyCuckoo table
+GPUHEADER_G
+void dupCheckCuckoo(int N, uint64_cu* vals, Cuckoo* H, addtype begin = 0)
+
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x;
+
+    //printf("Thread %i Starting\n", getThreadID());
+    for (int i = index + begin; i < N + begin; i += stride) {
+        H->removeDuplicates(vals[i]);
+    }
+    //printf("Insertions %i Over\n", getThreadID());
 }

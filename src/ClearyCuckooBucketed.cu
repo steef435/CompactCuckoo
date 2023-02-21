@@ -511,22 +511,6 @@ class ClearyCuckooBucketed: HashTable{
                 //printf("%i: \tInsert Failed\n", getThreadID());
             }
 
-            //Duplicate Check Phase
-#ifdef DUPCHECK
-#ifdef GPUCODE
-            __syncthreads();
-#else
-            barrier->Wait();
-#endif
-            //Do duplicate Check if insertion was successful
-            coopDupCheck(finalRes, k);
-
-#ifdef GPUCODE
-            __syncthreads();
-#else
-            barrier->Wait();
-#endif
-#endif
             //printf("%i: \tReturning\n", getThreadID());
             return finalRes;
         };
@@ -675,7 +659,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
 #endif
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -687,7 +671,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
     //printf("Thread %i Starting\n", getThreadID());
     for (int i = index + begin; i < max; i += stride) {
         if(i < max + begin){
-
+            //printf("\t\t\t\t\t\t\t%i\n", i);
             if (!(H->insert(vals[i]))) {
                 if (failFlag != nullptr) {
                     (*failFlag) = true;
@@ -716,7 +700,7 @@ template <int tile_sz>
 GPUHEADER_G
 void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_sz> * H, addtype* occupancy, int* failFlag, int id = 0, int s = 1)
 {
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 
 
@@ -748,7 +732,7 @@ GPUHEADER_G
 void checkClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_sz>* H, bool* res, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -774,7 +758,7 @@ template <int tile_sz>
 GPUHEADER_G
 void lookupClearyCuckooBucketed(int N, int start, int end, uint64_cu* vals, ClearyCuckooBucketed<tile_sz>* H, int id = 0, int s = 1) {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -791,4 +775,26 @@ void lookupClearyCuckooBucketed(int N, int start, int end, uint64_cu* vals, Clea
             H->coopLookup(false, 0);
         }
     }
+}
+
+//Method to fill ClearyCuckoo table
+template <int tile_sz>
+GPUHEADER_G
+void dupCheckClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_sz>* H, addtype begin = 0)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x;
+
+    int max = calcBlockSize(N, H->getBucketSize());
+
+    //printf("Thread %i Starting\n", getThreadID());
+    for (int i = index + begin; i < N + begin; i += stride) {
+        if (i < N) {
+            H->coopDupCheck(true, vals[i]);
+        }
+        else {
+            H->coopDupCheck(false, vals[i]);
+        }
+    }
+    //printf("Insertions %i Over\n", getThreadID());
 }

@@ -580,13 +580,14 @@ GPUHEADER_G
 void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin = 0, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
     int stride = s;
 #endif
     for (int i = index + begin; i < N + begin; i += stride) {
+        //printf("\t\t\t\t\t\t\t%i\n", i);
         if (!(H->insert(vals[i]))) {
             break;
         }
@@ -598,7 +599,7 @@ GPUHEADER_G
 void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
@@ -617,7 +618,7 @@ void checkCleary(int N, uint64_cu* vals, Cleary* H, bool* res, int id = 0, int s
 GPUHEADER_G
 void lookupCleary(int N, int start, int end, uint64_cu* vals, Cleary* H, int id = 0, int s = 1) {
 #ifdef GPUCODE
-    int index = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x;
 #else
     int index = id;
