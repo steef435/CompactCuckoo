@@ -22,6 +22,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
     bool* res = new bool;
 #endif
     int numThreads = std::pow(2, T);
+    int numBlocks = 4;
 
     //Create Table 1
     printf("Testcc\n");
@@ -36,7 +37,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 
         printf("Filling ClearyCuckoo\n");
 #ifdef GPUCODE
-        fillClearyCuckoo << <1, numThreads >> > (N, vals, cc);
+        fillClearyCuckoo << <numBlocks, numThreads >> > (N, vals, cc);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
@@ -106,7 +107,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         printf("Filling Cleary\n");
 
 #ifdef GPUCODE
-        fillCleary << <1, 1 >> > (N, vals, c);
+        fillCleary << <numBlocks, numThreads >> > (N, vals, c);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
@@ -167,7 +168,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         printf("Filling Bucketed\n");
 
 #ifdef GPUCODE
-        fillClearyCuckooBucketed<TILESIZE> << <1, numThreads >> > (N, vals, b);
+        fillClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
@@ -191,7 +192,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         printf("Checking Bucketed\n");
 
 #ifdef GPUCODE
-        checkClearyCuckooBucketed<TILESIZE> << <1, numThreads >> > (N, vals, b, res);
+        checkClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b, res);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else

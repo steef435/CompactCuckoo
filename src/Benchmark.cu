@@ -236,7 +236,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
 }
 
 
-void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int PERCENTAGE, int P_STEPSIZE, int DEPTH) {
+void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int PERCENTAGE, int P_STEPSIZE, int DEPTH, bool clearyBool=true) {
 
     const int WARMUP = 0;
 
@@ -254,6 +254,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 #ifdef REHASH
     specifier += "-REHASH";
 #endif
+    if (clearyBool) {
+        specifier += "-CLEARY";
+    }
+
     std::string filename = "results/benchspeed" + specifier + ".csv";
 
     myfile.open(filename);
@@ -400,52 +404,53 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         gpuErrchk(cudaFree(cc));
                         gpuErrchk(cudaFree(failFlag));
 
+                        if (clearyBool) {
+                            /***********************************************************************************************
+                            *
+                            * Cleary Speed Test
+                            *
+                            ***********************************************************************************************/
+                            printf("\t\t\t\t\tCleary\n");
+                            Cleary* c;
+                            gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
+                            new (c) Cleary(N, numThreads);
 
-                        /***********************************************************************************************
-                        *
-                        * Cleary Speed Test
-                        *
-                        ***********************************************************************************************/
-                        printf("\t\t\t\t\tCleary\n");
-                        Cleary* c;
-                        gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
-                        new (c) Cleary(N, numThreads);
 
+                            //Loop over intervals
+                            for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                                std::chrono::steady_clock::time_point begin;
+                                std::chrono::steady_clock::time_point end;
 
-                        //Loop over intervals
-                        for (int j = 0; j < INTERVAL + WARMUP; j++) {
-                            std::chrono::steady_clock::time_point begin;
-                            std::chrono::steady_clock::time_point end;
+                                //Fill the table
+                                if (j >= WARMUP) {
+                                    begin = std::chrono::steady_clock::now();
 
-                            //Fill the table
-                            if (j >= WARMUP) {
-                                begin = std::chrono::steady_clock::now();
+                                    fillCleary << <numBlocks, numThreads >> > (setsize, vals, c, setsize * (j - WARMUP));
+                                    gpuErrchk(cudaPeekAtLastError());
+                                    gpuErrchk(cudaDeviceSynchronize());
 
-                                fillCleary << <numBlocks, numThreads >> > (setsize, vals, c, setsize * (j - WARMUP));
-                                gpuErrchk(cudaPeekAtLastError());
-                                gpuErrchk(cudaDeviceSynchronize());
+                                    //End the timer
+                                    end = std::chrono::steady_clock::now();
+                                    myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",INS,\n";
+                                }
 
-                                //End the timer
-                                end = std::chrono::steady_clock::now();
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",INS,\n";
+                                //Lookup
+                                if (j >= WARMUP) {
+                                    begin = std::chrono::steady_clock::now();
+                                    lookupCleary << <numBlocks, numThreads >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals, c);
+                                    gpuErrchk(cudaPeekAtLastError());
+                                    gpuErrchk(cudaDeviceSynchronize());
+
+                                    //End the timer
+                                    end = std::chrono::steady_clock::now();
+
+                                    myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                }
+
                             }
 
-                            //Lookup
-                            if (j >= WARMUP) {
-                                begin = std::chrono::steady_clock::now();
-                                lookupCleary << <numBlocks, numThreads >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals, c);
-                                gpuErrchk(cudaPeekAtLastError());
-                                gpuErrchk(cudaDeviceSynchronize());
-
-                                //End the timer
-                                end = std::chrono::steady_clock::now();
-
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP ) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
-                            }
-
+                            gpuErrchk(cudaFree(c));
                         }
-
-                        gpuErrchk(cudaFree(c));
 
                         /***********************************************************************************************
                         *

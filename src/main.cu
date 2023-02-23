@@ -138,9 +138,11 @@ int main(int argc, char* argv[])
             cc = s == "cc";
             b = s == "b";
             cuc = s == "cuc";
-            if (s == "ccc") {
+            if (s == "all") {
                 c = true;
                 cc = true;
+                b = true;
+                cuc = true;
             }
 
             TableTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), c, cc, b, cuc);
@@ -221,7 +223,13 @@ int main(int argc, char* argv[])
             return 0;
         }
 
-        BenchmarkSpeed(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]));
+        bool cleary = true;
+
+        if (argc == 11) {
+            cleary = !(strcmp(argv[10], "nocleary") == 0);
+        }
+
+        BenchmarkSpeed(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), cleary);
     }
 
     else if (strcmp(argv[1], "readInput") == 0) {
