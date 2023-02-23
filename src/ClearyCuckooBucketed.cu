@@ -245,7 +245,7 @@ class ClearyCuckooBucketed: HashTable{
          **/
         GPUHEADER_D
         bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, cg::thread_block_tile<tile_sz> tile, int depth=0){
-            //printf("%i: \t\tInsert into Table\n", getThreadID());
+            //printf("%i: \t\tInsert into Table %" PRIu64 "\n", getThreadID(), k);
             keytype x = k;
             int hash = hs[0];
 
@@ -258,7 +258,7 @@ class ClearyCuckooBucketed: HashTable{
             //Start the iteration
             int c = 0;
 
-            //printf("%i: \t\t\tEntering Loop\n", getThreadID());
+            //printf("%i: \t\t\tEntering Loop %i\n", getThreadID(), MAXLOOPS);
             while (c < MAXLOOPS) {
                 //Get the add/rem of k
                 hashtype hashed1 = RHASH(hash, x);
@@ -425,7 +425,7 @@ class ClearyCuckooBucketed: HashTable{
             const double k = .0176799265;
             const double off = -18059.4901;
 
-            MAXLOOPS = ceil((A / (1.0 + exp(-k * (((double)AS) - x0)))) + off);
+            MAXLOOPS = std::max( 25, (int) ceil((A / (1.0 + exp(-k * (((double)AS) - x0)))) + off) );
 
             //printf("\tCreate Hashlist\n");
             //Create HashList
