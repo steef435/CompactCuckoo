@@ -493,7 +493,6 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 int insertionSize = numThreads;
                                 insertionSize = std::min((int)(size / INTERVAL), insertionSize);
 
-                                printf("Insertion Size")
                                 for (int k = 0; k < setsize; k += insertionSize) {
                                     //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
                                     fillCuckoo << <numBlocks, numThreads >> > (insertionSize, vals, cuc, failFlag2, setsize* (j - WARMUP) + k);
