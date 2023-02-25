@@ -749,13 +749,15 @@ void checkClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile
     int max = calcBlockSize(N, H->getBucketSize());
 
     for (int i = index; i < max; i += stride) {
+        bool realVal = false;
+        keytype look = 0;
         if (i < N) {
-            if (!(H->coopLookup(true, vals[i]))) {
-                res[0] = false;
-            }
+            realVal = true;
+            look = vals[i];
         }
-        else {
-            H->coopLookup(false, 0);
+
+        if (!(H->coopLookup(realVal, look))) {
+            res[0] = false;
         }
     }
 }
@@ -775,12 +777,13 @@ void lookupClearyCuckooBucketed(int N, int start, int end, uint64_cu* vals, Clea
     int max = calcBlockSize(N, H->getBucketSize());
 
     for (int i = index; i < max; i += stride) {
+        bool realVal = false;
+        keytype look = 0;
         if (i < N) {
-            H->coopLookup(true, vals[(i + start) % end]);
+            realVal = true;
+            look = vals[(i + start) % end];
         }
-        else {
-            H->coopLookup(false, 0);
-        }
+        H->coopLookup(realVal, look);
     }
 }
 
@@ -796,11 +799,15 @@ void dupCheckClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<t
 
     //printf("Thread %i Starting\n", getThreadID());
     for (int i = index + begin; i < N + begin; i += stride) {
+        bool realVal = false;
+        keytype k = 0;
         if (i < N) {
-            H->coopDupCheck(true, vals[i]);
+            realVal = true;
+            k = vals[i];
         }
-        else {
-            H->coopDupCheck(false, vals[i]);
+
+        if (i < N) {
+            H->coopDupCheck(realVal, k);
         }
     }
     //printf("Insertions %i Over\n", getThreadID());
