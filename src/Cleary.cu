@@ -197,7 +197,7 @@ class Cleary : public HashTable{
 
 
         GPUHEADER_D
-        bool insertIntoTable(keytype k, addtype left, addtype right) {
+        result insertIntoTable(keytype k, addtype left, addtype right) {
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h, AS);
             remtype rem = getRem(h, AS);
@@ -392,7 +392,7 @@ class Cleary : public HashTable{
                 }
             }
 
-            return true;
+            return INSERTED;
         }
 
 
@@ -451,7 +451,7 @@ class Cleary : public HashTable{
 
         //Parallel Insertion Method
         GPUHEADER_D
-        bool insert(keytype k){
+        result insert(keytype k){
             //Calculate Hash
             hashtype h = RHASH(h1, k);
             addtype j = getAdd(h, AS);
@@ -471,7 +471,7 @@ class Cleary : public HashTable{
 
                 //If not locked + not occupied then success
                 if ((!old.getL()) && (!old.getO())) {
-                    return true;
+                    return INSERTED;
                 }
 
                 //Else Need Exclusivity
@@ -494,11 +494,11 @@ class Cleary : public HashTable{
                     //Val already exists
                     T[left].unlock();
                     T[right].unlock();
-                    return false;
+                    return FOUND;
                 }
 
                 //Write
-                bool res = insertIntoTable(k, left, right);
+                result res = insertIntoTable(k, left, right);
                 T[left].unlock();
                 T[right].unlock();
                 return res;
@@ -588,7 +588,7 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin = 0, int id = 0
 #endif
     for (int i = index + begin; i < N + begin; i += stride) {
         //printf("\t\t\t\t\t\t\t%i\n", i);
-        if (!(H->insert(vals[i]))) {
+        if (H->insert(vals[i]) == FAILED) {
             break;
         }
     }

@@ -398,7 +398,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
-                            cc->print();
+                            //cc->print();
 
                         }
 

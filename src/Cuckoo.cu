@@ -169,13 +169,13 @@ class Cuckoo : HashTable{
          * Internal Insertion Loop
          **/
         GPUHEADER_D
-        bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, int depth=0){
+        result insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, int depth=0){
             keytype x = k;
             int hash = hs[0];
 
             //If the key is already inserted don't do anything
             if (lookup(k, T)) {
-                return false;
+                return FOUND;
             }
             //Start the iteration
             int c = 0;
@@ -196,7 +196,7 @@ class Cuckoo : HashTable{
 
                 //If the old val was empty return
                 if(!wasoccupied){
-                    return true;
+                    return INSERTED;
                 }
 
                 //Otherwise rebuild the original key
@@ -211,15 +211,15 @@ class Cuckoo : HashTable{
 #ifdef REHASH
             //If loops fail call rehash
             rehashQueue->push(x);
-            if(depth>0){return false;}
+            if(depth>0){return FAILED;}
             //If MAXLOOPS is reached rehash the whole table
             if(!rehash()){
                 //If rehash fails, return
-                return false;
+                return FAILED;
             }
-            return true;
+            return INSERTED;
 #else
-            return false;
+            return FAILED;
 #endif
         };
 
@@ -365,55 +365,12 @@ class Cuckoo : HashTable{
         //Public insertion call
         GPUHEADER_D
 #ifdef GPUCODE
-        bool insert(uint64_cu k){
+        result insert(uint64_cu k){
 #else
-        bool insert(uint64_cu k, SpinBarrier* barrier) {
-#endif
-#ifdef REHASH
-#ifdef GPUCODE
-            //Need to check if rehash or Fail has occurred
-            if (failFlag) {
-                return false;
-            }
-            int count = 0;
-            while (rehashFlag) {
-                if(count > 10000){
-                  count = 0;
-                }
-                if (failFlag) {
-                    return false;
-                }
-                count++;
-            }
-#else
-            if (failFlag.load()) {
-                return false;
-            }
-            while (rehashFlag.load()) {
-                if (failFlag.load()) {
-                    return false;
-                }
-            }
-#endif
-#endif
-            //Stores success/failure of rehash
-            bool finalRes = false;
-            if(insertIntoTable(k,T, hashlist,0)){
-                //Reset the Hash Counter
-#ifdef REHASH
-                hashcounter = 0;
+        result insert(uint64_cu k, SpinBarrier* barrier) {
 #endif
 
-                finalRes = true;
-            }
-#ifdef REHASH
-            //If insert failed, set failFlag
-            if (!finalRes) {
-                while (!setFlag(&failFlag, 1, false)) {}
-            }
-#endif
-
-            return finalRes;
+            return insertIntoTable(k, T, hashlist, 0);
         };
 
 #ifdef REHASH
@@ -596,9 +553,9 @@ void fillCuckoo(int N, uint64_cu* vals, Cuckoo* H, SpinBarrier* barrier, int* fa
     for (int i = index + begin; i < N + begin; i += stride) {
         //printf("\t\t\t\t\t\t\t%i\n", i);
 #ifdef GPUCODE
-        if (!(H->insert(vals[i]))) {
+        if (H->insert(vals[i]) == FAILED) {
 #else
-        if (!(H->insert(vals[i], barrier))) {
+        if (H->insert(vals[i], barrier) == FAILED) {
 #endif
             if (failFlag != nullptr) {
                 (*failFlag) = true;
@@ -634,9 +591,9 @@ void fillCuckoo(int N, uint64_cu* vals, Cuckoo* H, addtype* occupancy, int* fail
             break;
         }
 #ifdef GPUCODE
-        if (!(H->insert(vals[i]))) {
+        if (H->insert(vals[i]) == FAILED) {
 #else
-        if (!(H->insert(vals[i]))) {
+        if (H->insert(vals[i]) == FAILED) {
 #endif
             atomicCAS(&(failFlag[0]), 0, 1);
             break;
@@ -664,9 +621,9 @@ void fillCuckoo(int N, uint64_cu* vals, Cuckoo* H, SpinBarrier* barrier, std::at
             break;
         }
 #ifdef GPUCODE
-        if (!(H->insert(vals[i]))) {
+        if (H->insert(vals[i]) == FAILED) {
 #else
-        if (!(H->insert(vals[i], barrier))) {
+        if (H->insert(vals[i], barrier) == FAILED) {
 #endif
             (*failFlag).store(true);
             break;

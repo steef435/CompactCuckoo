@@ -21,7 +21,7 @@ class HashTable{
          *      Key k is inserted
          **/
         __host__ __device__
-        bool insert(uint64_cu k) { return false; };
+        result insert(uint64_cu k) { return FAILED; };
 
         /**
          *  Lookup Method

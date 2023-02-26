@@ -36,6 +36,12 @@ using keytype = uint64_cu;
 
 const int TILESIZE = 16;
 
+enum result {
+    INSERTED,
+    FAILED,
+    FOUND
+};
+
 /**
 *
 * GPU Headers

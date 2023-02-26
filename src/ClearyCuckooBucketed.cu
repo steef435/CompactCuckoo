@@ -244,7 +244,7 @@ class ClearyCuckooBucketed: HashTable{
          * Internal Insertion Loop
          **/
         GPUHEADER_D
-        bool insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, cg::thread_block_tile<tile_sz> tile, int depth=0){
+            result insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, cg::thread_block_tile<tile_sz> tile, int depth=0){
             //printf("%i: \t\tInsert into Table %" PRIu64 "\n", getThreadID(), k);
             keytype x = k;
             int hash = hs[0];
@@ -252,7 +252,7 @@ class ClearyCuckooBucketed: HashTable{
             //If the key is already inserted don't do anything
             //printf("%i: \t\t\tLookup\n", getThreadID());
             if (lookup(k, T, tile)) {
-                return false;
+                return FOUND;
             }
 
             //Start the iteration
@@ -294,7 +294,7 @@ class ClearyCuckooBucketed: HashTable{
                 //If the old val was empty return
                 if (!wasoccupied) {
                     //printf("%i: \t\tInsert Success\n", getThreadID());
-                    return true;
+                    return INSERTED;
                     
                 }
 
@@ -311,7 +311,7 @@ class ClearyCuckooBucketed: HashTable{
                 c++;
             }
             //printf("%i: \t\tInsert Fail\n", getThreadID());
-            return false;
+            return FAILED;
         };
 
 
@@ -478,13 +478,13 @@ class ClearyCuckooBucketed: HashTable{
 
         //Taken from Better GPU Hash Tables
         GPUHEADER_D
-        bool coopInsert(bool to_insert, keytype k) {
+        result coopInsert(bool to_insert, keytype k) {
             //printf("%i: \tcoopInsert %" PRIu64"\n", getThreadID(), k);
             cg::thread_block thb = cg::this_thread_block();
             auto tile = cg::tiled_partition<tile_sz>(thb);
             //printf("%i: \tTiledPartition\n", getThreadID());
             auto thread_rank = tile.thread_rank();
-            bool success = true;
+            result success = FAILED;
 
             //Perform the insertions
             uint32_t work_queue;
@@ -507,24 +507,12 @@ class ClearyCuckooBucketed: HashTable{
         //Public insertion call
         GPUHEADER_D
 #ifdef GPUCODE
-            bool insert(uint64_cu k, bool to_check = true) {
+            result insert(uint64_cu k, bool to_check = true) {
 #else
-            bool insert(uint64_cu k, SpinBarrier * barrier) {
+            result insert(uint64_cu k, SpinBarrier * barrier) {
 #endif
-            //printf("%i:Insert %" PRIu64 "\n", getThreadID(), k);
 
-            //Stores success/failure of rehash
-            bool finalRes = false;
-            if (coopInsert(to_check, k)) {
-                //Reset the Hash Counter
-
-                finalRes = true;
-            }else{
-                //printf("%i: \tInsert Failed\n", getThreadID());
-            }
-
-            //printf("%i: \tReturning\n", getThreadID());
-            return finalRes;
+            return coopInsert(to_check, k);
         };
 
         //Public Lookup call
@@ -690,7 +678,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
             ins = vals[i];
         }
         
-        if (!(H->insert(ins, realVal))) {
+        if (H->insert(ins, realVal) == FAILED) {
             if (failFlag != nullptr && realVal) {
                 (*failFlag) = true;
             }
@@ -723,7 +711,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
             ins = vals[i];
         }
 
-        if (!(H->insert(ins, realVal))) {
+        if (H->insert(ins, realVal) == FAILED) {
             if (realVal) {
                 atomicCAS(&(failFlag[0]), 0, 1);
             }
