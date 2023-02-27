@@ -219,17 +219,22 @@ int main(int argc, char* argv[])
     else if (strcmp(argv[1], "benchspeed") == 0) {
         if (argc < 10) {
             printf("Not Enough Arguments Passed\n");
-            printf("Required: NUM_TABLES_start,  NUM_TABLES, INTERVAL, NUM_SAMPLES, NUM_THREADS, PERCENTAGE, P_STEPSIZE, DEPTH\n");
+            printf("Required: NUM_TABLES_start,  NUM_TABLES, INTERVAL, NUM_SAMPLES, NUM_THREADS, PERCENTAGE, P_STEPSIZE, DEPTH ,(CLEARY) (SRC)\n");
             return 0;
         }
 
         bool cleary = true;
 
-        if (argc == 11) {
+        if (argc >= 11) {
             cleary = !(strcmp(argv[10], "nocleary") == 0);
         }
 
-        BenchmarkSpeed(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), cleary);
+        std::string src = "";
+        if (argc >= 12) {
+            src = argv[11];
+        }
+
+        BenchmarkSpeed(std::stoi(argv[2]), std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), std::stoi(argv[6]), std::stoi(argv[7]), std::stoi(argv[8]), std::stoi(argv[9]), cleary, src);
     }
 
     else if (strcmp(argv[1], "readInput") == 0) {

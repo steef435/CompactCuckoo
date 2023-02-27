@@ -2,6 +2,7 @@
 #include <unordered_set>
 #include <cuda.h>
 #include <curand_kernel.h>
+#include <inttypes.h>
 
 #ifndef MAIN
 #define MAIN
@@ -311,10 +312,10 @@ uint64_cu* readCSV(std::string filename) {
 
     file.open(filename);
     if (!file.is_open()) {
-        printf("File Failed to Open\n");
+        printf("\tFile Failed to Open\n");
         return nullptr;
     }
-    printf("File Opened");
+    printf("\tFile Opened\n");
 
     // Read data, line by line
     while (std::getline(file, line))
@@ -345,10 +346,14 @@ uint64_cu* readCSV(std::string filename) {
 #endif
 
     int j = 0;
+    printf("\tSample:");
     for (uint64_cu i : vec) {
         res[j++] = i;
+        if (j < 10) {
+            printf("%" PRIu64 ", ", i);
+        }
     }
-
+    printf("...\n");
 
    
     return res;

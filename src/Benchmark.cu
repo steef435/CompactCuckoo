@@ -236,7 +236,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
 }
 
 
-void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int PERCENTAGE, int P_STEPSIZE, int DEPTH, bool clearyBool=true) {
+void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int PERCENTAGE, int P_STEPSIZE, int DEPTH, bool clearyBool=true, std::string source="") {
 
     const int WARMUP = 0;
 
@@ -268,6 +268,13 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
         return;
     }
     printf("File Opened\n");
+
+    //Use file data
+    uint64_cu* loadedvals = nullptr;
+    if (source != "") {
+        //printf("Reading Data\n");
+        loadedvals = readCSV(source);
+    }
 
     myfile << "tablesize,numthreads,collision_percentage,collision_depth,samples,type,interval,time,test\n";
 
@@ -330,7 +337,13 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         int* hs = cc->getHashlistCopy();
                         int H = cc->getHashNum();
 
-                        uint64_cu* vals = generateCollisionSet(size, N, H, hs, P, D);
+                        uint64_cu* vals;
+                        if (loadedvals == nullptr) {
+                            vals = generateCollisionSet(size, N, H, hs, P, D);
+                        }
+                        else {
+                            vals = loadedvals;
+                        }
                         delete[] hs;
                         //printf("Numsgenned\n");
 
@@ -609,10 +622,16 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                         }
 
+                        //ccb->print();
+
                         //printf("Delete CC Vars\n");
                         gpuErrchk(cudaFree(ccb));
                         gpuErrchk(cudaFree(failFlag3));
-                        gpuErrchk(cudaFree(vals));
+
+                        //Free any randomly generated datasets
+                        if (loadedvals == nullptr) {
+                            gpuErrchk(cudaFree(vals));
+                        }
 
                     }
                 }
@@ -620,6 +639,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
         }
     }
 
+    //Free the loaded data set if exists
+    if (loadedvals != nullptr) {
+        gpuErrchk(cudaFree(loadedvals));
+    }
 
     myfile.close();
     printf("\nBenchmark Done\n");
