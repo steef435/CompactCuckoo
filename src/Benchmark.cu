@@ -789,7 +789,7 @@ void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START
         printf("File Failed to Open\n");
         return;
     }
-    printf("File Opened");
+    printf("File Opened\n");
 
     myfile << "tablesize,hashes,loops,samples,max\n";
 

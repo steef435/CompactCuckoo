@@ -131,7 +131,7 @@ class ClearyCuckooBucketed: HashTable{
     private:
         //Constant Vars
         const static int HS = 59;       //HashSize
-        int MAXLOOPS = 50;
+        int MAXLOOPS = 25;
         int MAXREHASHES = 30;
 
         //Vars at Construction
@@ -430,13 +430,14 @@ class ClearyCuckooBucketed: HashTable{
 
             //Default MAXLOOPS Value
             //1.82372633e+04 -2.60749645e+02  1.76799265e-02 -1.80594901e+04
+            /*
             const double A = 18237.2633;
             const double x0 = -260.749645;
             const double k = .0176799265;
             const double off = -18059.4901;
 
             MAXLOOPS = std::max( MAXLOOPS, (int) ceil((A / (1.0 + exp(-k * (((double)AS) - x0)))) + off) );
-
+            */
             //printf("\tCreate Hashlist\n");
             //Create HashList
             createHashList(hashlist);
