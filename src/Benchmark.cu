@@ -762,7 +762,7 @@ void BenchmarkMaxOccupancy(int TABLE_START, int NUM_TABLES, int HASH_START, int 
 }
 
 
-void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START, int NUM_HASHES, int HASH_STEP, int NUM_LOOPS, int LOOP_STEP, int BUCKET_SIZE, int BUCKET_STEP, int NUM_SAMPLES) {
+void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START, int NUM_HASHES, int HASH_STEP, int NUM_LOOPS, int LOOP_STEP, int NUM_SAMPLES) {
 
     printf("=====================================================================\n");
     printf("                   Starting MAX Occupancy Benchmark Bucket               \n");
@@ -791,7 +791,7 @@ void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START
     }
     printf("File Opened");
 
-    myfile << "tablesize,hashes,loops,bucketsize,samples,max\n";
+    myfile << "tablesize,hashes,loops,samples,max\n";
 
     //MAX_LOOPS
     for (int N = TABLE_START; N < TABLE_START + NUM_TABLES; N++) {
@@ -801,65 +801,62 @@ void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START
             printf("\tNum of Hashes:%i\n", H);
             for (int L = 0; L < NUM_LOOPS; L += LOOP_STEP) {
                 printf("\t\tNum of Loops:%i\n", L);
-                for (int BS = 1; BS <= BUCKET_SIZE; BS += BUCKET_STEP) {
-                    printf("\t\t\tBucketSize:%i\n", BS);
-                    for (int S = 0; S < NUM_SAMPLES; S++) {
-                        //printf("\t\t'tSample Number:%i\n", S);
-                        uint64_cu* vals = generateRandomSet(size* BUCKET_SIZE);
-                        printf("\t\t\t\t\t%i\n", BUCKET_SIZE);
+                
+                for (int S = 0; S < NUM_SAMPLES; S++) {
+                    //printf("\t\t'tSample Number:%i\n", S);
+                    uint64_cu* vals = generateRandomSet(size);
 
-                        //Init Cleary Cuckoo
-                        //printf("INit Table\n");
+                    //Init Cleary Cuckoo
+                    //printf("INit Table\n");
 #ifdef GPUCODE
-                        ClearyCuckooBucketed<TILESIZE>* cc;
-                        gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckooBucketed<TILESIZE>)));
-                        new (cc) ClearyCuckooBucketed<TILESIZE>(N, H);
+                    ClearyCuckooBucketed<TILESIZE>* cc;
+                    gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckooBucketed<TILESIZE>)));
+                    new (cc) ClearyCuckooBucketed<TILESIZE>(N, H);
 #else
-                        ClearyCuckooBucketed* cc = new ClearyCuckooBucketed<TILESIZE>(N, BS, H);
+                    ClearyCuckooBucketed* cc = new ClearyCuckooBucketed<TILESIZE>(N, H);
 #endif
-                        cc->setMaxLoops(L);
+                    cc->setMaxLoops(L);
 
-                        //printf("INit Complete\n");
+                    //printf("INit Complete\n");
 #ifdef GPUCODE
-                        int* failFlag;
-                        gpuErrchk(cudaMallocManaged(&failFlag, sizeof(int)));
-                        failFlag[0] = false;
+                    int* failFlag;
+                    gpuErrchk(cudaMallocManaged(&failFlag, sizeof(int)));
+                    failFlag[0] = false;
 
-                        //Var to store num of inserted values
-                        addtype* occ;
-                        gpuErrchk(cudaMallocManaged(&occ, sizeof(addtype)));
-                        occ[0] = 0;
+                    //Var to store num of inserted values
+                    addtype* occ;
+                    gpuErrchk(cudaMallocManaged(&occ, sizeof(addtype)));
+                    occ[0] = 0;
 
-                        fillClearyCuckooBucketed<TILESIZE> << <1, 1 >> > (size * BS, vals, cc, occ, failFlag);
-                        gpuErrchk(cudaPeekAtLastError());
-                        gpuErrchk(cudaDeviceSynchronize());
+                    fillClearyCuckooBucketed<TILESIZE> << <1, 16 >> > (size, vals, cc, occ, failFlag);
+                    gpuErrchk(cudaPeekAtLastError());
+                    gpuErrchk(cudaDeviceSynchronize());
 
-                        myfile << N << "," << H << "," << L << "," << BS << "," << S << "," << occ[0] << ",\n";
+                    myfile << N << "," << H << "," << L << "," << S << "," << occ[0] << ",\n";
 #else
-                        std::atomic<bool> failFlag(false);
-                        std::atomic<addtype> occ(0);
-                        //printf("Filling Table\n");
-                        SpinBarrier barrier(1);
+                    std::atomic<bool> failFlag(false);
+                    std::atomic<addtype> occ(0);
+                    //printf("Filling Table\n");
+                    SpinBarrier barrier(1);
 
-                        fillClearyCuckooBucketed<TILESIZE>(size * BS, vals, cc, &barrier, &occ, &failFlag);
-                        //printf("Writing\n");
-                        myfile << N << "," << H << "," << L << "," << BS << "," << S << "," << occ.load() << ",\n";
+                    fillClearyCuckooBucketed<TILESIZE>(size * BS, vals, cc, &barrier, &occ, &failFlag);
+                    //printf("Writing\n");
+                    myfile << N << "," << H << "," << L << "," << S << "," << occ.load() << ",\n";
 #endif
 
 
 #ifdef GPUCODE
 
-                        gpuErrchk(cudaFree(failFlag));
-                        gpuErrchk(cudaFree(cc));
-                        gpuErrchk(cudaFree(occ));
-                        gpuErrchk(cudaFree(vals));
+                    gpuErrchk(cudaFree(failFlag));
+                    gpuErrchk(cudaFree(cc));
+                    gpuErrchk(cudaFree(occ));
+                    gpuErrchk(cudaFree(vals));
 #else
-                        //printf("Deleting\n");
-                        delete cc;
-                        delete[] vals;
+                    //printf("Deleting\n");
+                    delete cc;
+                    delete[] vals;
 #endif
-                        //printf("Done\n");
-                    }
+                    //printf("Done\n");
                 }
             }
         }
