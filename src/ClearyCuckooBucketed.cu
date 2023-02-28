@@ -61,6 +61,7 @@ struct bucket {
     GPUHEADER_D
     bool find(const remtype rem, const int hID) {
         //TODO
+        //printf("%i: i:%i O(i):%i\n", getThreadID(), tIndex, ptr_[tIndex].getO());
         bool key_exist = ( (rem == ptr_[tIndex].getR()) && (ptr_[tIndex].getO()) && (ptr_[tIndex].getH() == hID) );
         //printf("%i:\tKey_exist %i\n", getThreadID(), key_exist);
         int key_lane = __ffs(tile_.ballot(key_exist));
@@ -71,24 +72,30 @@ struct bucket {
     // Find the value associated with a key
     GPUHEADER_D
     void removeDuplicates(const remtype rem, const int hID, bool* found) {
-        //CHeck if val in loc is key
+        //Check if val in loc is key
         bool key_exists = ((rem == ptr_[tIndex].getR()) && (ptr_[tIndex].getO()) && (ptr_[tIndex].getH() == hID));
-        auto dupMask = tile_.ballot(key_exists);
+        //printf("%i:\tKey_exist at %i %i (%" PRIu64 " == %" PRIu64 ") %i (%i == %i))\n", getThreadID(), tIndex, key_exists, ptr_[tIndex].getR(), rem, ptr_[tIndex].getO(), ptr_[tIndex].getH(), hID);
+        //printf("%i: i:%i O(i):%i R(i):%" PRIu64 "\n", getThreadID(), tIndex, ptr_[tIndex].getO(), ptr_[tIndex].getR());
 
         int realAdd = -1;
-
         //If first group where val is encountered, keep the first entry
-        int num_vals = __popc(dupMask);
-        if ( num_vals > 0 && !(*found) ) {
+        int num_vals = __popc(tile_.ballot(key_exists));
+        int first = __ffs(tile_.ballot(key_exists)) - 1;
+        //printf("NumVals:%i First:%i\n", num_vals, first);
+
+        if ( (num_vals > 0) && !(*found) ) {
             //Mark as found for next iteration
             (*found) = true;
-            realAdd = __ffs(dupMask);
+            realAdd = first;
+            //printf("%i:\tRealAdd %i\n", getThreadID(), realAdd);
         }
 
         //If duplicate, mark as empty
         if ( key_exists && (tile_.thread_rank() != realAdd) ) {
+            //printf("%i:\tDeleting\n", getThreadID());
             ptr_[tIndex].setO(false);
         }
+        
 
         return;
     }
@@ -322,13 +329,14 @@ class ClearyCuckooBucketed: HashTable{
             //To store whether value was already encountered
             bool found = false;
 
+            //Iterate over Hash Functions
             for (int i = 0; i < hn; i++) {
                 uint64_cu hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
 
                 auto cur_bucket = bucket<tile_sz>(T, tile, add, Bs);
-                cur_bucket.removeDuplicates(k, hashlist[i], &found);
+                cur_bucket.removeDuplicates(rem, hashlist[i], &found);
             }
             //printf("%i: \t\tDups Removed\n", getThreadID());
         }
@@ -337,13 +345,14 @@ class ClearyCuckooBucketed: HashTable{
         GPUHEADER_D
         bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T, cg::thread_block_tile<tile_sz> tile){
             //printf("%i: \t\tLookup\n", getThreadID());
+            //Iterate over hash functions
             for (int i = 0; i < hn; i++) {
                 uint64_cu hashed1 = RHASH(hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
 
                 //printf("%i: Searching for %" PRIu64 " at %" PRIu32 "\n", getThreadID(), k, add);
-
+                //Get Bucket and Find
                 auto cur_bucket = bucket<tile_sz>(T, tile, add , Bs);
                 auto res = cur_bucket.find(rem, hashlist[i]);
                 if (res) {
@@ -677,6 +686,8 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
             realVal = true;
             ins = vals[i];
         }
+
+        //printf("Inserting: %" PRIu64 "\n", ins);
         
         if (H->insert(ins, realVal) == FAILED) {
             if (failFlag != nullptr && realVal) {
@@ -786,17 +797,14 @@ void dupCheckClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<t
     int max = calcBlockSize(N, H->getBucketSize());
 
     //printf("Thread %i Starting\n", getThreadID());
-    for (int i = index + begin; i < N + begin; i += stride) {
+    for (int i = index + begin; i < max + begin; i += stride) {
         bool realVal = false;
         keytype k = 0;
-        if (i < N) {
+        if (i < N + begin) {
             realVal = true;
             k = vals[i];
         }
-
-        if (i < N) {
-            H->coopDupCheck(realVal, k);
-        }
+        H->coopDupCheck(realVal, k);
     }
     //printf("Insertions %i Over\n", getThreadID());
 }

@@ -62,6 +62,28 @@ uint64_cu* generateRandomSet(int size, long long int max=std::pow(2, 58)) {
     return res;
 }
 
+uint64_cu* generateDuplicateSet(int size, int numDups) {
+
+#ifdef GPUCODE
+    uint64_cu* res;
+    gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
+#else
+    uint64_cu* res = new uint64_cu[size];
+#endif
+
+    int dupCounter = 0;
+    int val = 0;
+    for(int i=0; i< size; i++){
+        res[i] = val;
+        //Every few steps iterate value
+        if (dupCounter++ >= numDups) {
+            val++;
+            dupCounter = 0;
+        }
+    }
+    return res;
+}
+
 uint64_cu* generateNormalSet(int size) {
     //Random Number generator
     std::normal_distribution<> dist{std::pow(2, 58)/2 , 1000 };

@@ -40,6 +40,10 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         fillClearyCuckoo << <numBlocks, numThreads >> > (N, vals, cc);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
+
+        dupCheckClearyCuckoo << <numBlocks, numThreads >> > (N, vals, cc);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 #else
 
         std::vector<std::thread> vecThread1(numThreads);
@@ -171,6 +175,12 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         fillClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
+
+        //b->print();
+
+        dupCheckClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 #else
         std::vector<std::thread> vecThread2(numThreads);
 
@@ -230,6 +240,10 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 
 #ifdef GPUCODE
         fillCuckoo << <1, 1 >> > (N, vals, cuc);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+
+        dupCheckCuckoo << <numBlocks, numThreads >> > (N, vals, cuc);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
@@ -397,6 +411,19 @@ void TableTest(int N, int T, int L, bool c, bool cc, bool b, bool cuc) {
         gpuErrchk(cudaFree(testset2));
 #else
         delete[] testset2;
+#endif
+
+        printf("==============================================================================================================\n");
+        printf("                            DUP TEST                            \n");
+        printf("==============================================================================================================\n");
+        uint64_cu* testset3 = generateDuplicateSet(testSize, testSize/2);
+        if (!TestFill(testSize, T, addressSize, testset3, c, cc, b, cuc)) {
+            res = false;
+        }
+#ifdef GPUCODE
+        gpuErrchk(cudaFree(testset3));
+#else
+        delete[] testset3;
 #endif
 
         if (!res) {
