@@ -555,7 +555,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         printf("\t\t\t\t\tClearyCuckooBucketed\n");
                         ClearyCuckooBucketed<TILESIZE>* ccb;
                         gpuErrchk(cudaMallocManaged((void**)&ccb, sizeof(ClearyCuckooBucketed<TILESIZE>)));
-                        new (ccb) ClearyCuckooBucketed<TILESIZE>(N, 4);
+                        new (ccb) ClearyCuckooBucketed<TILESIZE>(N, 3);
                         int* failFlag3;
                         gpuErrchk(cudaMallocManaged((void**)&failFlag3, sizeof(int)));
                         (*failFlag3) = false;
