@@ -146,7 +146,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
                                     //printf("\tAllocTable\n");
                                     gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
                                     //printf("\tStartTable\n");
-                                    new (cc) ClearyCuckoo(N, H);
+                                    new (cc) ClearyCuckoo(N, H, ENTRYSIZE);
                                     //printf("InitFailFlag\n");
                                     int* failFlag;
                                     gpuErrchk(cudaMallocManaged((void**)&failFlag, sizeof(int)));
@@ -703,7 +703,7 @@ void BenchmarkMaxOccupancy(int TABLE_START, int NUM_TABLES, int HASH_START, int 
 #ifdef GPUCODE
                         ClearyCuckoo* cc;
                         gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
-                        new (cc) ClearyCuckoo(N, H);
+                        new (cc) ClearyCuckoo(N, H, ENTRYSIZE);
 #else
                         ClearyCuckoo* cc = new ClearyCuckoo(N, H);
 #endif

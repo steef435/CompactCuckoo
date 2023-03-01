@@ -41,7 +41,11 @@
 #include "Cuckoo.cu"
 #endif
 
+#ifndef CCENTRY
+#define CCENTRY
+#include "ClearyCuckooEntry.cu"
 #include "ClearyCuckooEntryCompact.cu"
+#endif
 
 /*
  *
@@ -251,7 +255,7 @@ int main(int argc, char* argv[])
     }
 
     else if (strcmp(argv[1], "debug") == 0) {
-        ClearyCuckooEntryCompact<uint32_t, uint64_t> test = ClearyCuckooEntryCompact<uint32_t, uint64_t>();
+        ClearyCuckooEntryCompact<uint32_t, uint64_t> test = ClearyCuckooEntryCompact<uint32_t, uint64_t>(64);
         printf("Pre Insertion\n");
         test.print();
         test.setR(std::stoi(argv[2]),1, false);
@@ -261,6 +265,26 @@ int main(int argc, char* argv[])
         printf("R Set to %" PRIu64 "\n", test.getR(0));
         test.print();
     }
+
+    else if (strcmp(argv[1], "debug2") == 0) {
+        uint64_cu x = std::stoll(argv[2]);
+
+        
+
+        for (int i = 0; i < 10; i++) {
+            uint64_cu h = RHASH(64, i, x);
+            printf("Orignal: %" PRIu64 " HASHED: %" PRIu64 " INVERSE: %" PRIu64 "\n", x, h, RHASH_INVERSE(64, i, h));
+        }
+    }
+
+
+    else if (strcmp(argv[1], "gen") == 0) {
+        for (int i = 0; i < 64; i++) {
+            int val = i;
+            printf("const uint64_cu VAL%i = %i %% DATASIZE;\nconst uint64_cu VAL%iC = DATASIZE - VAL%i;\n\n", val, val, val, val);
+        }
+    }
+
 
     return 0;
 }

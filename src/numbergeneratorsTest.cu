@@ -27,7 +27,7 @@ void numGenCollisionTest(int N, int H, int percentage, int depth) {
     for (int i = 0; i < tablesize; i++) {
         printf("|%-10i|%-20" PRIu64 "|", i, list[i]);
         for (int h = 0; h < H; h++) {
-            printf("%-16" PRIu32 "|", getAdd(RHASH(h, list[i]), N));
+            printf("%-16" PRIu32 "|", getAdd(RHASH(HFSIZE, h, list[i]), N));
         }
         printf("\n");
     }

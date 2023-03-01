@@ -204,7 +204,7 @@ uint64_cu* generateCollidingSet(int size, int N) {
 
     for (int n = 0; n < (int)size / 2; ++n) {
         uint64_cu num = reformKey(add, n, N);
-        uint64_cu nval = RHASH_INVERSE(0, num);
+        uint64_cu nval = RHASH_INVERSE(HFSIZE, 0, num);
         if (!contains(res, nval, n)) {
             res[n] = nval;
         }
@@ -218,7 +218,7 @@ uint64_cu* generateCollidingSet(int size, int N) {
 
     for (int n = ((int)size / 2); n < size; ++n) {
         uint64_cu num = reformKey(add, n, N);
-        uint64_cu nval = RHASH_INVERSE(0, num);
+        uint64_cu nval = RHASH_INVERSE(HFSIZE, 0, num);
         if (!contains(res, nval, n)) {
             res[n] = nval;
         }
@@ -284,13 +284,13 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
                 if (i % depth == 0) {
                     //Select a random index and get the address
                     int r = index(e2_ng);
-                    uint64_cu hashed = RHASH(hash, res[r]);
+                    uint64_cu hashed = RHASH(HFSIZE, hash, res[r]);
                     add = getAdd(hashed, AS);
                 }
 
                 //Create a new value
                 uint64_cu newVal = reformKey(add, dist16(e2_ng), AS);
-                uint64_cu toInsert = RHASH_INVERSE(hash, newVal);
+                uint64_cu toInsert = RHASH_INVERSE(HFSIZE, hash, newVal);
 
                 //Check if value exists
                 if (!(insertedSet.find(toInsert) != insertedSet.end())) {

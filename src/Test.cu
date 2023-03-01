@@ -22,7 +22,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
     bool* res = new bool;
 #endif
     int numThreads = std::pow(2, T);
-    int numBlocks = 4;
+    int numBlocks = 1;
 
     //Create Table 1
     printf("Testcc\n");
@@ -30,9 +30,9 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #ifdef GPUCODE
         ClearyCuckoo* cc;
         gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
-        new (cc) ClearyCuckoo(tablesize, 16);
+        new (cc) ClearyCuckoo(tablesize, 16, 64);
 #else
-        ClearyCuckoo* cc = new ClearyCuckoo(tablesize, 16);
+        ClearyCuckoo* cc = new ClearyCuckoo(tablesize, 16, 64);
 #endif
 
         printf("Filling ClearyCuckoo\n");

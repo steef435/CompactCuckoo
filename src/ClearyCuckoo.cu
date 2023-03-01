@@ -38,6 +38,7 @@
 #ifndef CCENTRY
 #define CCENTRY
 #include "ClearyCuckooEntry.cu"
+#include "ClearyCuckooEntryCompact.cu"
 #endif
 
 
@@ -56,14 +57,20 @@ class ClearyCuckoo : HashTable{
         int MAXLOOPS = 25;
         int MAXREHASHES = 30;
 
+        const int ENTRYSIZE2 = 64;
+
         //Vars at Construction
         int AS;                         //AdressSize
         int RS;                         //RemainderSize
         int tablesize;
+        const int valSize;
+        const int valsPerEntry;
+        int numEntries = 0;
+
         int occupancy = 0;
 
         //Hash tables
-        ClearyCuckooEntry<addtype, remtype>* T;
+        ClearyCuckooEntryCompact<addtype, remtype>* T;
 
         int hashcounter = 0;
 
@@ -168,7 +175,8 @@ class ClearyCuckoo : HashTable{
          * Internal Insertion Loop
          **/
         GPUHEADER_D
-        result insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, int depth=0){
+        result insertIntoTable(keytype k, ClearyCuckooEntryCompact<addtype, remtype>* T, int* hs, int depth=0){
+            printf("InsertIntoTable\n");
             keytype x = k;
             int hash = hs[0];
 
@@ -179,20 +187,26 @@ class ClearyCuckoo : HashTable{
             //Start the iteration
             int c = 0;
 
+            printf("\tEntering Loop\n");
             while(c < MAXLOOPS){
                 //Get the add/rem of k
-                hashtype hashed1 = RHASH(hash, x);
+                hashtype hashed1 = RHASH(HFSIZE, hash, x);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
 
+                addtype real_add = (addtype)(add / valsPerEntry);
+                addtype subIndex = (addtype)(add % valsPerEntry);
+
+                printf("\tExchVals\n");
                 //Exchange Values
-                ClearyCuckooEntry<addtype, remtype> entry(rem, hash, true, false);
-                T[add].exchValue(&entry);
+                ClearyCuckooEntryCompact<addtype, remtype> entry(rem, hash, true, false, 0);
+                T[real_add].tableSwap(&entry, subIndex, 0);
 
                 //Store the old value
-                remtype temp = entry.getR();
-                bool wasoccupied = entry.getO();
-                int oldhash = entry.getH();
+                printf("\tStoreOld\n");
+                remtype temp = entry.getR(0);
+                bool wasoccupied = entry.getO(0);
+                int oldhash = entry.getH(0);
 
                 //If the old val was empty return
                 if(!wasoccupied){
@@ -201,7 +215,7 @@ class ClearyCuckoo : HashTable{
 
                 //Otherwise rebuild the original key
                 hashtype h_old = reformKey(add, temp, AS);
-                x = RHASH_INVERSE(oldhash, h_old);
+                x = RHASH_INVERSE(HFSIZE, oldhash, h_old);
 
                 //Hash with the next hash value
                 hash = getNextHash(hs, oldhash);
@@ -209,61 +223,24 @@ class ClearyCuckoo : HashTable{
                 c++;
             }
 
-#ifdef REHASH
-            //If loops fail call rehash
-            rehashQueue->push(x);
-            if(depth>0){return FAILED;}
-            //If MAXLOOPS is reached rehash the whole table
-            if(!rehash()){
-                //If rehash fails, return
-                return FAILED;
-            }
-            return SUCCESS;
-#else
-            return FAILED;
-#endif
         };
 
-#ifdef REHASH
-        GPUHEADER_D
-        bool rehash(int depth){
-            //Prevent recursion of rehashing
-            if(depth >0){return false;}
 
-            for (int i = 0; i < tablesize; i++) {
-                //Check if Occupied
-                if (!T[i].getO()) {
-                    continue;
-                }
-                //Check if permissible under new hashlist
-                if(!containsHash(hashlist, T[i].getH())) {
-                    //Reform Val
-                    hashtype h_old = reformKey(i, T[i].getR(), AS);
-                    keytype x = RHASH_INVERSE(T[i].getH(), h_old);
-
-                    //Clear Entry
-                    T[i].clear();
-
-                    //Reinsert using new hashlist
-                    if (!insertIntoTable(x, T, hashlist, depth+1)) {
-                        return false;
-                    }
-                }
-            }
-
-            return true;
-        };
-#endif
 
         //Lookup internal method
         GPUHEADER
-        bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T){
+        bool lookup(uint64_cu k, ClearyCuckooEntryCompact<addtype, remtype>* T){
+            printf("Lookup\n");
             //Iterate over hash functions and check if found
             for (int i = 0; i < hn; i++) {
-                uint64_cu hashed1 = RHASH(hashlist[i], k);
+                uint64_cu hashed1 = RHASH(HFSIZE, hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
-                if ( (T[add].getR() == rem) && T[add].getO() && (T[add].getH() == hashlist[i]) ) {
+
+                addtype real_add = (addtype)(add / valsPerEntry);
+                addtype subIndex = (addtype)(add % valsPerEntry);
+
+                if ( (T[real_add].getR(subIndex) == rem) && T[real_add].getO(subIndex) && (T[real_add].getH(subIndex) == hashlist[i]) ) {
                     return true;
                 }
             }
@@ -271,19 +248,23 @@ class ClearyCuckoo : HashTable{
         };
 
         GPUHEADER
-        void print(ClearyCuckooEntry<addtype, remtype>* T) {
+        void print(ClearyCuckooEntryCompact<addtype, remtype>* T) {
             printf("----------------------------------------------------------------\n");
             printf("|    i     |     R[i]       | O[i] |        key         |label |\n");
             printf("----------------------------------------------------------------\n");
             printf("Tablesize %i\n", tablesize);
             for (int i = 0; i < tablesize; i++) {
-                if (T[i].getO()) {
-                    remtype rem = T[i].getR();
-                    int label = T[i].getH();
-                    hashtype h = reformKey(i, rem, AS);
-                    keytype k = RHASH_INVERSE(label, h);
 
-                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-20" PRIu64 "|%-6i|\n", i, T[i].getR(), T[i].getO(), k, T[i].getH());
+                addtype real_add = (addtype)(i / valsPerEntry);
+                addtype subIndex = (addtype)(i % valsPerEntry);
+
+                if (T[real_add].getO(subIndex)) {
+                    remtype rem = T[real_add].getR(subIndex);
+                    int label = T[real_add].getH(subIndex);
+                    hashtype h = reformKey(i, rem, AS);
+                    keytype k = RHASH_INVERSE(HFSIZE, label, h);
+
+                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-20" PRIu64 "|%-6i|\n", i, T[real_add].getR(subIndex), T[real_add].getO(subIndex), k, T[real_add].getH(subIndex));
                 }
             }
             printf("------------------------------------------------------------\n");
@@ -294,43 +275,32 @@ class ClearyCuckoo : HashTable{
         /**
          * Constructor
          */
-        ClearyCuckoo() {}
+        ClearyCuckoo(): valSize(64), valsPerEntry((int)(ENTRYSIZE2 / valSize)) {}
 
-        ClearyCuckoo(int adressSize) : ClearyCuckoo(adressSize, 4) {}
+        ClearyCuckoo(int adressSize) : ClearyCuckoo(adressSize, 4, 64) {}
 
-        ClearyCuckoo(int adressSize, int hashNumber){
+        ClearyCuckoo(int adressSize, int hashNumber, int value_size):
+            valSize(value_size), valsPerEntry( (int) (ENTRYSIZE2 / value_size) ) {
+            printf("Constructor\n");
             //Init variables
             AS = adressSize;
             RS = HS-AS;
             tablesize = (int) pow(2,AS);
+            numEntries = (int)(tablesize / valsPerEntry);
 
             int queueSize = std::max(100, (int)(tablesize / 10));
 
             hn = hashNumber;
 
-#ifdef REHASH
-#ifdef GPUCODE
-            failFlag = false;
-            rehashFlag = false;
-#else
-            failFlag.store(false);
-            rehashFlag.store(false);
-#endif
-#endif
+
             //Allocating Memory for tables
 #ifdef GPUCODE
-            gpuErrchk(cudaMallocManaged(&T, tablesize * sizeof(ClearyCuckooEntry<addtype,remtype>)));
+            gpuErrchk(cudaMallocManaged(&T, numEntries * sizeof(ClearyCuckooEntryCompact<addtype,remtype>)));
             gpuErrchk(cudaMallocManaged(&hashlist, hn * sizeof(int)));
             gpuErrchk(cudaMallocManaged((void**)&rehashQueue, sizeof(SharedQueue<int>)));
-#ifdef REHASH
-            new (rehashQueue) SharedQueue<int>(queueSize);
-#endif
 #else
-            T = new ClearyCuckooEntry<addtype, remtype>[tablesize];
+            T = new ClearyCuckooEntryCompact<addtype, remtype>[tablesize];
             hashlist = new int[hn];
-#ifdef REHASH
-            rehashQueue = new SharedQueue<keytype>(queueSize);
-#endif
 #endif
 
             //Default MAXLOOPS Value
@@ -343,8 +313,8 @@ class ClearyCuckoo : HashTable{
             MAXLOOPS = ceil((A / (1.0 + exp(-k * (((double)AS) - x0)))) + off);
 
             //Init table entries
-            for(int i=0; i<tablesize; i++){
-                new (&T[i]) ClearyCuckooEntry<addtype, remtype>();
+            for(int i=0; i<numEntries; i++){
+                new (&T[i]) ClearyCuckooEntryCompact<addtype, remtype>(valSize);
             }
 
             //Create HashList
@@ -355,19 +325,16 @@ class ClearyCuckoo : HashTable{
          * Destructor
          */
         ~ClearyCuckoo(){
-            #ifdef GPUCODE
+            printf("Destructor\n");
+#ifdef GPUCODE
             gpuErrchk(cudaFree(T));
             gpuErrchk(cudaFree(hashlist));
-#ifdef REHASH
-            gpuErrchk(cudaFree(rehashQueue));
-#endif
-            #else
+
+#else
             delete[] T;
             delete[] hashlist;
-#ifdef REHASH
-            delete rehashQueue;
+
 #endif
-            #endif
         }
 
         //Public insertion call
@@ -377,6 +344,7 @@ class ClearyCuckoo : HashTable{
 #else
         result insert(uint64_cu k, SpinBarrier* barrier) {
 #endif
+            printf("Insert\n");
 
             return insertIntoTable(k, T, hashlist, 0);
         };
@@ -384,67 +352,29 @@ class ClearyCuckoo : HashTable{
         //Method to check for duplicates after insertions
         GPUHEADER
         void removeDuplicates(keytype k) {
+            printf("RemoveDuplicates\n");
             //To store whether value was already encountered
             bool found = false;
 
             for (int i = 0; i < hn; i++) {
-                uint64_cu hashed1 = RHASH(hashlist[i], k);
+                uint64_cu hashed1 = RHASH(HFSIZE, hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
 
-                if (T[add].getH() == hashlist[i] && T[add].getR() == rem && T[add].getO()) {
+                addtype real_add = (addtype)(add / valsPerEntry);
+                addtype subIndex = (addtype)(add % valsPerEntry);
+
+                if (T[real_add].getH(subIndex) == hashlist[i] && T[real_add].getR(subIndex) == rem && T[real_add].getO(subIndex)) {
                     //If value was already found
                     if (found) {
                         //Mark as not occupied
-                        T[add].setO(false);
+                        T[real_add].setO(false, subIndex);
                     }
                     //Mark value as found
                     found = true;
                 }
             }
         }
-
-#ifdef REHASH
-        GPUHEADER_D
-        bool rehash(){
-            while(!setFlag(&rehashFlag, 1)){
-                return false;
-            }
-
-            //Looping Rehash
-            while(hashcounter<MAXREHASHES){
-                iterateHashList(hashlist);
-                hashcounter++;
-
-                if (!rehash(0)) {
-                    continue;
-                }
-
-                //Reinsert rehash queue
-                while (!rehashQueue->isEmpty()) {
-                    keytype next = rehashQueue->pop();
-                    if (!insertIntoTable(next, T, hashlist, 1)) { break; }
-                }
-
-                if (rehashQueue->isEmpty()) {
-                    break;
-                }
-
-            };
-
-
-            //If counter tripped return
-            if(hashcounter >= MAXREHASHES){
-                while(!setFlag(&failFlag, 1, false)){};
-                return false;
-            }
-
-            while(!setFlag(&rehashFlag, 0)){};
-            __syncthreads();
-
-            return true;
-        }
-#endif
 
         //Public Lookup call
         GPUHEADER
@@ -455,8 +385,8 @@ class ClearyCuckoo : HashTable{
         //Clear all Table Entries
         GPUHEADER
         void clear(){
-            for(int i=0; i<tablesize; i++){
-                new (&T[i]) ClearyCuckooEntry<addtype, remtype>();
+            for(int i=0; i<numEntries; i++){
+                new (&T[i]) ClearyCuckooEntryCompact<addtype, remtype>(valSize);
             }
         }
 
@@ -481,9 +411,13 @@ class ClearyCuckoo : HashTable{
         std::vector<uint64_cu> toList() {
             std::vector<uint64_cu> list;
             for (int i = 0; i < tablesize; i++) {
-                if (T[i].getO()) {
-                    hashtype h_old = reformKey(i, T[i].getR(), AS);
-                    keytype x = RHASH_INVERSE(T[i].getH(), h_old);
+
+                addtype real_add = (addtype)(i / valsPerEntry);
+                addtype subIndex = (addtype)(i % valsPerEntry);
+
+                if (T[real_add].getO(subIndex)) {
+                    hashtype h_old = reformKey(i, T[real_add].getR(subIndex), AS);
+                    keytype x = RHASH_INVERSE(HFSIZE, T[real_add].getH(subIndex), h_old);
                     list.push_back(x);
                 }
             }
@@ -500,7 +434,8 @@ class ClearyCuckoo : HashTable{
             }
 
             for (int i = 0; i < N; i+=step) {
-                j += T[i%tablesize].getR();
+                int index = i % tablesize;
+                j += T[(addtype) (index/valsPerEntry)].getR((index % valsPerEntry));
             }
 
             if (j != 0) {

@@ -38,6 +38,7 @@
 #ifndef CCENTRY
 #define CCENTRY
 #include "ClearyCuckooEntry.cu"
+#include "ClearyCuckooEntryCompact.cu"
 #endif
 
 
@@ -182,7 +183,7 @@ class Cuckoo : HashTable{
 
             while(c < MAXLOOPS){
                 //Get the add/rem of k
-                hashtype hashed1 = RHASH(hash, x);
+                hashtype hashed1 = RHASH(HFSIZE, hash, x);
                 addtype add = getAdd(hashed1, AS);
 
                 //Exchange Values
@@ -200,7 +201,7 @@ class Cuckoo : HashTable{
                 }
 
                 //Otherwise rebuild the original key
-                x = RHASH_INVERSE(oldhash, temp);
+                x = RHASH_INVERSE(HFSIZE, oldhash, temp);
 
                 //Hash with the next hash value
                 hash = getNextHash(hs, oldhash);
@@ -237,7 +238,7 @@ class Cuckoo : HashTable{
                 //Check if permissible under new hashlist
                 if(!containsHash(hashlist, T[i].getH())) {
                     //Reform Val
-                    keytype x = RHASH_INVERSE(T[i].getH(), T[i].getR());
+                    keytype x = RHASH_INVERSE(HFSIZE, T[i].getH(), T[i].getR());
 
                     //Clear Entry
                     T[i].clear();
@@ -258,7 +259,7 @@ class Cuckoo : HashTable{
         bool lookup(uint64_cu k, ClearyCuckooEntry<addtype, remtype>* T){
             //Iterate over hash functions and check if found
             for (int i = 0; i < hn; i++) {
-                uint64_cu hashed1 = RHASH(hashlist[i], k);
+                uint64_cu hashed1 = RHASH(HFSIZE, hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 if (T[add].getR() == hashed1 && T[add].getO()) {
                     return true;
@@ -275,7 +276,7 @@ class Cuckoo : HashTable{
             printf("Tablesize %i\n", tablesize);
             for (int i = 0; i < tablesize; i++) {
                 if (T[i].getO()) {
-                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-6i|\n", i, RHASH_INVERSE(T[i].getH(), T[i].getR()), T[i].getO(), T[i].getH());
+                    printf("|%-10i|%-16" PRIu64 "|%-6i|%-6i|\n", i, RHASH_INVERSE(HFSIZE, T[i].getH(), T[i].getR()), T[i].getO(), T[i].getH());
                 }
             }
             printf("------------------------------------------------------------\n");
@@ -428,7 +429,7 @@ class Cuckoo : HashTable{
             bool found = false;
 
             for (int i = 0; i < hn; i++) {
-                uint64_cu hashed1 = RHASH(hashlist[i], k);
+                uint64_cu hashed1 = RHASH(HFSIZE, hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
 
                 if (T[add].getH() == hashlist[i] && T[add].getR() == hashed1 && T[add].getO()) {
@@ -474,7 +475,7 @@ class Cuckoo : HashTable{
             for (int i = 0; i < tablesize; i++) {
                 if (T[i].getO()) {
                     hashtype h_old = reformKey(i, T[i].getR(), AS);
-                    keytype x = RHASH_INVERSE(T[i].getH(), h_old);
+                    keytype x = RHASH_INVERSE(HFSIZE, T[i].getH(), h_old);
                     list.push_back(x);
                 }
             }

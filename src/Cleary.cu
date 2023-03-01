@@ -78,7 +78,7 @@ class Cleary : public HashTable{
         //Insert Method
         GPUHEADER
         addtype findIndex(uint64_cu k){           
-            hashtype h = RHASH(h1, k);
+            hashtype h = RHASH(HFSIZE, h1, k);
             addtype j = getAdd(h, AS);
             remtype rem = getRem(h, AS);
 
@@ -198,7 +198,7 @@ class Cleary : public HashTable{
 
         GPUHEADER_D
         result insertIntoTable(keytype k, addtype left, addtype right) {
-            hashtype h = RHASH(h1, k);
+            hashtype h = RHASH(HFSIZE, h1, k);
             addtype j = getAdd(h, AS);
             remtype rem = getRem(h, AS);
 
@@ -453,7 +453,7 @@ class Cleary : public HashTable{
         GPUHEADER_D
         result insert(keytype k){
             //Calculate Hash
-            hashtype h = RHASH(h1, k);
+            hashtype h = RHASH(HFSIZE, h1, k);
             addtype j = getAdd(h, AS);
             remtype rem = getRem(h, AS);
 
@@ -509,7 +509,7 @@ class Cleary : public HashTable{
         GPUHEADER
         bool lookup(uint64_cu k){
             //Hash Key
-            hashtype h = RHASH(h1, k);
+            hashtype h = RHASH(HFSIZE, h1, k);
             addtype j = getAdd(h, AS);
             remtype rem = getRem(h, AS);
 
