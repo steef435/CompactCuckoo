@@ -283,7 +283,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
     //Tablesizes
     for (int N = NUM_TABLES_start; N < NUM_TABLES_start + NUM_TABLES; N++) {
-        
+
 
         int size = std::pow(2, N);
         int setsize = (int)(size / INTERVAL);
@@ -321,7 +321,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         printf("\t\t\t\tSample:%i\n", S);
 
                         /***********************************************************************************************
-                        * 
+                        *
                         * ClearyCuckoo Speed Test
                         *
                         ***********************************************************************************************/
@@ -504,7 +504,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                             if (j >= WARMUP && !(*failFlag2)) {
                                 begin = std::chrono::steady_clock::now();
-                                
+
 
                                 //Do insertion iteration
                                 int insertionSize = numThreads;
@@ -561,17 +561,18 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         int* failFlag3;
                         gpuErrchk(cudaMallocManaged((void**)&failFlag3, sizeof(int)));
                         (*failFlag3) = false;
-
+                        //printf("\t\t\t\t\t\tInitDone\n");
 
                         //Warmup
                         //printf("Warmup\n");
                         readList(vals, size, 20);
-                        ccb->readEverything(size * 50);
+                        //ccb->readEverything(size * 50);
                         warmupThreads(numThreads, vals, size, 20);
 
 
                         //printf("Reading\n");
                         //Loop over intervals
+                        //printf("\t\t\t\t\t\tStartingLoops\n");
                         for (int j = 0; j < INTERVAL + WARMUP; j++) {
                             //Fill the table
                             std::chrono::steady_clock::time_point begin;
@@ -608,7 +609,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             if (*failFlag3) {
                                 myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (j - WARMUP) << "," << -1 << ",INS,\n";
                             }
-
+                            //printf("\t\t\t\t\t\tLookup\n");
                             //Lookup Time Test
                             if (j >= WARMUP && !(*failFlag3)) {
                                 begin = std::chrono::steady_clock::now();
@@ -804,7 +805,7 @@ void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START
             printf("\tNum of Hashes:%i\n", H);
             for (int L = 0; L < NUM_LOOPS; L += LOOP_STEP) {
                 printf("\t\tNum of Loops:%i\n", L);
-                
+
                 for (int S = 0; S < NUM_SAMPLES; S++) {
                     //printf("\t\t'tSample Number:%i\n", S);
                     uint64_cu* vals = generateRandomSet(size, std::pow(2, 32));

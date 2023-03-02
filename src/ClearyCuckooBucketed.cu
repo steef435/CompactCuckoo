@@ -95,7 +95,7 @@ struct bucket {
         if (key_exists && (tile_.thread_rank() != realAdd)) {
             ptr_[tIndex].setO(false, subIndex);
         }
-        
+
 
         return;
     }
@@ -310,7 +310,7 @@ class ClearyCuckooBucketed: HashTable{
                 if (!wasoccupied) {
                     //printf("%i: \t\tInsert Success\n", getThreadID());
                     return INSERTED;
-                    
+
                 }
 
                 //Otherwise rebuild the original key
@@ -434,11 +434,9 @@ class ClearyCuckooBucketed: HashTable{
 #endif
             //printf("\tInit Entries\n");
             //Init table entries
-            for(int i=0; i<B; i++){
-                for (int j = 0; j < Bs; j++) {
+            for(int i=0; i<numEntries; i++){
                     //printf("\t\tEntry %i %i\n",i, j);
-                    new (&T[i*Bs + j]) ClearyCuckooEntryCompact<addtype, remtype>(tile_sz);
-                }
+                new (&T[i]) ClearyCuckooEntryCompact<addtype, remtype>(tile_sz);
             }
 
             //Default MAXLOOPS Value
@@ -704,7 +702,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
         }
 
         //printf("Inserting: %" PRIu64 "\n", ins);
-        
+
         if (H->insert(ins, realVal) == FAILED) {
             if (failFlag != nullptr && realVal) {
                 (*failFlag) = true;
