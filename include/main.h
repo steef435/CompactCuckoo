@@ -133,3 +133,8 @@ GPUHEADER
 void boundaryAssert(int i, addtype min, addtype max) {
     assert(min <= i && i <= max);
 }
+
+GPUHEADER_D
+int calcBlockSize(int N, int Bs) {
+    return max(Bs, Bs * ((int)ceilf(N / Bs)));
+}

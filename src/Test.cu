@@ -8,10 +8,11 @@
 #include "ClearyCuckoo.cu"
 #include "Cleary.cu"
 #include "ClearyCuckooBucketed.cu"
+#include "CuckooBucketed.cu"
 #include "Cuckoo.cu"
 #endif
 
-bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc_bool, bool b_bool, bool cuc_bool) {
+bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc_bool, bool b_bool, bool cb_bool, bool cuc_bool) {
     bool testres = true;
     printf("TestRes\n");
     //Init Var
@@ -158,7 +159,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #endif
     }
 
-    if (b_bool) {
+    if (cb_bool) {
         //Create Table 2
         printf("Creating Bucketed\n");
 #ifdef GPUCODE
@@ -290,6 +291,77 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #endif
     }
 
+   
+
+    if (b_bool) {
+        //Create Table 2
+        printf("Creating Bucketed\n");
+#ifdef GPUCODE
+        CuckooBucketed<TILESIZE>* b;
+        gpuErrchk(cudaMallocManaged((void**)&b, sizeof(CuckooBucketed<TILESIZE>))); //TODO
+        new (b) CuckooBucketed<TILESIZE>(tablesize, 3);
+#else
+        CuckooBucketed* b = new CuckooBucketed<TILESIZE>(tablesize, 3);
+#endif
+
+        printf("Filling Bucketed\n");
+
+#ifdef GPUCODE
+        fillCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+
+        //b->print();
+
+        dupCheckCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+#else
+        std::vector<std::thread> vecThread2(numThreads);
+
+        for (int i = 0; i < numThreads; i++) {
+            vecThread2.at(i) = std::thread(fillCuckooBucketed<TILESIZE>, N, vals, b, 0, i, numThreads);
+        }
+
+        //Join Threads
+        for (int i = 0; i < numThreads; i++) {
+            vecThread2.at(i).join();
+        }
+#endif
+
+        printf("Devices Synced\n");
+        b->print();
+
+        //Checking
+        res[0] = true;
+        printf("Checking Bucketed\n");
+
+#ifdef GPUCODE
+        checkCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b, res);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+#else
+        checkCuckooBucketed<TILESIZE>(N, vals, b, res);
+#endif
+
+        printf("Devices Synced\n");
+        if (res[0]) {
+            printf("All still in the table\n");
+        }
+        else {
+            testres = false;
+            printf("!---------------------Vals Missing---------------------!\n");
+        }
+
+#ifdef GPUCODE
+        gpuErrchk(cudaFree(b));
+#else
+        delete b;
+#endif
+    }
+
+
+
     //Destroy Vars
 #ifdef GPUCODE
     gpuErrchk(cudaFree(res));
@@ -374,7 +446,7 @@ void entryTest() {
 
 
 
-void TableTest(int N, int T, int L, bool c, bool cc, bool b, bool cuc) {
+void TableTest(int N, int T, int L, bool c, bool cc, bool b, bool cb, bool cuc) {
     bool res = true;
 
     const int addressSize = N;
@@ -391,7 +463,7 @@ void TableTest(int N, int T, int L, bool c, bool cc, bool b, bool cuc) {
         printf("                              BASIC TEST                              \n");
         printf("==============================================================================================================\n");
         uint64_cu* testset1 = generateRandomSet(testSize, std::pow(2, 29));
-        if (!TestFill(testSize, T, addressSize, testset1, c, cc, b, cuc)) {
+        if (!TestFill(testSize, T, addressSize, testset1, c, cc, b, cb, cuc)) {
             res = false;
         }
 #ifdef GPUCODE
@@ -404,7 +476,7 @@ void TableTest(int N, int T, int L, bool c, bool cc, bool b, bool cuc) {
         printf("                            COLLISION TEST                            \n");
         printf("==============================================================================================================\n");
         uint64_cu* testset2 = generateCollidingSet(testSize, addressSize);
-        if (!TestFill(testSize, T, addressSize, testset2, c, cc, b, cuc)) {
+        if (!TestFill(testSize, T, addressSize, testset2, c, cc, b, cb, cuc)) {
             res = false;
         }
 #ifdef GPUCODE
@@ -417,7 +489,7 @@ void TableTest(int N, int T, int L, bool c, bool cc, bool b, bool cuc) {
         printf("                            DUP TEST                            \n");
         printf("==============================================================================================================\n");
         uint64_cu* testset3 = generateDuplicateSet(testSize, testSize/2);
-        if (!TestFill(testSize, T, addressSize, testset3, c, cc, b, cuc)) {
+        if (!TestFill(testSize, T, addressSize, testset3, c, cc, b, cb, cuc)) {
             res = false;
         }
 #ifdef GPUCODE

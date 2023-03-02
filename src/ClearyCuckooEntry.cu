@@ -13,8 +13,8 @@ template <class ADD, class REM>
 class ClearyCuckooEntry : public TableEntry <ADD, REM> {
 
 private:
-    int Rindex[2] = { 1, 56 };
-    int Hindex[2] = { 57, 62 };
+    int Rindex[2] = { 1, 58 };
+    int Hindex[2] = { 59, 62 };
     int Oindex[2] = { 63, 63 };
 
 public:

@@ -38,6 +38,7 @@
 #include "ClearyCuckoo.cu"
 #include "Cleary.cu"
 #include "ClearyCuckooBucketed.cu"
+#include "CuckooBucketed.cu"
 #include "Cuckoo.cu"
 #endif
 
@@ -129,6 +130,7 @@ int main(int argc, char* argv[])
             bool c = false;
             bool cc = false;
             bool b = false;
+            bool cb = false;
             bool cuc = false;
 
             if (argc < 6) {
@@ -142,6 +144,7 @@ int main(int argc, char* argv[])
             cc = s == "cc";
             b = s == "b";
             cuc = s == "cuc";
+            cuc = s == "cb";
             if (s == "all") {
                 c = true;
                 cc = true;
@@ -149,7 +152,7 @@ int main(int argc, char* argv[])
                 cuc = true;
             }
 
-            TableTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), c, cc, b, cuc);
+            TableTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), c, cc, b, cb, cuc);
         }
         else if (strcmp(argv[2], "NUMGEN") == 0) {
             if (argc < 7) {
