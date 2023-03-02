@@ -39,6 +39,7 @@ const int HFSIZE_BUCKET = 32;
 * 
 * */
 
+const int TILESIZE_CBUC = 32;
 const int TILESIZE = 4;
 
 enum result {

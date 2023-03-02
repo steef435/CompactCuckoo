@@ -577,7 +577,7 @@ class Cleary : public HashTable{
 
 //Insert list of vals into table
 GPUHEADER_G
-void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin = 0, int id = 0, int s = 1)
+void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin = 0, int* count = nullptr, int id = 0, int s = 1)
 {
 #ifdef GPUCODE
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -586,11 +586,21 @@ void fillCleary(int N, uint64_cu* vals, Cleary* H, addtype begin = 0, int id = 0
     int index = id;
     int stride = s;
 #endif
+
+    int localCounter = 0;
+
     for (int i = index + begin; i < N + begin; i += stride) {
         //printf("\t\t\t\t\t\t\t%i\n", i);
-        if (H->insert(vals[i]) == FAILED) {
+        result res = H->insert(vals[i]);
+        if (res == INSERTED) {
+            localCounter++;
+        }
+        if (res == FAILED) {
             break;
         }
+    }
+    if (count != nullptr) {
+        atomicAdd(count, localCounter);
     }
 }
 

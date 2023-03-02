@@ -275,9 +275,11 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
     //Use file data
     uint64_cu* loadedvals = nullptr;
+    int loadedsize = 0;
     if (source != "") {
         //printf("Reading Data\n");
-        loadedvals = readCSV(source);
+        loadedvals = readCSV(source, &loadedsize);
+        
     }
 
     myfile << "tablesize,numthreads,collision_percentage,collision_depth,samples,type,interval,time,test\n";
@@ -291,6 +293,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
         int size = std::pow(2, N);
         int setsize = (int)(size / INTERVAL);
+        if (loadedvals != nullptr) {
+            setsize = (int)(std::min(loadedsize, size) / INTERVAL);
+            //printf("SetSize %i\n", setsize);
+        }
         int lookupSize = size / 4;
 
         printf("Table Size:%i (%i)\n", N, size);
@@ -337,6 +343,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         gpuErrchk(cudaMallocManaged((void**)&failFlag, sizeof(int)));
                         (*failFlag) = false;
 
+                        int* tableCount;
+                        gpuErrchk(cudaMallocManaged((void**)&tableCount, sizeof(int)));
+
+                        (*tableCount) = 0;
 
                         int* hs = cc->getHashlistCopy();
                         int H = cc->getHashNum();
@@ -351,7 +361,9 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             vals = loadedvals;
                             vals32 = loadedvals;
                         }
+
                         delete[] hs;
+
                         //printf("Numsgenned\n");
 
                         //printf("vals:\n");
@@ -386,7 +398,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                                 for (int k = 0; k < setsize; k+= insertionSize) {
                                     //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
-                                    fillClearyCuckoo << <numBlocks, numThreads >> > (insertionSize, vals, cc, failFlag, setsize * (j - WARMUP) + k);
+                                    fillClearyCuckoo << <numBlocks, numThreads >> > (insertionSize, vals, cc, failFlag, setsize * (j - WARMUP) + k, tableCount);
                                     gpuErrchk(cudaPeekAtLastError());
                                     gpuErrchk(cudaDeviceSynchronize());
 
@@ -398,11 +410,11 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag) {
                                 //printf("\t\t\t\t\t\tFailed\n");
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (j - WARMUP) << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (*tableCount) << "," << -1 << ",INS,\n";
                             }
 
                             //Lookup Time Test
@@ -415,7 +427,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                             //cc->print();
@@ -437,6 +449,8 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
                             new (c) Cleary(N, numThreads);
 
+                            (*tableCount) = 0;
+
 
                             //Loop over intervals
                             for (int j = 0; j < INTERVAL + WARMUP; j++) {
@@ -447,13 +461,13 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 if (j >= WARMUP) {
                                     begin = std::chrono::steady_clock::now();
 
-                                    fillCleary << <numBlocks, numThreads >> > (setsize, vals, c, setsize * (j - WARMUP));
+                                    fillCleary << <numBlocks, numThreads >> > (setsize, vals, c, setsize * (j - WARMUP), tableCount);
                                     gpuErrchk(cudaPeekAtLastError());
                                     gpuErrchk(cudaDeviceSynchronize());
 
                                     //End the timer
                                     end = std::chrono::steady_clock::now();
-                                    myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",INS,\n";
+                                    myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cle," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",INS,\n";
                                 }
 
                                 //Lookup
@@ -466,7 +480,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                     //End the timer
                                     end = std::chrono::steady_clock::now();
 
-                                    myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cle," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                    myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cle," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                                 }
 
                             }
@@ -487,7 +501,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         gpuErrchk(cudaMallocManaged((void**)&failFlag2, sizeof(int)));
                         (*failFlag2) = false;
 
-
+                        (*tableCount) = 0;
 
                         //Warmup
                         //printf("Warmup\n");
@@ -517,7 +531,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                                 for (int k = 0; k < setsize; k += insertionSize) {
                                     //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
-                                    fillCuckoo << <numBlocks, numThreads >> > (insertionSize, vals, cuc, failFlag2, setsize* (j - WARMUP) + k);
+                                    fillCuckoo << <numBlocks, numThreads >> > (insertionSize, vals, cuc, failFlag2, setsize* (j - WARMUP) + k, tableCount);
                                     gpuErrchk(cudaPeekAtLastError());
                                     gpuErrchk(cudaDeviceSynchronize());
 
@@ -529,10 +543,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag2) {
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (*tableCount) << "," << -1 << ",INS,\n";
                             }
 
                             //Lookup Time Test
@@ -545,7 +559,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                         }
@@ -566,6 +580,84 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         int* failFlag3;
                         gpuErrchk(cudaMallocManaged((void**)&failFlag3, sizeof(int)));
                         (*failFlag3) = false;
+                        //printf("\t\t\t\t\t\tInitDone\n");
+
+                        (*tableCount) = 0;
+
+                        //Warmup
+                        //printf("Warmup\n");
+                        readList(vals, size, 20);
+                        //ccb->readEverything(size * 50);
+                        warmupThreads(numThreads, vals, size, 20);
+
+
+                        //printf("Reading\n");
+                        //Loop over intervals
+                        //printf("\t\t\t\t\t\tStartingLoops\n");
+                        for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                            //Fill the table
+                            std::chrono::steady_clock::time_point begin;
+                            std::chrono::steady_clock::time_point end;
+
+                            if (j < WARMUP) {
+                                //cc->readEverything(20);
+                            }
+
+                            if (j >= WARMUP && !(*failFlag3)) {
+                                begin = std::chrono::steady_clock::now();
+
+                                //Do insertion iteration
+                                int insertionSize = numThreads;
+                                insertionSize = std::min((int)(size / INTERVAL), insertionSize);
+                                //printf("\t\t\t\t\t\tInsertionSize: %i\n", insertionSize);
+
+                                for (int k = 0; k < setsize; k += insertionSize) {
+                                    //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
+                                    fillClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (insertionSize, vals32, ccb, failFlag3, setsize * (j - WARMUP) + k, tableCount);
+                                    gpuErrchk(cudaPeekAtLastError());
+                                    gpuErrchk(cudaDeviceSynchronize());
+
+                                    dupCheckClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (insertionSize, vals32, ccb, setsize * (j - WARMUP) + k);
+                                    gpuErrchk(cudaPeekAtLastError());
+                                    gpuErrchk(cudaDeviceSynchronize());
+                                }
+
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << numThreads*numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                            }
+                            if (*failFlag3) {
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (*tableCount) << "," << -1 << ",INS,\n";
+                            }
+                            //printf("\t\t\t\t\t\tLookup\n");
+                            //Lookup Time Test
+                            if (j >= WARMUP && !(*failFlag3)) {
+                                begin = std::chrono::steady_clock::now();
+                                lookupClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals32, ccb);
+                                gpuErrchk(cudaPeekAtLastError());
+                                gpuErrchk(cudaDeviceSynchronize());
+
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                            }
+
+                        }
+
+                        /***********************************************************************************************
+                        *
+                        * CuckooBucketed Speed Test
+                        *
+                        ***********************************************************************************************/
+                        printf("\t\t\t\t\tCuckooBucketed\n");
+                        CuckooBucketed<TILESIZE_CBUC >* b;
+                        gpuErrchk(cudaMallocManaged((void**)&b, sizeof(CuckooBucketed<TILESIZE_CBUC >)));
+                        new (b) CuckooBucketed<TILESIZE_CBUC >(N, 3);
+                        int* failFlag4;
+                        gpuErrchk(cudaMallocManaged((void**)&failFlag4, sizeof(int)));
+                        (*failFlag4) = false;
                         //printf("\t\t\t\t\t\tInitDone\n");
 
                         //Warmup
@@ -597,11 +689,11 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                                 for (int k = 0; k < setsize; k += insertionSize) {
                                     //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
-                                    fillClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (insertionSize, vals32, ccb, failFlag3, setsize * (j - WARMUP) + k);
+                                    fillCuckooBucketed<TILESIZE_CBUC> << <numBlocks, numThreads >> > (insertionSize, vals32, b, failFlag3, setsize * (j - WARMUP) + k);
                                     gpuErrchk(cudaPeekAtLastError());
                                     gpuErrchk(cudaDeviceSynchronize());
 
-                                    dupCheckClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (insertionSize, vals32, ccb, setsize * (j - WARMUP) + k);
+                                    dupCheckCuckooBucketed<TILESIZE_CBUC> << <numBlocks, numThreads >> > (insertionSize, vals32, b, setsize * (j - WARMUP) + k);
                                     gpuErrchk(cudaPeekAtLastError());
                                     gpuErrchk(cudaDeviceSynchronize());
                                 }
@@ -609,23 +701,23 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads*numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",buc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag3) {
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (j - WARMUP) << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",buc," << (j - WARMUP) << "," << -1 << ",INS,\n";
                             }
                             //printf("\t\t\t\t\t\tLookup\n");
                             //Lookup Time Test
                             if (j >= WARMUP && !(*failFlag3)) {
                                 begin = std::chrono::steady_clock::now();
-                                lookupClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals32, ccb);
+                                lookupCuckooBucketed<TILESIZE_CBUC> << <numBlocks, numThreads >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals32, b);
                                 gpuErrchk(cudaPeekAtLastError());
                                 gpuErrchk(cudaDeviceSynchronize());
 
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                         }
@@ -633,8 +725,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //ccb->print();
 
                         //printf("Delete CC Vars\n");
-                        gpuErrchk(cudaFree(ccb));
-                        gpuErrchk(cudaFree(failFlag3));
+                        gpuErrchk(cudaFree(b));
+                        gpuErrchk(cudaFree(failFlag4));
+                        gpuErrchk(cudaFree(tableCount));
+                        
 
                         //Free any randomly generated datasets
                         if (loadedvals == nullptr) {

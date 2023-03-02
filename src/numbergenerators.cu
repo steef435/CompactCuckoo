@@ -322,7 +322,7 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
 }
 
 //Read CSV
-uint64_cu* readCSV(std::string filename) {
+uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
     std::vector<uint64_cu> vec;
     printf("Reading CSV\n");
     std::ifstream file;
@@ -359,6 +359,10 @@ uint64_cu* readCSV(std::string filename) {
     file.close();
 
     int size = vec.size();
+    printf("Loaded Size %i\n", size);
+    if (setsize != nullptr) {
+        (*setsize) = size;
+    }
 
 #ifdef GPUCODE
     uint64_cu* res;

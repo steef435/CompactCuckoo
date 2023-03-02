@@ -460,7 +460,7 @@ public:
 //Method to fill ClearyCuckoo table
 GPUHEADER_G
 #ifdef GPUCODE
-void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, int* failFlag = nullptr, addtype begin = 0, int id = 0, int s = 1)
+void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, int* failFlag = nullptr, addtype begin = 0, int* count = nullptr, int id = 0, int s = 1)
 #else
 void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, SpinBarrier* barrier, int* failFlag = nullptr, addtype begin = 0, int id = 0, int s = 1)
 #endif
@@ -472,27 +472,32 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, SpinBarrier* barr
     int index = id;
     int stride = s;
 #endif
+
+    int localCounter = 0;
+
     //printf("Thread %i Starting\n", getThreadID());
     for (int i = index + begin; i < N + begin; i += stride) {
         //printf("\t\t\t\t\t\t\t%i\n", i);
-#ifdef GPUCODE
-        if (H->insert(vals[i]) == FAILED) {
-#else
-        if (!(H->insert(vals[i], barrier))) {
-#endif
+
+        result res = H->insert(vals[i]);
+        if (res == INSERTED) {
+            localCounter++;
+        }
+        if (res == FAILED) {
             if (failFlag != nullptr) {
                 (*failFlag) = true;
             }
             break;
         }
-        }
-    //printf("Insertions %i Over\n", getThreadID());
-#ifdef DUPCHECK
-#ifndef GPUCODE
-    barrier->signalThreadStop();
-#endif
-#endif
+
+        //printf("Insertions %i Over\n", getThreadID());
+
     }
+
+    if (count != nullptr) {
+        atomicAdd(count, localCounter);
+    }
+}
 
 
 #ifdef GPUCODE

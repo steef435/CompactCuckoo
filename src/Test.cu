@@ -297,30 +297,30 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         //Create Table 2
         printf("Creating Bucketed\n");
 #ifdef GPUCODE
-        CuckooBucketed<TILESIZE>* b;
-        gpuErrchk(cudaMallocManaged((void**)&b, sizeof(CuckooBucketed<TILESIZE>))); //TODO
-        new (b) CuckooBucketed<TILESIZE>(tablesize, 3);
+        CuckooBucketed<TILESIZE_CBUC >* b;
+        gpuErrchk(cudaMallocManaged((void**)&b, sizeof(CuckooBucketed<TILESIZE_CBUC >))); //TODO
+        new (b) CuckooBucketed<TILESIZE_CBUC >(tablesize, 3);
 #else
-        CuckooBucketed* b = new CuckooBucketed<TILESIZE>(tablesize, 3);
+        CuckooBucketed* b = new CuckooBucketed<TILESIZE_CBUC >(tablesize, 3);
 #endif
 
         printf("Filling Bucketed\n");
 
 #ifdef GPUCODE
-        fillCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b);
+        fillCuckooBucketed<TILESIZE_CBUC> << <numBlocks, numThreads >> > (N, vals, b);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
         //b->print();
 
-        dupCheckCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b);
+        dupCheckCuckooBucketed<TILESIZE_CBUC> << <numBlocks, numThreads >> > (N, vals, b);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
         std::vector<std::thread> vecThread2(numThreads);
 
         for (int i = 0; i < numThreads; i++) {
-            vecThread2.at(i) = std::thread(fillCuckooBucketed<TILESIZE>, N, vals, b, 0, i, numThreads);
+            vecThread2.at(i) = std::thread(fillCuckooBucketed<TILESIZE_CBUC>, N, vals, b, 0, i, numThreads);
         }
 
         //Join Threads
@@ -337,11 +337,11 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         printf("Checking Bucketed\n");
 
 #ifdef GPUCODE
-        checkCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b, res);
+        checkCuckooBucketed<TILESIZE_CBUC> << <numBlocks, numThreads >> > (N, vals, b, res);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 #else
-        checkCuckooBucketed<TILESIZE>(N, vals, b, res);
+        checkCuckooBucketed<TILESIZE_CBUC>(N, vals, b, res);
 #endif
 
         printf("Devices Synced\n");

@@ -673,7 +673,7 @@ class ClearyCuckooBucketed: HashTable{
 template <int tile_sz>
 GPUHEADER_G
 #ifdef GPUCODE
-void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_sz>* H, int* failFlag=nullptr, addtype begin = 0, int id = 0, int s = 1)
+void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_sz>* H, int* failFlag=nullptr, addtype begin = 0, int* count = nullptr, int id = 0, int s = 1)
 #else
 void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_sz>* H, SpinBarrier* barrier, int* failFlag = nullptr, addtype begin = 0, int id = 0, int s = 1)
 #endif
@@ -687,6 +687,7 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
 #endif
 
     int max = calcBlockSize(N, H->getBucketSize());
+    int localCounter = 0;
 
     //printf("Thread %i Starting - max %i\n", getThreadID(), max);
     for (int i = index + begin; i < max + begin; i += stride) {
@@ -700,11 +701,20 @@ void fillClearyCuckooBucketed(int N, uint64_cu* vals, ClearyCuckooBucketed<tile_
 
         //printf("Inserting: %" PRIu64 "\n", ins);
 
-        if (H->insert(ins, realVal) == FAILED) {
+        result res = H->insert(ins, realVal);
+        if (res == INSERTED) {
+            localCounter++;
+        }
+        if (res == FAILED) {
             if (failFlag != nullptr && realVal) {
                 (*failFlag) = true;
             }
         }
+        
+    }
+
+    if (count != nullptr) {
+        atomicAdd(count, localCounter);
     }
 }
 
