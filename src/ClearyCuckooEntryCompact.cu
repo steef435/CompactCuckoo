@@ -89,7 +89,7 @@ public:
         ClearyCuckooEntryCompact() noexcept : valSize(ENTRYSIZE) { }
 
     GPUHEADER_D
-        ClearyCuckooEntryCompact<ADD, REM> tableSwap(ClearyCuckooEntryCompact<ADD, REM>* x, int locIndexTable, int locIndexFrom) {
+        void tableSwap(ClearyCuckooEntryCompact<ADD, REM>* x, int locIndexTable, int locIndexFrom) {
         //printf("%i: \t\t\t\t\t\tTABLESWAP: swap %i %i\n", getThreadID(), locIndexTable, locIndexFrom);
         //Atomically set this TableEntry<ADD, REM>::value to the new one
         while (true) {

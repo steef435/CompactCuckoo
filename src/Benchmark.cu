@@ -296,8 +296,8 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
         }
 
         //Number of Threads
-        int minThreads = std::log2(TILESIZE);
-        for (int T = minThreads; T < minThreads+ NUM_THREADS; T++) {
+        int minThreads = std::max((int) std::log2(TILESIZE), N-10 );
+        for (int T = minThreads; T < std::min(N, minThreads+ NUM_THREADS); T++) {
             int MAX_BLOCK_SIZE = 8;
             int numThreads = 1;
             int numBlocks = 1;
@@ -338,8 +338,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         int H = cc->getHashNum();
 
                         uint64_cu* vals;
+                        uint64_cu* vals32;
                         if (loadedvals == nullptr) {
                             vals = generateCollisionSet(size, N, H, hs, P, D);
+                            vals32 = generateRandomSet(size, std::pow(2, 32));
                         }
                         else {
                             vals = loadedvals;
@@ -589,11 +591,11 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                                 for (int k = 0; k < setsize; k += insertionSize) {
                                     //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
-                                    fillClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (insertionSize, vals, ccb, failFlag3, setsize * (j - WARMUP) + k);
+                                    fillClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (insertionSize, vals32, ccb, failFlag3, setsize * (j - WARMUP) + k);
                                     gpuErrchk(cudaPeekAtLastError());
                                     gpuErrchk(cudaDeviceSynchronize());
 
-                                    dupCheckClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (insertionSize, vals, ccb, setsize * (j - WARMUP) + k);
+                                    dupCheckClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (insertionSize, vals32, ccb, setsize * (j - WARMUP) + k);
                                     gpuErrchk(cudaPeekAtLastError());
                                     gpuErrchk(cudaDeviceSynchronize());
                                 }
@@ -610,7 +612,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             //Lookup Time Test
                             if (j >= WARMUP && !(*failFlag3)) {
                                 begin = std::chrono::steady_clock::now();
-                                lookupClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals, ccb);
+                                lookupClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals32, ccb);
                                 gpuErrchk(cudaPeekAtLastError());
                                 gpuErrchk(cudaDeviceSynchronize());
 
@@ -631,6 +633,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Free any randomly generated datasets
                         if (loadedvals == nullptr) {
                             gpuErrchk(cudaFree(vals));
+                            gpuErrchk(cudaFree(vals32));
                         }
 
                     }
@@ -804,7 +807,7 @@ void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START
                 
                 for (int S = 0; S < NUM_SAMPLES; S++) {
                     //printf("\t\t'tSample Number:%i\n", S);
-                    uint64_cu* vals = generateRandomSet(size);
+                    uint64_cu* vals = generateRandomSet(size, std::pow(2, 32));
 
                     //Init Cleary Cuckoo
                     //printf("INit Table\n");

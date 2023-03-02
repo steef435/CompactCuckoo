@@ -18,6 +18,7 @@ using hashtype = uint64_cu;
 using keytype = uint64_cu;
 const int ENTRYSIZE = 64;
 
+//HASH FUNCTION SIZE
 const int HFSIZE = 64;
 const int HFSIZE_BUCKET = 32;
 
@@ -38,7 +39,7 @@ const int HFSIZE_BUCKET = 32;
 * 
 * */
 
-const int TILESIZE = 2;
+const int TILESIZE = 4;
 
 enum result {
     INSERTED,
