@@ -210,6 +210,8 @@ private:
 
             c++;
         }
+
+        return FAILED;
     }
 
     //Lookup internal method
