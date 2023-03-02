@@ -30,9 +30,9 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #ifdef GPUCODE
         ClearyCuckoo* cc;
         gpuErrchk(cudaMallocManaged((void**)&cc, sizeof(ClearyCuckoo)));
-        new (cc) ClearyCuckoo(tablesize, 16, 64);
+        new (cc) ClearyCuckoo(tablesize, 16);
 #else
-        ClearyCuckoo* cc = new ClearyCuckoo(tablesize, 16, 64);
+        ClearyCuckoo* cc = new ClearyCuckoo(tablesize, 16);
 #endif
 
         printf("Filling ClearyCuckoo\n");
@@ -390,7 +390,7 @@ void TableTest(int N, int T, int L, bool c, bool cc, bool b, bool cuc) {
         printf("==============================================================================================================\n");
         printf("                              BASIC TEST                              \n");
         printf("==============================================================================================================\n");
-        uint64_cu* testset1 = generateRandomSet(testSize, std::pow(2, 50));
+        uint64_cu* testset1 = generateRandomSet(testSize, std::pow(2, 29));
         if (!TestFill(testSize, T, addressSize, testset1, c, cc, b, cuc)) {
             res = false;
         }

@@ -89,8 +89,8 @@ public:
         ClearyCuckooEntryCompact() noexcept : valSize(ENTRYSIZE) { }
 
     GPUHEADER_D
-        ClearyCuckooEntryCompact<ADD, REM> tableSwap(ClearyCuckooEntryCompact<ADD, REM>* x, int locIndexTable, int locIndexTo) {
-        //printf("TABLESWAP: swap %i %i\n", locIndexTable, locIndexTo);
+        ClearyCuckooEntryCompact<ADD, REM> tableSwap(ClearyCuckooEntryCompact<ADD, REM>* x, int locIndexTable, int locIndexFrom) {
+        //printf("%i: \t\t\t\t\t\tTABLESWAP: swap %i %i\n", getThreadID(), locIndexTable, locIndexFrom);
         //Atomically set this TableEntry<ADD, REM>::value to the new one
         while (true) {
             //Store oldval
@@ -102,11 +102,11 @@ public:
             //printf("%i: \t\t\t\t\t\ttableSubVal: %" PRIu64 " \n", getThreadID(), tableSubVal);
             uint64_cu temp = x->getValue();
             //printf("%i: \t\t\t\t\t\ttemp: %" PRIu64 " \n", getThreadID(), temp);
-            uint64_cu newSubVal = getSubVal(locIndexTo, &temp);
+            uint64_cu newSubVal = getSubVal(locIndexFrom, &temp);
             //printf("%i: \t\t\t\t\t\tnewSubVal: %" PRIu64 " \n", getThreadID(), newSubVal);
 
             //Insert the new value in the table entry copy
-            uint64_cu newTable = setValBits(indexCalc(locIndexTo, Rindex[0]), indexCalc(locIndexTo, Oindex[1]), newSubVal, &table);
+            uint64_cu newTable = setValBits(indexCalc(locIndexTable, Rindex[0]), indexCalc(locIndexTable, Oindex[1]), newSubVal, &table);
             //printf("%i: \t\t\t\t\t\tnewTable: %" PRIu64 " \n", getThreadID(), newTable);
 
             //Atomically exchange new version
@@ -114,9 +114,9 @@ public:
 
             //Make sure the value hasn't changed in the meantime
             if (res == old_val) {
-                //printf("%i: \t\t\t\t\t\tSWAP DONE: Table-%" PRIu64 " Old-%" PRIu64 " \n", getThreadID(), TableEntry<ADD, REM>::getValue(), res);
+                //printf("%i: \t\t\t\t\t\tSWAP DONE: Table-%" PRIu64 " Old-%" PRIu64 " OldSubVal-%" PRIu64 " \n", getThreadID(), TableEntry<ADD, REM>::getValue(), res, tableSubVal);
                 //Put the from entry into the subLoc in the to entry
-                setSubVal(tableSubVal, locIndexTo, x->getValPtr());
+                setSubVal(tableSubVal, locIndexFrom, x->getValPtr());
                 return;
             }
         }
@@ -167,7 +167,7 @@ public:
 
     GPUHEADER
         uint64_cu getSubVal(int locIndex, uint64_cu* loc) {
-        //printf("\tGet Sub O %i %i (%i %i)\n", indexCalc(locIndex, Rindex[0]), indexCalc(locIndex, Oindex[1]), Rindex[0], Oindex[1]);
+        //printf("\t\t\t\t\t\t\tGet SubVal %i %i (%i %i)\n", indexCalc(locIndex, Rindex[0]), indexCalc(locIndex, Oindex[1]), Rindex[0], Oindex[1]);
         return (uint64_cu)TableEntry<ADD, REM>::getBits(indexCalc(locIndex, Rindex[0]), indexCalc(locIndex, Oindex[1]), loc);
     }
 
@@ -184,7 +184,7 @@ public:
     GPUHEADER
     void print() {
 #ifdef GPUCODE
-        //printf("%" PRIu64  "\n", TableEntry<ADD, REM>::getValue());
+        printf("%" PRIu64  "\n", TableEntry<ADD, REM>::getValue());
 #else
         //printf("%" PRIu64  "\n", TableEntry<ADD, REM>::val.load());
 #endif

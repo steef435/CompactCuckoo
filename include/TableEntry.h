@@ -70,9 +70,9 @@ protected:
             uint64_cu newval = setValBits(start, end, ins, loc);
 
             //In devices, atomically exchange
-            printf("\t\t\tSetBits AtomicExch\n");
+            //printf("\t\t\tSetBits AtomicExch\n");
             uint64_cu res = atomicCAS(loc, oldval, newval);
-            printf("\t\t\tAtomicDone\n");
+            //printf("\t\t\tAtomicDone\n");
             //Make sure the value hasn't changed in the meantime
             if (res == oldval) {
                 return;

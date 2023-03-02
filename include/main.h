@@ -17,9 +17,9 @@ using remtype = uint64_cu;
 using hashtype = uint64_cu;
 using keytype = uint64_cu;
 const int ENTRYSIZE = 64;
-const int DATASIZE = 32;
 
 const int HFSIZE = 64;
+const int HFSIZE_BUCKET = 32;
 
 /**
 *
@@ -38,7 +38,7 @@ const int HFSIZE = 64;
 * 
 * */
 
-const int TILESIZE = 1;
+const int TILESIZE = 2;
 
 enum result {
     INSERTED,

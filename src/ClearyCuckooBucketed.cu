@@ -274,7 +274,7 @@ class ClearyCuckooBucketed: HashTable{
             //printf("%i: \t\t\tEntering Loop %i\n", getThreadID(), MAXLOOPS);
             while (c < MAXLOOPS) {
                 //Get the add/rem of k
-                hashtype hashed1 = RHASH(HFSIZE, hash, x);
+                hashtype hashed1 = RHASH(HFSIZE_BUCKET, hash, x);
                 //printf("%i: \t\t\tHASHED %" PRIu64 "\n", getThreadID(), hashed1);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
@@ -287,7 +287,7 @@ class ClearyCuckooBucketed: HashTable{
                 addtype bAdd;
 
                 if (load == Bs) {
-                    bAdd = (addtype) (RHASH(HFSIZE, 0, rem) % Bs); //select some location within the table
+                    bAdd = (addtype) (RHASH(HFSIZE_BUCKET, 0, rem) % Bs); //select some location within the table
                     //printf("%i: \t\t\tRandom Add at %" PRIu32 "\n", getThreadID(), bAdd);
                 }
                 else {
@@ -315,7 +315,7 @@ class ClearyCuckooBucketed: HashTable{
 
                 //Otherwise rebuild the original key
                 hashtype h_old = reformKey(add, temp, AS);
-                x = RHASH_INVERSE(HFSIZE, oldhash, h_old);
+                x = RHASH_INVERSE(HFSIZE_BUCKET, oldhash, h_old);
 
                 //printf("%i: \t\t\tRebuilt key:%" PRIu64 "\n", getThreadID(), x);
 
@@ -339,7 +339,7 @@ class ClearyCuckooBucketed: HashTable{
 
             //Iterate over Hash Functions
             for (int i = 0; i < hn; i++) {
-                uint64_cu hashed1 = RHASH(HFSIZE, hashlist[i], k);
+                uint64_cu hashed1 = RHASH(HFSIZE_BUCKET, hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
 
@@ -355,7 +355,7 @@ class ClearyCuckooBucketed: HashTable{
             //printf("%i: \t\tLookup\n", getThreadID());
             //Iterate over hash functions
             for (int i = 0; i < hn; i++) {
-                uint64_cu hashed1 = RHASH(HFSIZE, hashlist[i], k);
+                uint64_cu hashed1 = RHASH(HFSIZE_BUCKET, hashlist[i], k);
                 addtype add = getAdd(hashed1, AS);
                 remtype rem = getRem(hashed1, AS);
 
@@ -394,7 +394,7 @@ class ClearyCuckooBucketed: HashTable{
                     remtype rem = T[real_add].getR(subIndex);
                     int label = T[real_add].getH(subIndex);
                     hashtype h = reformKey(i, rem, AS);
-                    keytype k = RHASH_INVERSE(HFSIZE, label, h);
+                    keytype k = RHASH_INVERSE(HFSIZE_BUCKET, label, h);
 
                     printf("|%-10i|%-16" PRIu64 "|%-6i|%-20" PRIu64 "|%-6i|\n", j, T[real_add].getR(subIndex), T[real_add].getO(subIndex), k, T[real_add].getH(subIndex));
                 }
@@ -601,7 +601,7 @@ class ClearyCuckooBucketed: HashTable{
 
                 if (T[real_add].getO(subIndex)) {
                     hashtype h_old = reformKey(i, T[real_add].getR(subIndex), AS);
-                    keytype x = RHASH_INVERSE(HFSIZE, T[real_add].getH(subIndex), h_old);
+                    keytype x = RHASH_INVERSE(HFSIZE_BUCKET, T[real_add].getH(subIndex), h_old);
                     list.push_back(x);
                 }
             }

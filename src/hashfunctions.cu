@@ -1772,6 +1772,8 @@ inline __host__ __device__ nodetype RHASH32(uint8_t id, nodetype node) {
 		node1 = mult_32(node1, 265632916863469185L);
 		node1 ^= rshft(node1, 19);
 		break;
+	default:
+		return 0;
 	}
 	return node1;
 }
@@ -2231,8 +2233,9 @@ inline __host__ __device__ nodetype RHASH32_INVERSE(uint8_t id, nodetype node) {
 		node1 = (node2 ^ lshft_32(node1, 24));
 		node1 = (node2 ^ lshft_32(node1, 24));
 		node1 &= 0xffffffff;
-
 		break;
+	default:
+		node1 = 0;
 	}
 	return node1;
 }
@@ -2243,6 +2246,8 @@ inline __host__ __device__ nodetype RHASH(int SIZE, uint8_t id, nodetype node) {
 		return RHASH64(id, node);
 	case 32:
 		return RHASH32(id, node);
+	default:
+		return 0;
 	}
 }
 
@@ -2253,6 +2258,7 @@ inline __host__ __device__ nodetype RHASH_INVERSE(int SIZE, uint8_t id, nodetype
 		return RHASH64_INVERSE(id, node);
 	case 32:
 		return RHASH32_INVERSE(id, node);
-
+	default:
+		return 0;
 	}
 }
