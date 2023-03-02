@@ -594,15 +594,13 @@ class ClearyCuckooBucketed: HashTable{
         std::vector<uint64_cu> toList() {
             std::vector<uint64_cu> list;
             for (int i = 0; i < tablesize; i++) {
-                int add = i * Bs + j;
+                for (int j = 0; j < Bs; j++) {
 
-                addtype real_add = (addtype)(add / tile_sz);
-                addtype subIndex = (addtype)(add % tile_sz);
-
-                if (T[real_add].getO(subIndex)) {
-                    hashtype h_old = reformKey(i, T[real_add].getR(subIndex), AS);
-                    keytype x = RHASH_INVERSE(HFSIZE_BUCKET, T[real_add].getH(subIndex), h_old);
-                    list.push_back(x);
+                    if (T[i].getO(j)) {
+                        hashtype h_old = reformKey(i, T[i].getR(j), AS);
+                        keytype x = RHASH_INVERSE(HFSIZE_BUCKET, T[i].getH(j), h_old);
+                        list.push_back(x);
+                    }
                 }
             }
             return list;
