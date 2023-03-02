@@ -296,8 +296,8 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
         }
 
         //Number of Threads
-        int minThreads = std::max((int) std::log2(TILESIZE), N-10 );
-        for (int T = minThreads; T < std::min(N, minThreads+ NUM_THREADS); T++) {
+        int minThreads = (int)std::log2(TILESIZE);
+        for (int T = std::max(N-10, minThreads); T < std::min(N, minThreads+ NUM_THREADS); T++) {
             int MAX_BLOCK_SIZE = 8;
             int numThreads = 1;
             int numBlocks = 1;
