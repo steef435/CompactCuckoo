@@ -349,6 +349,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         }
                         else {
                             vals = loadedvals;
+                            vals32 = loadedvals;
                         }
                         delete[] hs;
                         //printf("Numsgenned\n");
