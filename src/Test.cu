@@ -177,11 +177,10 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        //b->print();
-
         dupCheckClearyCuckooBucketed<TILESIZE> << <numBlocks, numThreads >> > (N, vals, b);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
+
 #else
         std::vector<std::thread> vecThread2(numThreads);
 
@@ -311,11 +310,17 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
+        //printf("After Fill\n");
+
         //b->print();
+
+        //printf("After Dup\n");
 
         dupCheckCuckooBucketed<TILESIZE_CBUC> << <numBlocks, numThreads >> > (N, vals, b);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
+
+        //b->print();
 #else
         std::vector<std::thread> vecThread2(numThreads);
 

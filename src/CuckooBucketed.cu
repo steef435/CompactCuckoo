@@ -45,7 +45,7 @@ struct CuckooBucket {
     // Constructor to load the key-value pair of the bucket 2
     GPUHEADER
     CuckooBucket(ClearyCuckooEntry<addtype, remtype>* ptr, cg::thread_block_tile<tile_sz> tile, int bucketIndex, int bucketSize) : ptr_(ptr), tile_(tile) {
-        tIndex = bucketIndex * bucketSize + tile_.thread_rank();
+        tIndex = bucketIndex * tile_sz + tile_.thread_rank();
         lane_pair_ = ptr[tIndex];
     }
 
@@ -74,8 +74,11 @@ struct CuckooBucket {
     void removeDuplicates(const keytype k, const int hID, bool* found) {
         //Check if val in loc is key
         bool key_exists = ((k == ptr_[tIndex].getR()) && (ptr_[tIndex].getO()) && (ptr_[tIndex].getH() == hID));
-        //printf("%i:\tKey_exist at %i %i (%" PRIu64 " == %" PRIu64 ") %i (%i == %i))\n", getThreadID(), tIndex, key_exists, ptr_[tIndex].getR(), rem, ptr_[tIndex].getO(), ptr_[tIndex].getH(), hID);
+        //printf("%i:\tKey_exist at %i %i (%" PRIu64 " == %" PRIu64 ") %i (%i == %i))\n", getThreadID(), tIndex, key_exists, ptr_[tIndex].getR(), k, ptr_[tIndex].getO(), ptr_[tIndex].getH(), hID);
         //printf("%i: i:%i O(i):%i R(i):%" PRIu64 "\n", getThreadID(), tIndex, ptr_[tIndex].getO(), ptr_[tIndex].getR());
+        if (key_exists) {
+            //printf("%i: Searching For %" PRIu64 " and Found at %i found:%i\n", getThreadID(), k, tIndex, (*found));
+        }
 
         int realAdd = -1;
         //If first group where val is encountered, keep the first entry
@@ -92,7 +95,7 @@ struct CuckooBucket {
 
         //If duplicate, mark as empty
         if ( key_exists && (tile_.thread_rank() != realAdd) ) {
-            //printf("%i:\tDeleting\n", getThreadID());
+            //printf("%i:\t\tDeleting\n", getThreadID());
             ptr_[tIndex].setO(false);
         }
         
@@ -104,10 +107,11 @@ struct CuckooBucket {
     GPUHEADER_D
     ClearyCuckooEntry<addtype, remtype> exch_at_location(ClearyCuckooEntry<addtype, remtype> pair, const int loc) {
         ClearyCuckooEntry<addtype, remtype> old_pair;
-        //printf("%i: \t\t\t\tExch in bucket: thread_rank %i loc:%i\n", getThreadID(), tile_.thread_rank(), loc);
+        //printf("%i: \t\t\t\tExch in bucket: thread_rank %i loc:%i tIndex:%i\n", getThreadID(), tile_.thread_rank(), loc, tIndex);
         if (tile_.thread_rank() == loc) {
-            //printf("%i: \t\t\t\tActual Exch\n", getThreadID());
+            //printf("%i: \t\t\t\tActual Exch %" PRIu64 "\n", getThreadID(), pair.getR());
             ptr_[tIndex].exchValue(&pair);
+            //printf("%i: \t\t\t\tAfter Exch %" PRIu64 "\n", getThreadID(), pair.getR());
         }
         //printf("%i: \t\t\t\t Exch Done\n", getThreadID());
         return tile_.shfl(pair, loc);
@@ -252,7 +256,9 @@ class CuckooBucketed: HashTable{
          **/
         GPUHEADER_D
             result insertIntoTable(keytype k, ClearyCuckooEntry<addtype, remtype>* T, int* hs, cg::thread_block_tile<tile_sz> tile, int depth=0){
-            //printf("%i: \t\tInsert into Table %" PRIu64 "\n", getThreadID(), k);
+            if (tile.thread_rank() == 0) {
+                //printf("%i: \t\tInsert into Table %" PRIu64 "\n", getThreadID(), k);
+            }
             keytype x = k;
             int hash = hs[0];
 
@@ -265,7 +271,9 @@ class CuckooBucketed: HashTable{
             //Start the iteration
             int c = 0;
 
-            //printf("%i: \t\t\tEntering Loop %i\n", getThreadID(), MAXLOOPS);
+            if (tile.thread_rank() == 0) {
+                //printf("%i: \t\t\tEntering Loop %i\n", getThreadID(), MAXLOOPS);
+            }
             while (c < MAXLOOPS) {
                 //Get the add/rem of k
                 hashtype hashed1 = RHASH(HFSIZE_BUCKET, hash, x);
@@ -279,14 +287,18 @@ class CuckooBucketed: HashTable{
                 addtype bAdd;
 
                 if (load == Bs) {
-                    bAdd = (addtype) (RHASH(HFSIZE_BUCKET, 0, k) % Bs); //select some location within the table
+                    bAdd = (addtype) (RHASH(HFSIZE_BUCKET, 0, x) % Bs); //select some location within the table
                     //printf("%i: \t\t\tRandom Add at %" PRIu32 "\n", getThreadID(), bAdd);
                 }
                 else {
                     bAdd = load;
                 }
 
-                ClearyCuckooEntry<addtype, remtype> entry(k, hash, true, false);
+                if (tile.thread_rank() == 0) {
+                    //printf("%i: \t\t\tadd:%" PRIu32 " bAdd:%i\n", getThreadID(), add, bAdd);
+                }
+
+                ClearyCuckooEntry<addtype, remtype> entry(x, hash, true, false);
                 entry = cur_bucket.exch_at_location(entry, bAdd);
 
 
@@ -393,7 +405,7 @@ class CuckooBucketed: HashTable{
             AS( addressSize - ((int)log2(tile_sz))), B((int)pow(2, AS)), RS(HS - AS){
 
             if (AS < 0) {
-                printf("!----------WARNING: TABLE TOO SMALL FOR TILE SIZE----------!\n");
+                //printf("!----------WARNING: TABLE TOO SMALL FOR TILE SIZE----------!\n");
             }
             //printf("Constructor\n");
             //printf("AS:%i tile_sz:%i, log2(tile_sz):%i", AS, tile_sz, (int) log2(tile_sz));
@@ -801,12 +813,14 @@ void dupCheckCuckooBucketed(int N, uint64_cu* vals, CuckooBucketed<tile_sz>* H, 
 
     //printf("Thread %i Starting\n", getThreadID());
     for (int i = index + begin; i < max + begin; i += stride) {
+        //printf("Check iteration %i\n", i);
         bool realVal = false;
         keytype k = 0;
         if (i < N + begin) {
             realVal = true;
             k = vals[i];
         }
+        //printf("Checking %" PRIu64 "\n", k);
         H->coopDupCheck(realVal, k);
     }
     //printf("Insertions %i Over\n", getThreadID());

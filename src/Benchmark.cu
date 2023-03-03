@@ -294,10 +294,6 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
         int size = std::pow(2, N);
         int setsize = (int)(size / INTERVAL);
-        if (loadedvals != nullptr) {
-            setsize = (int)(std::min(loadedsize, size) / INTERVAL);
-            //printf("SetSize %i\n", setsize);
-        }
         int lookupSize = size / 4;
 
         printf("Table Size:%i (%i)\n", N, size);
@@ -379,7 +375,13 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                         //printf("Reading\n");
                         //Loop over intervals
-                        for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                        int intervalMAX = INTERVAL + WARMUP;
+                        if (loadedvals != nullptr) {
+                            intervalMAX = loadedsize/setsize;
+                            //printf("SetSize %i\n", setsize);
+                        }
+                        printf("intervalMAX %i", intervalMAX);
+                        for (int j = 0; j < intervalMAX; j++) {
                             //printf("\t\t\t\t\t\tInterval %i\n", j);
                             //Fill the table
                             std::chrono::steady_clock::time_point begin;
@@ -454,7 +456,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
 
                             //Loop over intervals
-                            for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                            for (int j = 0; j < intervalMAX; j++) {
                                 std::chrono::steady_clock::time_point begin;
                                 std::chrono::steady_clock::time_point end;
 
@@ -513,7 +515,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                         //printf("Reading\n");
                         //Loop over intervals
-                        for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                        for (int j = 0; j < intervalMAX; j++) {
                             //Fill the table
                             std::chrono::steady_clock::time_point begin;
                             std::chrono::steady_clock::time_point end;
@@ -595,7 +597,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //printf("Reading\n");
                         //Loop over intervals
                         //printf("\t\t\t\t\t\tStartingLoops\n");
-                        for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                        for (int j = 0; j < intervalMAX; j++) {
                             //Fill the table
                             std::chrono::steady_clock::time_point begin;
                             std::chrono::steady_clock::time_point end;
@@ -673,7 +675,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //printf("Reading\n");
                         //Loop over intervals
                         //printf("\t\t\t\t\t\tStartingLoops\n");
-                        for (int j = 0; j < INTERVAL + WARMUP; j++) {
+                        for (int j = 0; j < intervalMAX; j++) {
                             //Fill the table
                             std::chrono::steady_clock::time_point begin;
                             std::chrono::steady_clock::time_point end;
