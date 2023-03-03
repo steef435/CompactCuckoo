@@ -38,7 +38,7 @@ void shuffle(uint64_cu* arr, int len)
 
 
 
-uint64_cu* generateRandomSet(int size, long long int max=std::pow(2, 58)) {
+uint64_cu* generateRandomSet(int size, long long int max=std::pow(2, DATASIZE)) {
     //Random Number generator
     std::uniform_int_distribution<long long int> dist(0, std::llround(max));
 
@@ -86,7 +86,7 @@ uint64_cu* generateDuplicateSet(int size, int numDups) {
 
 uint64_cu* generateNormalSet(int size) {
     //Random Number generator
-    std::normal_distribution<> dist{std::pow(2, 58)/2 , 1000 };
+    std::normal_distribution<> dist{std::pow(2, DATASIZE)/2 , 1000 };
 
 #ifdef GPUCODE
     uint64_cu* res;
@@ -126,7 +126,7 @@ void firstPassGenSet(curandState* state, uint64_cu* res, int N, int setsize, int
 
     for (int i = index + begin; i < maxVal; i += stride) {
         float myrandf = curand_uniform(&localState);
-        uint64_cu newval = myrandf * std::llround(std::pow(2, 58));
+        uint64_cu newval = myrandf * std::llround(std::pow(2, DATASIZE));
 
         res[i] = newval;
     }
@@ -148,7 +148,7 @@ void secondPassGenSet(curandState* state, uint64_cu* res, int N, int setsize, in
         if (contains(res, res[i], i)) {
             while (true) {
                 float myrandf = curand_uniform(&localState);
-                uint64_cu newval = myrandf * std::llround(std::pow(2, 58));
+                uint64_cu newval = myrandf * std::llround(std::pow(2, DATASIZE));
                 //Check if new in table
                 if (!contains(res, newval, i)) {
                     res[i] = newval;
@@ -232,7 +232,7 @@ uint64_cu* generateCollidingSet(int size, int N) {
 }
 
 uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, int depth) {
-    std::uniform_int_distribution<long long int> dist64(0, std::llround(std::pow(2, 58)));
+    std::uniform_int_distribution<long long int> dist64(0, std::llround(std::pow(2, DATASIZE)));
     std::uniform_int_distribution<long long int> dist16(0, std::llround(std::pow(2, 16)));
 
     int maxPercentage = std::floor(100.0 / ((float)H));
@@ -384,4 +384,19 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
    
     return res;
 
+}
+
+uint64_cu* moduloList(uint64_cu* ls, int size, uint64_t mod) {
+#ifdef GPUCODE
+    uint64_cu* res;
+    gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
+#else
+    uint64_cu* res = new uint64_cu[size];
+#endif
+
+    for (int i = 0; i < size; i++) {
+        res[i] = ls[i] % mod;
+    }
+
+    return res;
 }

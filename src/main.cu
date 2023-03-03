@@ -273,12 +273,12 @@ int main(int argc, char* argv[])
 
     else if (strcmp(argv[1], "debug2") == 0) {
         uint64_cu x = std::stoll(argv[2]);
-
+        int hashsize = std::stoll(argv[3]);
         
 
         for (int i = 0; i < 10; i++) {
-            uint64_cu h = RHASH(64, i, x);
-            printf("Orignal: %" PRIu64 " HASHED: %" PRIu64 " INVERSE: %" PRIu64 "\n", x, h, RHASH_INVERSE(64, i, h));
+            uint64_cu h = RHASH(hashsize, i, x);
+            printf("Orignal: %" PRIu64 " HASHED: %" PRIu64 " INVERSE: %" PRIu64 "\n", x, h, RHASH_INVERSE(hashsize, i, h));
         }
     }
 

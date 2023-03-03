@@ -275,11 +275,12 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
     //Use file data
     uint64_cu* loadedvals = nullptr;
+    uint64_cu* loadedvals32 = nullptr;
     int loadedsize = 0;
     if (source != "") {
         //printf("Reading Data\n");
         loadedvals = readCSV(source, &loadedsize);
-        
+        loadedvals32 = moduloList(loadedvals, loadedsize, std::pow(2,28));
     }
 
     myfile << "tablesize,numthreads,collision_percentage,collision_depth,samples,type,interval,time,test\n";
@@ -355,11 +356,11 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         uint64_cu* vals32;
                         if (loadedvals == nullptr) {
                             vals = generateCollisionSet(size, N, H, hs, P, D);
-                            vals32 = generateRandomSet(size, std::pow(2, 32));
+                            vals32 = generateRandomSet(size, std::pow(2, DATASIZE_BUCKET));
                         }
                         else {
                             vals = loadedvals;
-                            vals32 = loadedvals;
+                            vals32 = loadedvals32;
                         }
 
                         delete[] hs;
@@ -747,6 +748,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
     //Free the loaded data set if exists
     if (loadedvals != nullptr) {
         gpuErrchk(cudaFree(loadedvals));
+        gpuErrchk(cudaFree(loadedvals32));
     }
 
     myfile.close();
@@ -909,7 +911,7 @@ void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START
 
                 for (int S = 0; S < NUM_SAMPLES; S++) {
                     //printf("\t\t'tSample Number:%i\n", S);
-                    uint64_cu* vals = generateRandomSet(size, std::pow(2, 32));
+                    uint64_cu* vals = generateRandomSet(size, std::pow(2, DATASIZE_BUCKET));
 
                     //Init Cleary Cuckoo
                     //printf("INit Table\n");
