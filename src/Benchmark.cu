@@ -544,7 +544,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (int) (INTERVAL*(int) (INTERVAL*(*tableCount)/ size)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (int)(INTERVAL * (*tableCount) / size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag2) {
                                 myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << -1 << ",INS,\n";
