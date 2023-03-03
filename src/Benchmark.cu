@@ -410,11 +410,11 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag) {
                                 //printf("\t\t\t\t\t\tFailed\n");
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (*tableCount) << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << -1 << ",INS,\n";
                             }
 
                             //Lookup Time Test
@@ -427,7 +427,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                             //cc->print();
@@ -467,7 +467,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                                     //End the timer
                                     end = std::chrono::steady_clock::now();
-                                    myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cle," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",INS,\n";
+                                    myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cle," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",INS,\n";
                                 }
 
                                 //Lookup
@@ -480,7 +480,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                     //End the timer
                                     end = std::chrono::steady_clock::now();
 
-                                    myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cle," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                    myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cle," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                                 }
 
                             }
@@ -543,10 +543,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (int) (INTERVAL*(int) (INTERVAL*(*tableCount)/ size)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag2) {
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (*tableCount) << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << -1 << ",INS,\n";
                             }
 
                             //Lookup Time Test
@@ -559,7 +559,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                         }
@@ -625,10 +625,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads*numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                                myfile << N << "," << numThreads*numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag3) {
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (*tableCount) << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << -1 << ",INS,\n";
                             }
                             //printf("\t\t\t\t\t\tLookup\n");
                             //Lookup Time Test
@@ -641,7 +641,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                         }
@@ -659,6 +659,8 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         gpuErrchk(cudaMallocManaged((void**)&failFlag4, sizeof(int)));
                         (*failFlag4) = false;
                         //printf("\t\t\t\t\t\tInitDone\n");
+
+                        (*tableCount) = 0;
 
                         //Warmup
                         //printf("Warmup\n");
@@ -701,10 +703,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",buc," << (j - WARMUP) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",buc," << (int)(INTERVAL * (*tableCount) / size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag3) {
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",buc," << (j - WARMUP) << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",buc," << (int)(INTERVAL * (*tableCount) / size) << "," << -1 << ",INS,\n";
                             }
                             //printf("\t\t\t\t\t\tLookup\n");
                             //Lookup Time Test
@@ -717,7 +719,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (*tableCount) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",buc," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
                             }
 
                         }
