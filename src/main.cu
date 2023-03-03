@@ -140,16 +140,18 @@ int main(int argc, char* argv[])
             }
 
             std::string s = argv[6];
-            c = s == "c";
-            cc = s == "cc";
-            b = s == "b";
-            cuc = s == "cuc";
-            cuc = s == "cb";
+            c = (strcmp(argv[6], "c") == 0);
+            cc = (strcmp(argv[6], "cc") == 0);
+            b = (strcmp(argv[6], "b") == 0);
+            cuc = (strcmp(argv[6], "cuc") == 0);
+            cb = (strcmp(argv[6], "cb") == 0);
+
             if (s == "all") {
                 c = true;
                 cc = true;
                 b = true;
                 cuc = true;
+                cb = true;
             }
 
             TableTest(std::stoi(argv[3]), std::stoi(argv[4]), std::stoi(argv[5]), c, cc, b, cb, cuc);

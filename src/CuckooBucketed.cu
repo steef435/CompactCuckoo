@@ -391,6 +391,10 @@ class CuckooBucketed: HashTable{
 
         CuckooBucketed(int addressSize, int hashNumber) :
             AS( addressSize - ((int)log2(tile_sz))), B((int)pow(2, AS)), RS(HS - AS){
+
+            if (AS < 0) {
+                printf("!----------WARNING: TABLE TOO SMALL FOR TILE SIZE----------!\n");
+            }
             //printf("Constructor\n");
             //printf("AS:%i tile_sz:%i, log2(tile_sz):%i", AS, tile_sz, (int) log2(tile_sz));
 
@@ -675,7 +679,7 @@ void fillCuckooBucketed(int N, uint64_cu* vals, CuckooBucketed<tile_sz>* H, Spin
             ins = vals[i];
         }
 
-        //printf("Inserting: %" PRIu64 "\n", ins);
+        //printf("%i: Inserting: %" PRIu64 "\n", getThreadID(), ins);
         result res = H->insert(ins, realVal);
         if (res == INSERTED) {
             localCounter++;
@@ -689,8 +693,11 @@ void fillCuckooBucketed(int N, uint64_cu* vals, CuckooBucketed<tile_sz>* H, Spin
     }
 
     if (count != nullptr) {
+        //printf("Adding Count\n");
         atomicAdd(count, localCounter);
     }
+
+    //printf("Done\n");
 }
 
 

@@ -681,7 +681,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //cc->readEverything(20);
                             }
 
-                            if (j >= WARMUP && !(*failFlag3)) {
+                            if (j >= WARMUP && !(*failFlag4)) {
                                 begin = std::chrono::steady_clock::now();
 
                                 //Do insertion iteration
@@ -691,7 +691,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                                 for (int k = 0; k < setsize; k += insertionSize) {
                                     //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
-                                    fillCuckooBucketed<TILESIZE_CBUC> << <numBlocks, numThreads >> > (insertionSize, vals32, b, failFlag3, setsize * (j - WARMUP) + k);
+                                    fillCuckooBucketed<TILESIZE_CBUC> << <numBlocks, numThreads >> > (insertionSize, vals32, b, failFlag4, setsize * (j - WARMUP) + k, tableCount);
                                     gpuErrchk(cudaPeekAtLastError());
                                     gpuErrchk(cudaDeviceSynchronize());
 
@@ -705,12 +705,12 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                                 myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",buc," << (int)(INTERVAL * (*tableCount) / size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
-                            if (*failFlag3) {
+                            if (*failFlag4) {
                                 myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",buc," << (int)(INTERVAL * (*tableCount) / size) << "," << -1 << ",INS,\n";
                             }
                             //printf("\t\t\t\t\t\tLookup\n");
                             //Lookup Time Test
-                            if (j >= WARMUP && !(*failFlag3)) {
+                            if (j >= WARMUP && !(*failFlag4)) {
                                 begin = std::chrono::steady_clock::now();
                                 lookupCuckooBucketed<TILESIZE_CBUC> << <numBlocks, numThreads >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals32, b);
                                 gpuErrchk(cudaPeekAtLastError());
