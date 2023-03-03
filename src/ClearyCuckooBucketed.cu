@@ -315,7 +315,11 @@ class ClearyCuckooBucketed: HashTable{
 
                 //Otherwise rebuild the original key
                 hashtype h_old = reformKey(add, temp, AS);
+                keytype old_key = x;
                 x = RHASH_INVERSE(HFSIZE_BUCKET, oldhash, h_old);
+                if (old_key == x) {
+                    return FOUND;
+                }
 
                 //printf("%i: \t\t\tRebuilt key:%" PRIu64 "\n", getThreadID(), x);
 

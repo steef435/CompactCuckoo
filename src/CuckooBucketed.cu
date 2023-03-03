@@ -317,6 +317,9 @@ class CuckooBucketed: HashTable{
                 }
 
                 //Otherwise rebuild the original key
+                if (x == temp) {
+                    return FOUND;
+                }
                 x = temp;
 
                 //printf("%i: \t\t\tRebuilt key:%" PRIu64 "\n", getThreadID(), x);

@@ -303,7 +303,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
         }
 
         //Number of Threads
-        int minThreads = (int)std::log2(TILESIZE);
+        int minThreads = (int)std::log2(std::max(TILESIZE, TILESIZE_CBUC));
         for (int T = std::max(N-10, minThreads); T < std::min(N, minThreads+ NUM_THREADS); T++) {
             int MAX_BLOCK_SIZE = 8;
             int numThreads = 1;
@@ -418,6 +418,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             if (*failFlag) {
                                 //printf("\t\t\t\t\t\tFailed\n");
                                 myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << -1 << ",INS,\n";
+                                break;
                             }
 
                             //Lookup Time Test
@@ -549,7 +550,9 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (int)(INTERVAL * (*tableCount) / size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
                             }
                             if (*failFlag2) {
+                                //cuc->print();
                                 myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",cuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << -1 << ",INS,\n";
+                                break;
                             }
 
                             //Lookup Time Test
@@ -632,6 +635,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             }
                             if (*failFlag3) {
                                 myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",ccbuc," << (int) (INTERVAL*(*tableCount)/ size) << "," << -1 << ",INS,\n";
+                                break;
                             }
                             //printf("\t\t\t\t\t\tLookup\n");
                             //Lookup Time Test
@@ -710,6 +714,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             }
                             if (*failFlag4) {
                                 myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",buc," << (int)(INTERVAL * (*tableCount) / size) << "," << -1 << ",INS,\n";
+                                break;
                             }
                             //printf("\t\t\t\t\t\tLookup\n");
                             //Lookup Time Test

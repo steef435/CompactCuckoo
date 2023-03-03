@@ -202,7 +202,11 @@ private:
             }
 
             //Otherwise rebuild the original key
+            keytype old_key = x;
             x = RHASH_INVERSE(HFSIZE, oldhash, temp);
+            if (old_key == x) {
+                return FOUND;
+            }
 
             //Hash with the next hash value
             hash = getNextHash(hs, oldhash);
@@ -335,6 +339,7 @@ public:
         const double off = -18059.4901;
 
         MAXLOOPS = ceil((A / (1.0 + exp(-k * (((double)AS) - x0)))) + off);
+        //MAXLOOPS = AS*1000;
 
         //Init table entries
         for (int i = 0; i < tablesize; i++) {
@@ -562,8 +567,12 @@ void fillCuckoo(int N, uint64_cu* vals, Cuckoo* H, SpinBarrier* barrier, int* fa
             localCounter++;
         }
         if (res == FAILED) {
+            //printf("Failed On: %i %" PRIu64 "\n",i , vals[i]);
             if (failFlag != nullptr) {
                 (*failFlag) = true;
+            }
+            if (count != nullptr) {
+                atomicAdd(count, localCounter);
             }
             break;
         }

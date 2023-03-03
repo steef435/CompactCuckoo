@@ -203,7 +203,11 @@ private:
 
             //Otherwise rebuild the original key
             hashtype h_old = reformKey(add, temp, AS);
+            keytype old_key = x;
             x = RHASH_INVERSE(HFSIZE, oldhash, h_old);
+            if (old_key == x) {
+                return FOUND;
+            }
 
             //Hash with the next hash value
             hash = getNextHash(hs, oldhash);
@@ -486,6 +490,9 @@ void fillClearyCuckoo(int N, uint64_cu* vals, ClearyCuckoo* H, SpinBarrier* barr
         if (res == FAILED) {
             if (failFlag != nullptr) {
                 (*failFlag) = true;
+            }
+            if (count != nullptr) {
+                atomicAdd(count, localCounter);
             }
             break;
         }
