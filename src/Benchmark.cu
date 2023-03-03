@@ -380,7 +380,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             intervalMAX = loadedsize/setsize;
                             //printf("SetSize %i\n", setsize);
                         }
-                        printf("intervalMAX %i", intervalMAX);
+                        //printf("intervalMAX %i", intervalMAX);
                         for (int j = 0; j < intervalMAX; j++) {
                             //printf("\t\t\t\t\t\tInterval %i\n", j);
                             //Fill the table
