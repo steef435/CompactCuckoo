@@ -1,9 +1,12 @@
 #include <atomic>
 
+#include "bcht.hpp"
+
 #ifndef NUMGEN
 #define NUMGEN
 #include "numbergenerators.cu"
 #endif
+
 
 void readList(uint64_cu* xs, int N, int numLoops, int T = 1, int id = 0) {
     //printf("Reading List\n");
@@ -738,7 +741,17 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         gpuErrchk(cudaFree(b));
                         gpuErrchk(cudaFree(failFlag4));
                         gpuErrchk(cudaFree(tableCount));
-                        
+
+
+
+                        /***********************************************************************************************
+                        *
+                        * bcht
+                        *
+                        ***********************************************************************************************/
+                        printf("\t\t\t\t\tBCHT\n");
+                        bght::bcht<int, int> bchtTable(((int) pow(2, N)), 0, 0);
+
 
                         //Free any randomly generated datasets
                         if (loadedvals == nullptr) {
@@ -746,6 +759,60 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             gpuErrchk(cudaFree(vals32));
                         }
 
+                        //Warmup
+                        //printf("Warmup\n");
+                        readList(vals, size, 20);
+                        //ccb->readEverything(size * 50);
+                        warmupThreads(numThreads, vals, size, 20);
+
+                        for (int j = 0; j < intervalMAX; j++) {
+                            //Fill the table
+                            std::chrono::steady_clock::time_point begin;
+                            std::chrono::steady_clock::time_point end;
+
+                            if (j < WARMUP) {
+                                //cc->readEverything(20);
+                            }
+
+                            if (j >= WARMUP && !(*failFlag4)) {
+                                begin = std::chrono::steady_clock::now();
+
+                                //Do insertion iteration
+                                int insertionSize = numThreads;
+                                insertionSize = std::min((int)(size / INTERVAL), insertionSize);
+                                //printf("\t\t\t\t\t\tInsertionSize: %i\n", insertionSize);
+
+                                for (int k = 0; k < setsize; k += insertionSize) {
+                                    //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
+                                    fillBCHT << <numBlocks, numThreads >> > (insertionSize, vals32, bchtTable, failFlag4, setsize * (j - WARMUP) + k, tableCount);
+                                    gpuErrchk(cudaPeekAtLastError());
+                                    gpuErrchk(cudaDeviceSynchronize());
+                                }
+
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",bcht," << (int)(INTERVAL * (*tableCount) / size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ", INS,\n";
+                            }
+                            if (*failFlag4) {
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",bcht," << (int)(INTERVAL * (*tableCount) / size) << "," << -1 << ",INS,\n";
+                                break;
+                            }
+                            //printf("\t\t\t\t\t\tLookup\n");
+                            //Lookup Time Test
+                            if (j >= WARMUP && !(*failFlag4)) {
+                                begin = std::chrono::steady_clock::now();
+                                lookupBCHT << <numBlocks, numThreads >> > (lookupSize, 0, setsize * (j - WARMUP + 1), vals32, bchtTable);
+                                gpuErrchk(cudaPeekAtLastError());
+                                gpuErrchk(cudaDeviceSynchronize());
+
+                                //End the timer
+                                end = std::chrono::steady_clock::now();
+
+                                myfile << N << "," << numThreads * numBlocks << "," << P << "," << D << "," << S << ",bcht," << (int)(INTERVAL * (*tableCount) / size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                            }
+
+                        }
                     }
                 }
             }
