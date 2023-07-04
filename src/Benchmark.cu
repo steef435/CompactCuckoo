@@ -304,7 +304,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
         //Number of Threads
         int minThreads = (int)std::log2(std::max(TILESIZE, TILESIZE_CBUC));
-        for (int T = std::max(N-10, minThreads); T < std::min(N, minThreads+ NUM_THREADS); T++) {
+        for (int T = std::min(N, minThreads+ NUM_THREADS)-1; T < std::min(N, minThreads+ NUM_THREADS); T++) {
             int MAX_BLOCK_SIZE = 8;
             int numThreads = 1;
             int numBlocks = 1;
@@ -738,7 +738,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         gpuErrchk(cudaFree(b));
                         gpuErrchk(cudaFree(failFlag4));
                         gpuErrchk(cudaFree(tableCount));
-                        
+
 
                         //Free any randomly generated datasets
                         if (loadedvals == nullptr) {
