@@ -1,0 +1,110 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="bght-main\include\bcht.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\cht.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\cmd.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\genzipf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\gpu_timer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\iht.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\p2bht.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\perf_report.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\rkg.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\detail\allocator.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\detail\pair_detail.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bght-main\include\detail\rng.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Barrier.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\HashTable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\main.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\SpinBarrier.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\TableEntry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="bght-main\benchmarks\probes_per_technique.cu" />
+    <None Include="bght-main\benchmarks\rates_per_technique.cu" />
+    <None Include="bght-main\benchmarks\rates_per_technique_fixed_lf.cu" />
+    <None Include="bght-main\include\benchmark_helpers.cuh" />
+    <None Include="bght-main\include\detail\bcht_impl.cuh" />
+    <None Include="bght-main\include\detail\benchmark_metrics.cuh" />
+    <None Include="bght-main\include\detail\bucket.cuh" />
+    <None Include="bght-main\include\detail\cht_impl.cuh" />
+    <None Include="bght-main\include\detail\cuda_helpers.cuh" />
+    <None Include="bght-main\include\detail\hash_functions.cuh" />
+    <None Include="bght-main\include\detail\iht_impl.cuh" />
+    <None Include="bght-main\include\detail\kernels.cuh" />
+    <None Include="bght-main\include\detail\p2bht_impl.cuh" />
+    <None Include="bght-main\include\detail\pair.cuh" />
+    <None Include="bght-main\include\detail\ptx.cuh" />
+    <None Include="bght-main\test\gtest_map.cu" />
+    <None Include="bght-main\test\test_1cht.cu" />
+    <None Include="bght-main\test\test_allocator.cu" />
+    <None Include="bght-main\test\test_bcht.cu" />
+    <None Include="bght-main\test\test_types.cu" />
+    <None Include="bght-main\test\cpm\test_cpm.cu" />
+    <None Include="src\Benchmark.cu" />
+    <None Include="src\Cleary.cu" />
+    <None Include="src\ClearyCuckoo.cu" />
+    <None Include="src\ClearyCuckooBucketed.cu" />
+    <None Include="src\ClearyCuckooEntry.cu" />
+    <None Include="src\ClearyCuckooEntryCompact.cu" />
+    <None Include="src\ClearyCuckooTest.cu" />
+    <None Include="src\ClearyEntry.cu" />
+    <None Include="src\Cuckoo.cu" />
+    <None Include="src\CuckooBucketed.cu" />
+    <None Include="src\hashfunctions.cu" />
+    <None Include="src\main.cu" />
+    <None Include="src\numbergenerators.cu" />
+    <None Include="src\numbergeneratorsTest.cu" />
+    <None Include="src\SharedQueue.cu" />
+    <None Include="src\SharedQueueTest.cu" />
+    <None Include="src\Test.cu" />
+  </ItemGroup>
+</Project>

@@ -1,5 +1,6 @@
 INC  = include
-CXXFLAGS = -g -O2 -Wall -Wno-sign-compare -I$(INC) -Iinclude -DHAVE_CONFIG_H -pedantic
+INC2 = BGHT-main/include
+CXXFLAGS = -g -O2 -Wall -Wno-sign-compare -I$(INC) -I$(INC2) -Iinclude -DHAVE_CONFIG_H -pedantic
 CXX = g++
 
 NVCC = nvcc
@@ -10,11 +11,11 @@ BIN_DIR = bin
 
 ifeq ($(OS),Windows_NT)
 	EXECUTABLE = $(BIN_DIR)/main.exe
-	NVCCFLAGS = -arch=compute_50 -g -G -I$(INC)
+	NVCCFLAGS = -arch=compute_70 -g -G -I$(INC) -I$(INC2)
 
 else
 	EXECUTABLE = $(BIN_DIR)/main
-	NVCCFLAGS = -arch=compute_75 -g -G -I$(INC)
+	NVCCFLAGS = -arch=compute_75 -g -G -I$(INC) -I$(INC2)
 
 endif
 
