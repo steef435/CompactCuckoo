@@ -43,7 +43,6 @@ __constant__ bool is_compact;
 template <class Ttype>
 GPUHEADER_G
 void coopCount(Ttype *T, int tsize, int *nrelements) {
-#ifdef GPUCODE
     uint64_cu index = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_cu stride = blockDim.x * gridDim.x;
 
@@ -54,15 +53,6 @@ void coopCount(Ttype *T, int tsize, int *nrelements) {
         }
     }
     atomicAdd(nrelements, counter);
-#else
-    int counter = 0;
-    for (int i = 0; i < tsize; i++) {
-        if (T[i] != 0) {
-            counter++;
-        }
-    }
-    nrelements = counter;
-#endif
 }
 
 class Managed {
@@ -470,11 +460,19 @@ class HashTableGeneric {
             return tsize;
         }
 
+        // Count the number of elements.
         int count() {
             nrelements = 0;
+            #ifdef GPUCODE
             gpuErrchk(cudaDeviceSynchronize());
             coopCount<Ttype> <<< tsize / 512 / 5, 512 >>> (T, tsize, &nrelements);
             gpuErrchk(cudaDeviceSynchronize());
+            #else
+            for (int i = 0; i < tsize; i++) {
+                if (T[i] != 0) {
+                    nrelements++;
+            }
+            #endif
             return nrelements;
         }
 };
