@@ -18,7 +18,7 @@ using hashtype = uint64_cu;
 using keytype = uint64_cu;
 const int ENTRYSIZE = 64;
 
-const int DATASIZENEW = 50;
+const int DATASIZENEW = 45;
 const int DATASIZE = 58;
 const int DATASIZE_BUCKET = 28;
 const int COMPACT_HASH_POSITION_SIZE = 32;
