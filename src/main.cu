@@ -87,7 +87,7 @@ std::vector<std::string>* getLastArgs(std::string filename) {
             throw std::exception();
     }
     else {
-        printf("File failed to open\n");
+        printf("File %s Failed to Open\n", filename);
         return nullptr;
     }
 

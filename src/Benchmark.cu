@@ -74,7 +74,7 @@ void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL,
     }
 
     if (!myfile.is_open()) {
-        printf("File Failed to Open\n");
+        printf("File %s Failed to Open\n", filename);
 
         return;
     }
@@ -271,7 +271,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
     myfile.open(filename);
 
     if (!myfile.is_open()) {
-        printf("File Failed to Open\n");
+        printf("File %s Failed to Open\n", filename);
 
         return;
     }
@@ -905,7 +905,7 @@ void BenchmarkMaxOccupancy(int TABLE_START, int NUM_TABLES, int HASH_START, int 
 
     myfile.open(filename);
     if (!myfile.is_open()) {
-        printf("File Failed to Open\n");
+        printf("File %s Failed to Open\n", filename);
         return;
     }
     printf("File Opened");
@@ -1014,7 +1014,7 @@ void BenchmarkMaxOccupancyBucket(int TABLE_START, int NUM_TABLES, int HASH_START
 
     myfile.open(filename);
     if (!myfile.is_open()) {
-        printf("File Failed to Open\n");
+        printf("File %s Failed to Open\n", filename);
         return;
     }
     printf("File Opened\n");
@@ -1120,7 +1120,7 @@ void BenchmarkBucketed(int NUM_BUCKETS, int BUCKET_SIZE, int INTERVAL, int NUM_S
     myfile.open(filename);
 
     if (!myfile.is_open()) {
-        printf("File Failed to Open\n");
+        printf("File %s Failed to Open\n", filename);
 
         return;
     }
