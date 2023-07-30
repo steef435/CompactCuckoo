@@ -512,7 +512,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                                     //End the timer
                                     end = std::chrono::steady_clock::now();
-                                    myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / setsize << ",INS,\n";
+                                    myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ",INS,\n";
                                 }
 
                                 //Lookup
@@ -525,7 +525,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                     //End the timer
                                     end = std::chrono::steady_clock::now();
 
-                                    myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) / lookupSize << ",LOOK,\n";
+                                    myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << (int) (INTERVAL*(*tableCount)/ size) << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ",LOOK,\n";
                                 }
 
                             }
