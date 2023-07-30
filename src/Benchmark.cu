@@ -263,7 +263,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
     }
 
     if (source != "") {
-        specifier += "-REALDATA";
+        specifier += "-REALDATA-" + source;
     }
 
     std::string filename = "results/benchspeed" + specifier + ".csv";
