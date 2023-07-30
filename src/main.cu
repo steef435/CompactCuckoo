@@ -87,7 +87,7 @@ std::vector<std::string>* getLastArgs(std::string filename) {
             throw std::exception();
     }
     else {
-        printf("File %s Failed to Open\n", filename);
+        printf("File %s Failed to Open\n", filename.c_str());
         return nullptr;
     }
 
@@ -274,7 +274,7 @@ int main(int argc, char* argv[])
     else if (strcmp(argv[1], "debug2") == 0) {
         uint64_cu x = std::stoll(argv[2]);
         int hashsize = std::stoll(argv[3]);
-        
+
 
         for (int i = 0; i < 10; i++) {
             uint64_cu h = RHASH(hashsize, i, x);

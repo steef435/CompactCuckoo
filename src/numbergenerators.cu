@@ -336,7 +336,7 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
 
     file.open(filename);
     if (!file.is_open()) {
-        printf("File %s Failed to Open\n", filename);
+        printf("File %s Failed to Open\n", filename.c_str());
         return nullptr;
     }
     printf("\tFile Opened\n");
@@ -383,7 +383,7 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
     }
     printf("...\n");
 
-   
+
     return res;
 
 }
