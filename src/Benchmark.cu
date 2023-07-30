@@ -1,4 +1,5 @@
 #include <atomic>
+#include <filesystem>
 
 #include "bcht.hpp"
 #include "HashTableGeneric.cuh"
@@ -263,7 +264,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
     }
 
     if (source != "") {
-        specifier += "-REALDATA-" + source;
+        specifier += "-REALDATA-";
+        std::string name = path.substr(path.find_last_of("/\\") + 1);
+        std::filesystem::path p(filename);
+        specifier += p.stem;
     }
 
     std::string filename = "results/benchspeed" + specifier + ".csv";
