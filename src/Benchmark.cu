@@ -318,6 +318,11 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
             printf("Error: Number of Intervals is greater than number of elements\n");
         }
 
+        if(loadedsize < size){
+          printf("\t Breaking: Table size larger than input size\n");
+          break;
+        }
+
         // Generate / read input data
         uint64_cu* vals;
         uint64_cu* vals32;
@@ -874,7 +879,9 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                 }
             }
         }
-        gpuErrchk(cudaFree(vals32));
+        if (loadedvals == nullptr) {
+          gpuErrchk(cudaFree(vals32));
+        }
     }
 
     //Free the loaded data set if exists
