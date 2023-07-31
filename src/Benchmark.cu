@@ -415,7 +415,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Loop over intervals
                         int intervalMAX = INTERVAL + WARMUP;
                         if (loadedvals != nullptr) {
-                            intervalMAX = loadedsize/setsize;
+                            intervalMAX = std::min(loadedsize/setsize, intervalMAX);
                             //printf("SetSize %i\n", setsize);
                         }
                         //printf("intervalMAX %i", intervalMAX);
