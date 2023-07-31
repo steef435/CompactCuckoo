@@ -434,9 +434,9 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 begin = std::chrono::steady_clock::now();
 
                                 //Do insertion iteration
-                                //int insertionSize = numThreads;
-                                //insertionSize = std::min((int)(size / INTERVAL), insertionSize);
-                                int insertionSize = size;
+                                int insertionSize = numThreads;
+                                insertionSize = std::min((int)(size / INTERVAL), insertionSize);
+                                //int insertionSize = size;
 
                                 for (int k = 0; k < setsize; k+= insertionSize) {
                                     //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
@@ -576,9 +576,9 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
 
                                 //Do insertion iteration
-                                //int insertionSize = numThreads;
-                                //insertionSize = std::min((int)(size / INTERVAL), insertionSize);
-                                int insertionSize = size;
+                                int insertionSize = numThreads;
+                                insertionSize = std::min((int)(size / INTERVAL), insertionSize);
+                                //int insertionSize = size;
                                 printf("Cuckoo insertion size: %u\n", insertionSize);
 
                                 for (int k = 0; k < setsize; k += insertionSize) {
@@ -667,10 +667,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 begin = std::chrono::steady_clock::now();
 
                                 //Do insertion iteration
-                                //int insertionSize = numThreads;
-                                //insertionSize = std::min((int)(size / INTERVAL), insertionSize);
+                                int insertionSize = numThreads;
+                                insertionSize = std::min((int)(size / INTERVAL), insertionSize);
                                 //printf("\t\t\t\t\t\tInsertionSize: %i\n", insertionSize);
-                                int insertionSize = size;
+                                //int insertionSize = size;
 
                                 for (int k = 0; k < setsize; k += insertionSize) {
                                     //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
@@ -756,10 +756,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 begin = std::chrono::steady_clock::now();
 
                                 //Do insertion iteration
-                                //int insertionSize = numThreads;
-                                //insertionSize = std::min((int)(size / INTERVAL), insertionSize);
+                                int insertionSize = numThreads;
+                                insertionSize = std::min((int)(size / INTERVAL), insertionSize);
                                 //printf("\t\t\t\t\t\tInsertionSize: %i\n", insertionSize);
-                                int insertionSize = size;
+                                //int insertionSize = size;
 
                                 for (int k = 0; k < setsize; k += insertionSize) {
                                     //printf("\t\t\t\t\t\tStartpoint: %i\n", setsize * (j - WARMUP) + k);
