@@ -420,7 +420,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         }
                         //printf("intervalMAX %i", intervalMAX);
                         for (int j = 0; j < intervalMAX; j++) {
-                            //printf("\t\t\t\t\t\tInterval %i\n", j);
+                            printf("\t\t\t\t\t\tInterval %i\n", j);
                             //Fill the table
                             std::chrono::steady_clock::time_point begin;
                             std::chrono::steady_clock::time_point end;
@@ -499,6 +499,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                             //Loop over intervals
                             for (int j = 0; j < intervalMAX; j++) {
+                                printf("\t\t\t\t\t\tInterval %i\n", j);
                                 std::chrono::steady_clock::time_point begin;
                                 std::chrono::steady_clock::time_point end;
 
@@ -572,6 +573,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             }
 
                             if (j >= WARMUP && !(*failFlag2)) {
+                                printf("\t\t\t\t\t\tInterval %i\n", j);
                                 begin = std::chrono::steady_clock::now();
 
 
@@ -664,6 +666,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             }
 
                             if (j >= WARMUP && !(*failFlag3)) {
+                                printf("\t\t\t\t\t\tInterval %i\n", j);
                                 begin = std::chrono::steady_clock::now();
 
                                 //Do insertion iteration
@@ -744,6 +747,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Loop over intervals
                         //printf("\t\t\t\t\t\tStartingLoops\n");
                         for (int j = 0; j < intervalMAX; j++) {
+                            printf("\t\t\t\t\t\tInterval %i\n", j);
                             //Fill the table
                             std::chrono::steady_clock::time_point begin;
                             std::chrono::steady_clock::time_point end;
