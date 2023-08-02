@@ -407,7 +407,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
-                        cc->readEverything(size * 50);
+                        readEverything<<<512,256>>>(size, cc);
                         // warmupThreads(numThreadsBlock, vals, size, 20);
 
 
@@ -557,7 +557,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
-                        cuc->readEverything(size * 50);
+                        readEverything << <512, 256 >> > (size, cuc);
                         // warmupThreads(numThreadsBlock, vals, size, 20);
 
 
@@ -649,7 +649,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
-                        ccb->readEverything(size * 50);
+                        readEverything << <512, 256 >> > (size, ccb);
                         //warmupThreads(numThreadsBlock, vals, size, 20);
 
 
@@ -739,7 +739,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
-                        b->readEverything(size * 50);
+                        readEverything << <512, 256 >> > (size, b);
                         //warmupThreads(numThreadsBlock, vals, size, 20);
 
 
