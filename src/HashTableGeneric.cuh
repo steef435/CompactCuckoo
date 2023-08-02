@@ -379,6 +379,11 @@ class HashTableGeneric {
             #endif
         }
 
+        GPUHEADER
+        T readIndex(addtype i) {
+            return T[i];
+        }
+
         //Taken from Better GPU Hash Tables
         GPUHEADER_D
         result coopInsert(bool to_insert, keytype k) {
@@ -563,6 +568,19 @@ void fill(int N, uint64_cu* vals, HashTableGeneric<Ttype, tile_sz>* table, addty
     }
 }
 #endif
+
+template <class Ttype, int tile_sz>
+GPUHEADER_G
+void readAll(int N, HashTableGeneric<Ttype, tile_sz>* table) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    
+    int val = 0;
+
+    for (int i = index; i < N; i += stride) {
+        val += readIndex[i];
+    }
+}
 
 // //Method to check whether a ClearyCuckooBucketed table contains a set of values
 // template <int tile_sz>

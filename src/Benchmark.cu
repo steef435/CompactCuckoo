@@ -407,7 +407,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
-                        // cc->readEverything(size * 50);
+                        cc->readEverything(size * 50);
                         // warmupThreads(numThreadsBlock, vals, size, 20);
 
 
@@ -557,7 +557,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
-                        // cuc->readEverything(size * 50);
+                        cuc->readEverything(size * 50);
                         // warmupThreads(numThreadsBlock, vals, size, 20);
 
 
@@ -569,7 +569,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             std::chrono::steady_clock::time_point end;
 
                             if (j < WARMUP) {
-                                //cc->readEverything(20);
+                                cc->readEverything(20);
                             }
 
                             if (j >= WARMUP && !(*failFlag2)) {
@@ -649,7 +649,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
-                        //ccb->readEverything(size * 50);
+                        ccb->readEverything(size * 50);
                         //warmupThreads(numThreadsBlock, vals, size, 20);
 
 
@@ -739,7 +739,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
-                        //ccb->readEverything(size * 50);
+                        b->readEverything(size * 50);
                         //warmupThreads(numThreadsBlock, vals, size, 20);
 
 
