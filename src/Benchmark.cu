@@ -452,11 +452,11 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccuc," << *tableCount << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ", INS,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccuc," << j << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ", INS,\n";
                             }
                             if (*failFlag) {
                                 //printf("\t\t\t\t\t\tFailed\n");
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccuc," << *tableCount << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccuc," << j << "," << -1 << ",INS,\n";
                                 break;
                             }
 
@@ -513,7 +513,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                                     //End the timer
                                     end = std::chrono::steady_clock::now();
-                                    myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << *tableCount << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ",INS,\n";
+                                    myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << j << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ",INS,\n";
                                 }
 
                                 //Lookup
@@ -526,7 +526,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                     //End the timer
                                     end = std::chrono::steady_clock::now();
 
-                                    myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << *tableCount << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ",LOOK,\n";
+                                    myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cle," << j << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ",LOOK,\n";
                                 }
 
                             }
@@ -597,11 +597,11 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << *tableCount << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ", INS,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << j << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ", INS,\n";
                             }
                             if (*failFlag2) {
                                 //cuc->print();
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << *tableCount << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",cuc," << j << "," << -1 << ",INS,\n";
                                 break;
                             }
 
@@ -689,10 +689,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccbuc," << *tableCount << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ", INS,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccbuc," << j << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ", INS,\n";
                             }
                             if (*failFlag3) {
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccbuc," << *tableCount << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",ccbuc," << j << "," << -1 << ",INS,\n";
                                 break;
                             }
                             //printf("\t\t\t\t\t\tLookup\n");
@@ -779,10 +779,10 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                                 //End the timer
                                 end = std::chrono::steady_clock::now();
 
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",buc," << *tableCount << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ", INS,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",buc," << j << "," << (std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count()) << ", INS,\n";
                             }
                             if (*failFlag4) {
-                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",buc," << *tableCount << "," << -1 << ",INS,\n";
+                                myfile << N << "," << numThreads << "," << P << "," << D << "," << S << ",buc," << j << "," << -1 << ",INS,\n";
                                 break;
                             }
                             //printf("\t\t\t\t\t\tLookup\n");
