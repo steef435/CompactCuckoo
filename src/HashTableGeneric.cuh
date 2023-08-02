@@ -284,7 +284,7 @@ class HashTableGeneric {
         //             //printf("%i:\t\tDeleting\n", getThreadID());
         //             ptr_[tIndex].setO(false);
         //         }
-                
+
         //     }
         //     //printf("%i: \t\tDups Removed\n", getThreadID());
         // }
@@ -380,7 +380,7 @@ class HashTableGeneric {
         }
 
         GPUHEADER
-        T readIndex(addtype i) {
+        Ttype readIndex(addtype i) {
             return T[i];
         }
 
@@ -522,7 +522,7 @@ void fill(int N, uint64_cu* vals, int* failFlag = nullptr, addtype begin = 0, in
                 (*failFlag) = true;
             }
         }
-        
+
     }
 
     // if (count != nullptr) {
@@ -571,14 +571,14 @@ void fill(int N, uint64_cu* vals, HashTableGeneric<Ttype, tile_sz>* table, addty
 
 template <class Ttype, int tile_sz>
 GPUHEADER_G
-void readAll(int N, HashTableGeneric<Ttype, tile_sz>* table) {
+void readEverything(int N, HashTableGeneric<Ttype, tile_sz>* table) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
-    
+
     int val = 0;
 
     for (int i = index; i < N; i += stride) {
-        val += readIndex[i];
+        val += table->readIndex(i);
     }
 }
 
