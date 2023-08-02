@@ -8,26 +8,15 @@
 #include "numbergenerators.cu"
 #endif
 
+GPUHEADER_G
+void readList(uint64_cu* xs, int N) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
 
-void readList(uint64_cu* xs, int N, int numLoops, int T = 1, int id = 0) {
-    //printf("Reading List\n");
-    int begin = 0;
-    int end = N;
+    uint64_cu val = 0;
 
-    if (T > 1) {
-        int spread = N / T;
-        begin = spread * id;
-        end = begin + spread - 1;
-        //printf("Begin: %i End:%i", begin, end);
-    }
-
-    for (int i = 0; i < numLoops; i++) {
-        //printf("Reading List i:%i\n",i);
-        uint64_cu val = 0;
-        for (int j = begin; j < end; j++) {
-            //printf("Reading List j:%i\n", j);
-             val += xs[j];
-        }
+    for (int i = index; i < N; i+= stride) {
+        val += xs[i];
     }
 }
 
@@ -406,7 +395,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                         //Warmup
                         //printf("Warmup\n");
-                        //readList(vals, size, 20);
+                        readList << <512, 256 >> > (vals, size);
                         readEverything<<<512,256>>>(size, cc);
                         // warmupThreads(numThreadsBlock, vals, size, 20);
 
@@ -557,6 +546,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
+                        readList << <512, 256 >> > (vals, size);
                         readEverything << <512, 256 >> > (size, cuc);
                         // warmupThreads(numThreadsBlock, vals, size, 20);
 
@@ -649,6 +639,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
+                        readList << <512, 256 >> > (vals, size);
                         readEverything << <512, 256 >> > (size, ccb);
                         //warmupThreads(numThreadsBlock, vals, size, 20);
 
@@ -739,6 +730,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Warmup
                         //printf("Warmup\n");
                         //readList(vals, size, 20);
+                        readList << <512, 256 >> > (vals, size);
                         readEverything << <512, 256 >> > (size, b);
                         //warmupThreads(numThreadsBlock, vals, size, 20);
 
