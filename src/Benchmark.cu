@@ -492,7 +492,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             printf("\t\t\t\t\tCleary\n");
                             Cleary* c;
                             gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
-                            new (c) Cleary(N, numThreads);
+                            new (c) Cleary(N, numBlocks, numThreadsBlock);
 
                             (*tableCount) = 0;
 

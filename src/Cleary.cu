@@ -405,7 +405,7 @@ class Cleary : public HashTable{
         Cleary() {}
 
         //Constructor with size
-        Cleary(int adressSize, int numThreads){
+        Cleary(int adressSize, int numBlocks int numThreadsBlock){
             //Init Variables
             AS = adressSize;
             RS = HS-AS;
@@ -427,8 +427,8 @@ class Cleary : public HashTable{
 
 #ifdef GPUCODE
             //Init random num gen
-            cudaMalloc(&d_state, numThreads*sizeof(curandState));
-            setup_kernel << <1, numThreads >> > (d_state);
+            cudaMalloc(&d_state, numBlocks * numThreadsBlock *sizeof(curandState));
+            setup_kernel << <numBlocks, numThreadsBlock >> > (d_state);
             gpuErrchk(cudaPeekAtLastError());
             gpuErrchk(cudaDeviceSynchronize());
 #endif
