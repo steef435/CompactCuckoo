@@ -392,17 +392,28 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
 
 }
 
+GPUHEADER_G
+void moduloKernel(uint64_cu* res, uint64_cu* ls, int size, uint64_t mod) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = index; i < N; i += stride) {
+        res[i] = ls[i] % mod;
+    }
+}
+
 uint64_cu* moduloList(uint64_cu* ls, int size, uint64_t mod) {
 #ifdef GPUCODE
     uint64_cu* res;
     gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
+    moduloKernel << <1028,512 >> > (res, ls, mod, size);
 #else
     uint64_cu* res = new uint64_cu[size];
-#endif
-
     for (int i = 0; i < size; i++) {
         res[i] = ls[i] % mod;
     }
+#endif
+
+    
 
     return res;
 }
