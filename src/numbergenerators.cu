@@ -360,11 +360,39 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
 
     file.close();
 
-    int size = vec.size();
+    //TEMP
+
+    std::set<uint64_cu> valset;
+    for (uint64_cu i : vec) {
+        valset.insert(i);
+    }
+
+    size_t old_size = vec.size();
+    vec.clear();
+
+    size_t newsize = valset.size();
+
+    std::uniform_int_distribution<long long int> dist(0, std::llround(max));
+
+    for (uint64_cu val: valset) {
+        vec.push_back(val);
+    }
+
+    for (int i = 0; i < old_size - newsize; i++) {
+        uint64_cu rand = dist(e2_ng);
+        vec.push_back(rand);
+    }
+
+    //TEMP
+
+    //PUTBACK
+    /*int size = vec.size();
     printf("Loaded Size %i\n", size);
     if (setsize != nullptr) {
         (*setsize) = size;
-    }
+    }*/
+
+    //PUTBACK
 
 #ifdef GPUCODE
     uint64_cu* res;
