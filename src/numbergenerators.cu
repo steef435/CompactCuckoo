@@ -3,6 +3,7 @@
 #include <cuda.h>
 #include <curand_kernel.h>
 #include <inttypes.h>
+#include <set>
 
 # define PRIl64		"llu"
 
@@ -360,6 +361,8 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
 
     file.close();
 
+    int size = vec.size();
+
     //TEMP
 
     std::set<uint64_cu> valset;
@@ -367,41 +370,40 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
         valset.insert(i);
     }
 
-    size_t old_size = vec.size();
+
     vec.clear();
 
-    size_t newsize = valset.size();
+    int newsize = valset.size();
 
-    std::uniform_int_distribution<long long int> dist(0, std::llround(max));
+    std::uniform_int_distribution<long long int> dist(0, std::llround(std::pow(2, DATASIZE)));
 
     for (uint64_cu val: valset) {
         vec.push_back(val);
     }
 
-    for (int i = 0; i < old_size - newsize; i++) {
+    for (int i = 0; i < size - newsize; i++) {
         uint64_cu rand = dist(e2_ng);
         vec.push_back(rand);
     }
 
     //TEMP
 
-    //PUTBACK
-    /*int size = vec.size();
     printf("Loaded Size %i\n", size);
     if (setsize != nullptr) {
         (*setsize) = size;
-    }*/
+    }
 
-    //PUTBACK
 
 #ifdef GPUCODE
     uint64_cu* res;
     gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
 
-    gpuErrchk(cudaMemcpy(res, &vec[0], size * sizeof(uint64_cu), cudaMemcpyHostToDevice));
+    //gpuErrchk(cudaMemcpy(res, &vec[0], size * sizeof(uint64_cu), cudaMemcpyHostToDevice));
 #else
     uint64_cu* res = new uint64_cu[size];
 
+
+#endif
     int j = 0;
     printf("\tSample:");
     for (uint64_cu i : vec) {
@@ -411,8 +413,6 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
         }
     }
     printf("...\n");
-#endif
-
 
 
 
