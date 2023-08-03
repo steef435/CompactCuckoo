@@ -295,7 +295,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
     if (source != "") {
         //printf("Reading Data\n");
         loadedvals = readCSV(source, &loadedsize);
-        loadedvals32 = moduloList(loadedvals, loadedsize, std::pow(2,28));
+        loadedvals32 = moduloList(loadedvals, loadedsize, std::pow(2, DATASIZENEW));
     }
 
     myfile << "tablesize,numthreads,collision_percentage,collision_depth,samples,type,interval,time,test\n";
@@ -332,8 +332,8 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
             vals = vals32;
         }
         else {
-            vals = loadedvals;
-            vals32 = loadedvals32;
+            vals = loadedvals32;
+            //vals32 = loadedvals32;
         }
 
         //Number of Thread blocks
