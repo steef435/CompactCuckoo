@@ -332,7 +332,8 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
             vals = vals32;
         }
         else {
-            vals = loadedvals32;
+            vals32 = loadedvals32;
+            vals = vals32;
             //vals32 = loadedvals32;
         }
 
