@@ -318,7 +318,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
             printf("Error: Number of Intervals is greater than number of elements\n");
         }
 
-        if(loadedsize < size){
+        if(loadedvals != nullptr && loadedsize < size){
           printf("\t Breaking: Table size larger than input size\n");
           break;
         }
@@ -415,7 +415,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                         //Loop over intervals
                         int intervalMAX = INTERVAL + WARMUP;
                         if (loadedvals != nullptr) {
-                            intervalMAX = loadedsize/setsize;
+                            //intervalMAX = loadedsize/setsize;
                             //printf("SetSize %i\n", setsize);
                         }
                         //printf("intervalMAX %i", intervalMAX);
