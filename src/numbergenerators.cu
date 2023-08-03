@@ -424,7 +424,7 @@ GPUHEADER_G
 void moduloKernel(uint64_cu* res, uint64_cu* ls, int size, uint64_t mod) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
-    for (int i = index; i < N; i += stride) {
+    for (int i = index; i < size; i += stride) {
         res[i] = ls[i] % mod;
     }
 }
@@ -441,7 +441,7 @@ uint64_cu* moduloList(uint64_cu* ls, int size, uint64_t mod) {
     }
 #endif
 
-    
+
 
     return res;
 }
