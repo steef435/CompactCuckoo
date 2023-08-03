@@ -531,7 +531,6 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
 
                             }
 
-                            delete (c);
                             gpuErrchk(cudaFree(c));
                         }
 

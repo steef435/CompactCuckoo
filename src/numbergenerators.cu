@@ -369,9 +369,10 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
 #ifdef GPUCODE
     uint64_cu* res;
     gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
+
+    gpuErrchk(cudaMemcpy(res, &vec[0], size * sizeof(uint64_cu), cudaMemcpyHostToDevice));
 #else
     uint64_cu* res = new uint64_cu[size];
-#endif
 
     int j = 0;
     printf("\tSample:");
@@ -382,6 +383,9 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
         }
     }
     printf("...\n");
+#endif
+
+
 
 
     return res;

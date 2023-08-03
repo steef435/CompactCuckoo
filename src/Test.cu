@@ -104,7 +104,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #ifdef GPUCODE
         Cleary* c;
         gpuErrchk(cudaMallocManaged((void**)&c, sizeof(Cleary)));
-        new (c) Cleary(tablesize, numThreads);
+        new (c) Cleary(tablesize, numBlocks, numThreads);
 #else
         Cleary* c = new Cleary(tablesize, numThreads);
 #endif
@@ -290,7 +290,7 @@ bool TestFill(int N, int T, int tablesize, uint64_cu* vals, bool c_bool, bool cc
 #endif
     }
 
-   
+
 
     if (b_bool) {
         //Create Table 2

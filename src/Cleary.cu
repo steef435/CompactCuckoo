@@ -55,7 +55,7 @@ class Cleary : public HashTable{
         bool GPU;
 
         //Vars assigned at construction
-        int AS;                             //AdressSize 
+        int AS;                             //AdressSize
         int RS;                             //RemainderSize
         int size;                           //Allocated Size of Table
         int tablesize;                      //Actual size of table with buffer
@@ -77,7 +77,7 @@ class Cleary : public HashTable{
 
         //Insert Method
         GPUHEADER
-        addtype findIndex(uint64_cu k){           
+        addtype findIndex(uint64_cu k){
             hashtype h = RHASH(HFSIZE, h1, k);
             addtype j = getAdd(h, AS);
             remtype rem = getRem(h, AS);
@@ -220,7 +220,7 @@ class Cleary : public HashTable{
 
             //Check whether i should be 0 (Check all smaller Vs
             bool setStart = false;
-            
+
             if (i == MIN_ADRESS && j != MIN_ADRESS && !T[MIN_ADRESS].getV()) {
                 setStart = true;
                 for (int x = 1; x < j; x++) {
@@ -265,7 +265,7 @@ class Cleary : public HashTable{
             else if (T[right].getO()) {
                 shift = -1;
             }
-            
+
 
             //Edge cases where the location must be shifted
             bool setC = false;
@@ -405,7 +405,7 @@ class Cleary : public HashTable{
         Cleary() {}
 
         //Constructor with size
-        Cleary(int adressSize, int numBlocks int numThreadsBlock){
+        Cleary(int adressSize, int numBlocks, int numThreadsBlock){
             //Init Variables
             AS = adressSize;
             RS = HS-AS;
