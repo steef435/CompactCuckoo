@@ -324,6 +324,35 @@ uint64_cu* generateCollisionSet(int N, int AS, int H, int* hs, int percentage, i
     return res;
 }
 
+template <class T>
+void removeDupsFromVec(std::vector<T>& vals){
+  size_t in_size = vals.size();
+
+  std::set<T> unique;
+
+  for(T val : vals){
+      unique.insert(val);
+  }
+
+  vals.clear();
+
+  for(T u : unique){
+    vals.push_back(u);
+  }
+
+  size_t diff = in_size - vals.size();
+  printf("Diff is %llu\n", diff);
+
+
+  std::uniform_int_distribution<long long int> dist(0, std::llround(std::pow(2, DATASIZE)));
+
+  for(int i =0; i<diff;i++){
+    uint64_cu rand = dist(e2_ng);
+    vals.push_back(rand);
+  }
+
+}
+
 //Read CSV
 uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
     std::vector<uint64_cu> vec;
@@ -367,6 +396,8 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
     if (setsize != nullptr) {
         (*setsize) = size;
     }
+
+    //removeDupsFromVec(vec);
 
 
 #ifdef GPUCODE
