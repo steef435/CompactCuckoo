@@ -284,7 +284,7 @@ class HashTableGeneric {
         //             //printf("%i:\t\tDeleting\n", getThreadID());
         //             ptr_[tIndex].setO(false);
         //         }
-                
+
         //     }
         //     //printf("%i: \t\tDups Removed\n", getThreadID());
         // }
@@ -507,6 +507,10 @@ void fill(int N, uint64_cu* vals, int* failFlag = nullptr, addtype begin = 0, in
             ins = vals[i];
         }
 
+        /*if(i < 100){\
+          printf("%i: %" PRIu64 ", ", i , ins);
+        }*/
+
         //printf("%i: Inserting: %" PRIu64 "\n", getThreadID(), ins);
         result res = table->insert(ins, realVal);
         if (res == INSERTED) {
@@ -517,7 +521,7 @@ void fill(int N, uint64_cu* vals, int* failFlag = nullptr, addtype begin = 0, in
                 (*failFlag) = true;
             }
         }
-        
+
     }
 
     // if (count != nullptr) {
@@ -539,12 +543,17 @@ void fill(int N, uint64_cu* vals, HashTableGeneric<Ttype, tile_sz>* table, addty
     int stride = blockDim.x * gridDim.x;
 
 
+
     int max = ((N + (tile_sz - 1)) / tile_sz) * tile_sz;
 
     for (int i = index; i < max; i += stride) {
         // if (failFlag[0]) {
         //     break;
         // }
+
+        /*if(i < 100){\
+          printf("%i: %PRIu64, ", i , vals[i]);
+        }*/
 
         bool realVal = false;
         keytype ins = 0;

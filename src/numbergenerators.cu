@@ -408,13 +408,15 @@ uint64_cu* moduloList(uint64_cu* ls, int size, uint64_t mod) {
 #ifdef GPUCODE
     uint64_cu* res;
     gpuErrchk(cudaMallocManaged(&res, size * sizeof(uint64_cu)));
-    moduloKernel << <1028,512 >> > (res, ls, mod, size);
+    //moduloKernel << <1028,512 >> > (res, ls, mod, size);
 #else
     uint64_cu* res = new uint64_cu[size];
+
+#endif
+
     for (int i = 0; i < size; i++) {
         res[i] = ls[i] % mod;
     }
-#endif
 
 
 
