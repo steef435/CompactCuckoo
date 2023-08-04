@@ -295,6 +295,7 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
     if (source != "") {
         //printf("Using Source\n");
         loadedvals = readCSV(source, &loadedsize);
+        loadedvals32 = loadedvals;
         //loadedvals32 = moduloList(loadedvals, loadedsize, std::pow(2, DATASIZENEW));
 
     }
