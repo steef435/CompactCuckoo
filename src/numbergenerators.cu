@@ -383,7 +383,7 @@ uint64_cu* readCSV(std::string filename, int* setsize = nullptr) {
     printf("\tSample:");
     for (uint64_cu i : vec) {
         res[j++] = i;
-        if (j < 10) {
+        if (j < 100) {
             printf("%llu, ", i);
         }
     }
