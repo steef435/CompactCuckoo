@@ -20,17 +20,18 @@ void readList(uint64_cu* xs, int N) {
     }
 }
 
-void warmupThreads(int T, uint64_cu* xs, int N, int numLoops) {
-    std::vector<std::thread> vecThread(T);
-    for (int i = 0; i < T; i++) {
-        vecThread.at(i) = std::thread(readList, xs, N, numLoops, T, i);
-    }
-
-    //Join Threads
-    for (int i = 0; i < T; i++) {
-        vecThread.at(i).join();
-    }
-}
+// TODO: this does not work, needs different readList impl.
+//void warmupThreads(int T, uint64_cu* xs, int N, int numLoops) {
+//    std::vector<std::thread> vecThread(T);
+//    for (int i = 0; i < T; i++) {
+//        vecThread.at(i) = std::thread(readList, xs, N, numLoops, T, i);
+//    }
+//
+//    //Join Threads
+//    for (int i = 0; i < T; i++) {
+//        vecThread.at(i).join();
+//    }
+//}
 
 void BenchmarkGeneralFilling(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_SAMPLES, int NUM_THREADS, int NUM_LOOPS, int LOOP_STEP, int NUM_HASHES, int HASH_STEP, int NUM_REHASHES,
     int PERCENTAGE, int P_STEPSIZE, int DEPTH, std::vector<std::string>* params = nullptr) {
@@ -559,7 +560,8 @@ void BenchmarkSpeed(int NUM_TABLES_start, int NUM_TABLES, int INTERVAL, int NUM_
                             std::chrono::steady_clock::time_point end;
 
                             if (j < WARMUP) {
-                                cc->readEverything(20);
+                                // TODO: needs rework
+                                //cc->readEverything(20);
                             }
 
                             if (j >= WARMUP && !(*failFlag2)) {
