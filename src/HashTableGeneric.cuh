@@ -1,36 +1,8 @@
-#include <iostream>
-#include <iomanip>
-#include <stdlib.h>
-#include <math.h>
-#include <iterator>
-#include <set>
-#include <inttypes.h>
-#include <atomic>
-#include <random>
-
 #include <cooperative_groups.h>
 namespace cg = cooperative_groups;
 
-//For to List
-#include <vector>
-
-#include <curand.h>
-#include <curand_kernel.h>
-
-#ifndef MAIN
-#define MAIN
 #include "main.h"
-#endif
-
-#ifndef HASHTABLE
-#define HASHTABLE
-#include "HashTable.h"
-#endif
-
-#ifndef HASHINCLUDED
-#define HASHINCLUDED
 #include "hashfunctions.cu"
-#endif
 
 const int MAXLOOPS = 1000;
 const int NHASHFUNCTIONS = 4;
@@ -55,21 +27,6 @@ void coopCount(Ttype *T, int tsize, int *nrelements) {
     atomicAdd(nrelements, counter);
 }
 
-class Managed {
-public:
-  void *operator new(size_t len) {
-    void *ptr;
-    cudaMallocManaged(&ptr, len);
-    cudaDeviceSynchronize();
-    return ptr;
-  }
-
-  void operator delete(void *ptr) {
-    cudaDeviceSynchronize();
-    cudaFree(ptr);
-  }
-};
-
 // Assumption: AS (Number of bits of address space) and
 // is_compact (do we use Cleary compression?) are constants
 // stored in constant memory.
@@ -83,22 +40,14 @@ class HashTableGeneric {
         int nrelements = 0;
 
         //Flags
-#ifdef GPUCODE
         int failFlag = 0;
         int occupation = 0;
         int rehashFlag = 0;
-#else
-        std::atomic<int> failFlag;
-        std::atomic<int> occupation;
-        std::atomic<int> rehashFlag;
-#endif
+
         //Method to select next hash to use in insertion
         GPUHEADER
         int getNextHash(int curr) {
-            if (curr+1 < NHASHFUNCTIONS) {
-                return curr+1;
-            }
-            return 0;
+            return (curr + 1) % NHASHFUNCTIONS;
         }
 
         /* Method to prepare an element for storage */
@@ -250,7 +199,7 @@ class HashTableGeneric {
         // void removeDuplicates(keytype k, cg::thread_block_tile<tile_sz> tile) {
         //     //To store whether value was already encountered
         //     bool found = false;
-
+        //
         //     //Iterate over Hash Functions
         //     for (int i = 0; i < NRHASHFUNCTIONS; i++) {
         //         uint64_cu hashed1 = RHASH(HFSIZE_BUCKET, i, k);
@@ -262,29 +211,29 @@ class HashTableGeneric {
         //         else {
         //             p = prepare_for_storage(x, i);
         //         }
-
+        //
         //         //Check if val in loc is key
         //         bool key_exists = this.find(p, add);
-
+        //
         //         int realAdd = -1;
         //         //If first group where val is encountered, keep the first entry
         //         int num_vals = __popc(tile_.ballot(key_exists));
         //         int first = __ffs(tile_.ballot(key_exists)) - 1;
         //         //printf("NumVals:%i First:%i\n", num_vals, first);
-
+        //
         //         if ( (num_vals > 0) && !(*found) ) {
         //             //Mark as found for next iteration
         //             (*found) = true;
         //             realAdd = first;
         //             //printf("%i:\tRealAdd %i\n", getThreadID(), realAdd);
         //         }
-
+        //
         //         //If duplicate, mark as empty
         //         if ( key_exists && (tile_.thread_rank() != realAdd) ) {
         //             //printf("%i:\t\tDeleting\n", getThreadID());
         //             ptr_[tIndex].setO(false);
         //         }
-
+        //
         //     }
         //     //printf("%i: \t\tDups Removed\n", getThreadID());
         // }
@@ -322,40 +271,13 @@ class HashTableGeneric {
             return false;
         }
 
-        // GPUHEADER
-        // void print(ClearyCuckooEntry<addtype, remtype>* T) {
-        //     printf("----------------------------------------------------------------\n");
-        //     printf("|    i     |     R[i]       | O[i] |        key         |label |\n");
-        //     printf("----------------------------------------------------------------\n");
-        //     printf("Tablesize %i\n", tablesize);
-
-        //     for (int i = 0; i < B; i++) {
-        //         printf("----------------------------------------------------------------\n");
-        //         printf("|                   Bucket %i                                   \n", i);
-        //         printf("----------------------------------------------------------------\n");
-        //         for (int j = 0; j < Bs; j++) {
-        //             keytype k = T[i*Bs + j].getR();
-        //             int label = T[i*Bs + j].getH();
-
-        //             printf("|%-10i|%-16" PRIl64 "|%-6i|%-20" PRIl64 "|%-6i|\n", j, T[i*Bs + j].getR(), T[i*Bs + j].getO(), k, T[i*Bs + j].getH());
-        //         }
-        //     }
-
-        //     printf("------------------------------------------------------------\n");
-        // }
-
-
     public:
         /**
          * Constructor
          */
         HashTableGeneric(int tableSize) {
             tsize = ((tableSize + tile_sz - 1) / tile_sz) * tile_sz;
-#ifdef GPUCODE
             gpuErrchk(cudaMallocManaged(&T, tsize * sizeof(Ttype)));
-#else
-            T = new Ttype[tsize * tile_sz];
-#endif
             for(int i = 0; i < tsize; i++){
                 T[i] = 0;
             }
@@ -366,17 +288,11 @@ class HashTableGeneric {
          */
         ~HashTableGeneric() {
             //printf("Destructor\n");
-            #ifdef GPUCODE
             gpuErrchk(cudaFree(T));
-            #else
-            delete[] T;
-            #endif
         }
 
         void deleteT() {
-            #ifdef GPUCODE
             gpuErrchk(cudaFree(T));
-            #endif
         }
 
         GPUHEADER
@@ -412,12 +328,7 @@ class HashTableGeneric {
 
         //Public insertion call
         GPUHEADER_D
-#ifdef GPUCODE
             result insert(keytype k, bool to_check = true) {
-#else
-            result insert(uint64_cu k) {
-#endif
-
             return coopInsert(to_check, k);
         };
 
@@ -468,16 +379,9 @@ class HashTableGeneric {
         // Count the number of elements.
         int count() {
             nrelements = 0;
-            #ifdef GPUCODE
             gpuErrchk(cudaDeviceSynchronize());
             coopCount<Ttype> <<< tsize / 512 / 5, 512 >>> (T, tsize, &nrelements);
             gpuErrchk(cudaDeviceSynchronize());
-            #else
-            for (int i = 0; i < tsize; i++) {
-                if (T[i] != 0) {
-                    nrelements++;
-            }
-            #endif
             return nrelements;
         }
 };
@@ -485,20 +389,10 @@ class HashTableGeneric {
 //Method to fill table
 template <class Ttype, int tile_sz>
 GPUHEADER_G
-#ifdef GPUCODE
 void fill(int N, uint64_cu* vals, HashTableGeneric<Ttype, tile_sz>* table, int* failFlag=nullptr, addtype begin = 0, int* count = nullptr, int id = 0, int s = 1)
-#else
-void fill(int N, uint64_cu* vals, int* failFlag = nullptr, addtype begin = 0, int id = 0, int s = 1)
-#endif
 {
-#ifdef GPUCODE
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
-#else
-    int index = id;
-    int stride = s;
-#endif
-
     int max = ((N + (tile_sz - 1)) / tile_sz) * tile_sz;
     int localCounter = 0;
 
@@ -533,8 +427,6 @@ void fill(int N, uint64_cu* vals, int* failFlag = nullptr, addtype begin = 0, in
     //printf("Done\n");
 }
 
-
-#ifdef GPUCODE
 //Method to fill table with a failCheck on every insertion
 template <class Ttype, int tile_sz>
 GPUHEADER_G
@@ -567,7 +459,6 @@ void fill(int N, uint64_cu* vals, HashTableGeneric<Ttype, tile_sz>* table, addty
         // atomicAdd(&occupancy[0], 1);
     }
 }
-#endif
 
 template <class Ttype, int tile_sz>
 GPUHEADER_G
@@ -581,81 +472,3 @@ void readEverything(int N, HashTableGeneric<Ttype, tile_sz>* table) {
         val += table->readIndex(i);
     }
 }
-
-// //Method to check whether a ClearyCuckooBucketed table contains a set of values
-// template <int tile_sz>
-// GPUHEADER_G
-// void checkCuckooBucketed(int N, uint64_cu* vals, CuckooBucketed<tile_sz>* H, bool* res, int id = 0, int s = 1)
-// {
-// #ifdef GPUCODE
-//     int index = blockIdx.x * blockDim.x + threadIdx.x;
-//     int stride = blockDim.x * gridDim.x;
-// #else
-//     int index = id;
-//     int stride = s;
-// #endif
-
-//     int max = calcBlockSize(N, H->getBucketSize());
-
-//     for (int i = index; i < max; i += stride) {
-//         bool realVal = false;
-//         keytype look = 0;
-//         if (i < N) {
-//             realVal = true;
-//             look = vals[i];
-//         }
-
-//         if (!(H->coopLookup(realVal, look))) {
-//             res[0] = false;
-//         }
-//     }
-// }
-
-// //Method to do lookups in a ClearyCuckooBucketed table on an array of values
-// template <int tile_sz>
-// GPUHEADER_G
-// void lookupCuckooBucketed(int N, int start, int end, uint64_cu* vals, CuckooBucketed<tile_sz>* H, int id = 0, int s = 1) {
-// #ifdef GPUCODE
-//     int index = blockIdx.x * blockDim.x + threadIdx.x;
-//     int stride = blockDim.x * gridDim.x;
-// #else
-//     int index = id;
-//     int stride = s;
-// #endif
-
-//     int max = calcBlockSize(N, H->getBucketSize());
-
-//     for (int i = index; i < max; i += stride) {
-//         bool realVal = false;
-//         keytype look = 0;
-//         if (i < N) {
-//             realVal = true;
-//             look = vals[(i + start) % end];
-//         }
-//         H->coopLookup(realVal, look);
-//     }
-// }
-
-// //Method to fill ClearyCuckoo table
-// template <int tile_sz>
-// GPUHEADER_G
-// void dupCheckCuckooBucketed(int N, uint64_cu* vals, CuckooBucketed<tile_sz>* H, addtype begin = 0)
-// {
-//     int index = blockIdx.x * blockDim.x + threadIdx.x;
-//     int stride = blockDim.x * gridDim.x;
-
-//     int max = calcBlockSize(N, H->getBucketSize());
-
-//     //printf("Thread %i Starting\n", getThreadID());
-//     for (int i = index + begin; i < max + begin; i += stride) {
-//         //printf("Check iteration %i\n", i);
-//         bool realVal = false;
-//         keytype k = 0;
-//         if (i < N + begin) {
-//             realVal = true;
-//             k = vals[i];
-//         }
-//         //printf("Checking %" PRIu64 "\n", k);
-//         H->coopDupCheck(realVal, k);
-//     }
-//     //printf("Insertions %i Over\n", getThreadID());
