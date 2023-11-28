@@ -3,6 +3,7 @@
 #include <cuda.h>
 #include <curand_kernel.h>
 #include <inttypes.h>
+#include <fstream>
 
 # define PRIl64		"llu"
 
