@@ -15,10 +15,9 @@ struct CuckooConfig {
     //unsigned bucket_size = 32;
     //unsigned key_width = 45;
     unsigned n_rows; // we assume multiples of 32
-    unsigned max_loops = 1000; // TODO: is this a sensible number?
+    unsigned max_loops = 20; // TODO: is this a sensible number?
     unsigned n_hash_functions = 4;
 };
-const CuckooConfig default_config = {};
 
 // A Cuckoo hash table with support for bucketing and compactification
 // 
@@ -133,7 +132,6 @@ public:
         while (true) {
             const auto s = hash(hashid, x), r = rem(s), a = addr(s);
             const auto entry = entry_prepare_for_storage(s, hashid);
-            printf("made entry %llx\n", entry);
             assert(entry >> (row_width - 1) == 1);
 
             const bool occupied = entry_is_occupied(table[a * bucket_size + rank]);
