@@ -127,9 +127,9 @@ public:
         
         while (true) {
             const auto s = hash(hashid, x), r = rem(s), a = addr(s);
-            const auto entry = entry_prepare_for_storage(s, j);
+            const auto entry = entry_prepare_for_storage(s, hashid);
 
-            const bool occupied = entry_is_occupied(table[a * b + rank]);
+            const bool occupied = entry_is_occupied(table[a * bucket_size + rank]);
             const auto load = __popc(tile.ballot(occupied));
             if (load == bucket_size) {
                 if (loop == config.max_loops) return FAILED;
