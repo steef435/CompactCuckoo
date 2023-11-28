@@ -60,11 +60,11 @@ public:
     }
     
     __device__ inline uint64_t rem(uint64_t hashed_key) {
-        return hashed_key / addr_space;
+        if constexpr (compact) return hashed_key / addr_space; else return hashed_key;
     }
     
     __device__ inline uint64_t combine(uint64_t addr, uint64_t rem) {
-        return rem * addr_space + addr;
+        if constexpr (compact) return rem * addr_space + addr; else return rem;
     }
     
     __device__ inline bool entry_is_occupied(row_type e) {
