@@ -111,7 +111,7 @@ public:
         return false;
     }
     
-    // Cooperatively find or put a key (as in the article)
+    // Cooperatively find or put a single key k (as in the article)
     //
     // Returns true if the key was found, false if it has been inserted.
     //
@@ -136,11 +136,14 @@ public:
 
                 const auto cuckoor = hash(0, x) % bucket_size;
                 auto cuckood = entry;
-                if (rank == cuckoor) atomicExch(&table[a * bucket_size + rank], cuckood);
+                if (rank == cuckoor) {
+                    atomicExch(&table[a * bucket_size + rank], cuckood);
+                }
                 tile.shfl(cuckood, cuckoor);
                 
-                // Detect duplicates in bucket (diversion from paper)
-                if (tile.ballot(entry == cuckood)) return FOUND;
+                // Detect duplicates in bucket (slight diversion from paper)
+                // Maybe we should also find duplicates with differing hashes
+                if (entry == cuckood) return FOUND;
                 
                 hashid = entry_get_hashid(cuckood);
                 const auto rc = entry_get_rem(cuckood);
