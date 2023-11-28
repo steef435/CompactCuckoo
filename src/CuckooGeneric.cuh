@@ -15,7 +15,7 @@ struct CuckooConfig {
     //unsigned bucket_size = 32;
     //unsigned key_width = 45;
     unsigned n_rows; // we assume multiples of 32
-    unsigned max_loops = 1000;
+    unsigned max_loops = 1000; // TODO: is this a sensible number?
     unsigned n_hash_functions = 4;
 };
 const CuckooConfig default_config = {};
@@ -119,6 +119,8 @@ public:
     //
     // TODO: bug in paper: in the XCHG it assumes j is the same but it might not be?
     // so if r' = r it might still be that the hash ids do not match
+    //
+    // TODO: cuckoor ID must be randomized more to allow for more deduplication
     __device__ result coopFindOrPut(uint64_t k, Tile<bucket_size> tile) {
         const auto rank = tile.thread_rank();
         auto x = k;
@@ -134,7 +136,10 @@ public:
             if (load == bucket_size) {
                 if (loop == config.max_loops) return FAILED;
 
-                const auto cuckoor = hash(0, x) % bucket_size;
+                // DIVERSION: use hash(hashid, x) instead of hash(0, x),
+                // in order to hopefully remove more duplicates.
+                // (Awad et al. even use RNG.)
+                const auto cuckoor = hash(hashid, x) % bucket_size;
                 auto cuckood = entry;
                 if (rank == cuckoor) {
                     atomicExch(&table[a * bucket_size + rank], cuckood);
