@@ -38,7 +38,7 @@ template <bool compact, typename row_type, unsigned key_width, unsigned bucket_s
 class CuckooGeneric {
     static_assert(bucket_size <= 32 && bucket_size % 2 == 0);
     // TODO: this is the wrong place to check this, see RHASH() in hashfunctions.cu
-    static_assert(key_width == 64 || key_width == 32 || key_width == 28);
+    static_assert(key_width == 64 || key_width == 50 || key_width == 32 || key_width == 28);
 
 public:
     const CuckooConfig config;
@@ -89,7 +89,7 @@ public:
     
     __device__ inline row_type entry_prepare_for_storage(uint64_t hashed_k, unsigned hashid) {
         row_type e = 1ull << (row_width - 1); // occupied
-        e |= hashid << (row_width - hashid_width - 1); // hash id
+        e |= ((row_type)hashid) << (row_width - hashid_width - 1); // hash id
         if constexpr (compact) e |= rem(hashed_k); else e |= hashed_k; // remainder
         return e;
     }
@@ -114,6 +114,8 @@ public:
     // Cooperatively find or put a single key k (as in the article)
     //
     // Returns true if the key was found, false if it has been inserted.
+    // If naive is true, the algorithm does not check whether k is already in the table.
+    // (This can be used for raw throughput benchmarks.)
     //
     // False negatives and duplicate insertions may occur.
     //
@@ -121,15 +123,18 @@ public:
     // so if r' = r it might still be that the hash ids do not match
     //
     // TODO: cuckoor ID must be randomized more to allow for more deduplication
+    template <bool naive = false>
     __device__ result coopFindOrPut(uint64_t k, Tile<bucket_size> tile) {
         const auto rank = tile.thread_rank();
         auto x = k;
         auto loop = 0, hashid = 0;
-        if (coopLookup(k, tile)) return FOUND;
+        if constexpr (!naive) if (coopLookup(k, tile)) return FOUND;
         
         while (true) {
             const auto s = hash(hashid, x), r = rem(s), a = addr(s);
             const auto entry = entry_prepare_for_storage(s, hashid);
+            printf("made entry %llx\n", entry);
+            assert(entry >> (row_width - 1) == 1);
 
             const bool occupied = entry_is_occupied(table[a * bucket_size + rank]);
             const auto load = __popc(tile.ballot(occupied));
@@ -148,7 +153,7 @@ public:
                 
                 // Detect duplicates in bucket (slight diversion from paper)
                 // Maybe we should also find duplicates with differing hashes
-                if (entry == cuckood) return FOUND;
+                if constexpr(!naive) if (entry == cuckood) return FOUND;
                 
                 hashid = entry_get_hashid(cuckood);
                 const auto rc = entry_get_rem(cuckood);
@@ -175,7 +180,7 @@ public:
         // Make sure it fits
         assert(1 + hashid_width + rem_width <= sizeof(row_type) * 8);
         gpuErrchk(cudaMallocManaged(&table, config.n_rows * sizeof(row_type)));
-        for (auto i = 0; i < config.n_rows; i++) table[i] = 0;
+        for (unsigned i = 0; i < config.n_rows; i++) table[i] = 0;
     }
     
     ~CuckooGeneric() {
@@ -192,6 +197,28 @@ __global__ void lookup(CuckooGeneric<C, R, W, B> *table, uint64_t *batch, bool *
     const auto tile = cg::tiled_partition<B>(thb);
     const auto index = (blockIdx.x * blockDim.x + threadIdx.x) / B;
     results[index] = table->coopLookup(batch[index], tile);
+}
+
+// Naive insert (without checking if key is already in the table)
+//
+// Assumption: the size of batch is the number of threads * bucket_size
+template <auto C, typename R, auto W, auto B>
+__global__ void insert(CuckooGeneric<C, R, W, B> *table, uint64_t *batch, bool *results) {
+    const auto thb = cg::this_thread_block();
+    const auto tile = cg::tiled_partition<B>(thb);
+    const auto index = (blockIdx.x * blockDim.x + threadIdx.x) / B;
+    results[index] = table->coopFindOrPut<true>(batch[index], tile);
+}
+
+// findOrPut
+//
+// Assumption: the size of batch is the number of threads * bucket_size
+template <auto C, typename R, auto W, auto B>
+__global__ void findOrPut(CuckooGeneric<C, R, W, B> *table, uint64_t *batch, result *results) {
+    const auto thb = cg::this_thread_block();
+    const auto tile = cg::tiled_partition<B>(thb);
+    const auto index = (blockIdx.x * blockDim.x + threadIdx.x) / B;
+    results[index] = table->coopFindOrPut(batch[index], tile);
 }
 
 // Read everything (for warmup)
