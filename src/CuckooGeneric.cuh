@@ -14,7 +14,7 @@ using Tile = cg::thread_block_tile<tile_size, cg::thread_block>;
 struct CuckooConfig {
     //unsigned bucket_size = 32;
     //unsigned key_width = 45;
-    unsigned n_rows; // we assume multiples of 32
+    uint64_t n_rows; // we assume multiples of 32
     unsigned max_loops = 20; // TODO: is this a sensible number?
     unsigned n_hash_functions = 4;
 };
@@ -47,7 +47,7 @@ public:
     const unsigned addr_width;
     const unsigned rem_width; // for non-compact, this is key_width
     const unsigned hashid_width;
-    const unsigned addr_space = ((uint64_t) 1) << addr_width;
+    const uint64_t addr_space = 1ull << addr_width;
     
     // The table
     row_type *table;
