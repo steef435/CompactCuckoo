@@ -34,7 +34,7 @@ struct CuckooConfig {
 // - Currently we assume keys are originally uint64_cu. Could be templated.
 template <bool compact, typename row_type, unsigned key_width, unsigned bucket_size>
 class CuckooGeneric {
-    static_assert(bucket_size <= 32 && bucket_size % 2 == 0);
+    static_assert(bucket_size <= 32 && (bucket_size % 2 == 0 || bucket_size == 1));
     // TODO: this is the wrong place to check this, see RHASH() in hashfunctions.cu
     static_assert(key_width == 64 || key_width == 50 || key_width == 32 || key_width == 28);
 
