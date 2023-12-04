@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cooperative_groups.h>
+#include "Table.cuh"
 #include "main.h"
 #include "bit_width.h"
 #include "hashfunctions.cu"
@@ -33,7 +34,7 @@ struct CuckooConfig {
 // TODO:
 // - Currently we assume keys are originally uint64_cu. Could be templated.
 template <bool compact, typename row_type, unsigned key_width, unsigned bucket_size>
-class CuckooGeneric {
+class CuckooGeneric : public Table {
     static_assert(bucket_size <= 32 && (bucket_size % 2 == 0 || bucket_size == 1));
     // TODO: this is the wrong place to check this, see RHASH() in hashfunctions.cu
     static_assert(key_width == 64 || key_width == 50 || key_width == 32 || key_width == 28);
@@ -47,51 +48,61 @@ public:
     const unsigned rem_width; // for non-compact, this is key_width
     const unsigned hashid_width;
     const uint64_cu addr_space = 1ull << addr_width;
-    
+
     // The table
     row_type *table;
-    
+
     // TODO: these inline functions might be better written on one line or as macros for readability
 
     __device__ inline uint64_cu addr(uint64_cu hashed_key) {
         return hashed_key % addr_space;
     }
-    
+
     __device__ inline uint64_cu rem(uint64_cu hashed_key) {
         if constexpr (compact) return hashed_key / addr_space; else return hashed_key;
     }
-    
+
     __device__ inline uint64_cu combine(uint64_cu addr, uint64_cu rem) {
         if constexpr (compact) return rem * addr_space + addr; else return rem;
     }
-    
+
     __device__ inline bool entry_is_occupied(row_type e) {
         return e >> (row_width - 1);
     }
-    
+
     __device__ inline uint64_cu entry_get_rem(row_type e) {
         return e & (1ull << rem_width - 1);
     }
-    
+
     __device__ inline unsigned entry_get_hashid(row_type e) {
         return (e >> (row_width - hashid_width - 1)) & (1ull << hashid_width - 1);
     }
-    
+
     __device__ inline uint64_cu hash(unsigned hashid, uint64_cu key) {
         return RHASH(key_width, hashid, key);
     }
-    
+
     __device__ inline uint64_cu hash_invert(unsigned hashid, uint64_cu hashed_key) {
         return RHASH_INVERSE(key_width, hashid, hashed_key);
     }
-    
+
     __device__ inline row_type entry_prepare_for_storage(uint64_cu hashed_k, unsigned hashid) {
         row_type e = 1ull << (row_width - 1); // occupied
         e |= ((row_type)hashid) << (row_width - hashid_width - 1); // hash id
         if constexpr (compact) e |= rem(hashed_k); else e |= hashed_k; // remainder
         return e;
     }
-    
+
+    // Clear the table
+    __device__ void clear() {
+        const auto index = blockIdx.x * blockDim.x + threadIdx.x;
+        const auto stride = blockDim.x * gridDim.x;
+        for (size_t i = index; i < config.n_rows; i += stride) {
+            table[i] = 0;
+        }
+    }
+
+
     // Cooperatively look up a key
     //
     // Gives up if it encounters a bucket that is not full and does not contain k.
@@ -108,7 +119,7 @@ public:
         }
         return false;
     }
-    
+
     // Cooperatively find or put a single key k (as in the article)
     //
     // Returns true if the key was found, false if it has been inserted.
@@ -127,7 +138,7 @@ public:
         auto x = k;
         auto loop = 0, hashid = 0;
         if constexpr (!naive) if (coopLookup(k, tile)) return FOUND;
-        
+
         while (true) {
             const auto s = hash(hashid, x), r = rem(s), a = addr(s);
             const auto entry = entry_prepare_for_storage(s, hashid);
@@ -147,11 +158,11 @@ public:
                     atomicExch(&table[a * bucket_size + rank], cuckood);
                 }
                 tile.shfl(cuckood, cuckoor);
-                
+
                 // Detect duplicates in bucket (slight diversion from paper)
                 // Maybe we should also find duplicates with differing hashes
                 if constexpr(!naive) if (entry == cuckood) return FOUND;
-                
+
                 hashid = entry_get_hashid(cuckood);
                 const auto rc = entry_get_rem(cuckood);
                 x = hash_invert(hashid, combine(a, rc));
@@ -192,6 +203,35 @@ public:
         return res;
     }
 
+    // Finds or puts the first n elements of batch
+    //
+    // Assumes a 1d thread layout, and that bucket_size divides blockDim.x.
+    __device__ void insertBatch(const uint64_cu *batch, const size_t n, result *results) {
+        const auto index = blockIdx.x * blockDim.x + threadIdx.x;
+        const auto stride = gridDim.x * blockDim.x;
+        // round to whole warps (note: integer division)
+        const auto max = ((n + bucket_size - 1) / bucket_size) * bucket_size;
+
+        for (size_t i = index; i < max; i += stride) {
+            if (i < n) { // we need to act
+                results[i] = findOrPut(batch[i], true);
+            }
+            else { // we need to help
+                findOrPut(0, false);
+            }
+        }
+    }
+
+    __device__ void warmup() {
+        const auto index = blockIdx.x * blockDim.x + threadIdx.x;
+        const auto stride = blockDim.x * gridDim.x;
+
+        int val = 0;
+        for (size_t i = index; i < config.n_rows; i += stride) {
+            val += table[i];
+        }
+    }
+
     CuckooGeneric(CuckooConfig config)
         : config(config)
         , addr_width(bit_width(config.n_rows - 1) - bit_width(bucket_size - 1))
@@ -204,75 +244,8 @@ public:
         gpuErrchk(cudaMallocManaged(&table, config.n_rows * sizeof(row_type)));
         for (unsigned i = 0; i < config.n_rows; i++) table[i] = 0;
     }
-    
+
     ~CuckooGeneric() {
         gpuErrchk(cudaFree(table));
     }
 };
-
-// Clear table
-template <auto C, typename R, auto W, auto B>
-__global__ void clear(CuckooGeneric<C, R, W, B> *table) {
-    const auto index = blockIdx.x * blockDim.x + threadIdx.x;
-    const auto stride = blockDim.x * gridDim.x;
-    for (size_t i = index; i < table->config.n_rows; i += stride) {
-        table->table[i] = 0;
-    }
-}
-
-// Checks if any of the first n results are FAILED
-//
-// Sets *failed to true if so.
-__global__ void hasFailed(bool *failed, const result *results, const size_t n) {
-    const auto index = blockIdx.x * blockDim.x + threadIdx.x;
-    const auto stride = gridDim.x * blockDim.x;
-    for (size_t i = index; i < n; i += stride) {
-        if (results[i] == FAILED) *failed = true;
-    }
-}
-
-// Checks if any of the first n results are FAILED
-//
-// Returns true if this is the case, false otherwise.
-bool hasFailed(const result *results, const size_t n) {
-    bool failed, *failed_dev;
-    gpuErrchk(cudaMallocManaged(&failed_dev, sizeof(*failed_dev)));
-    *failed_dev = false;
-    hasFailed<<<n / 512, 512>>>(failed_dev, results, n);
-    gpuErrchk(cudaPeekAtLastError());
-    gpuErrchk(cudaDeviceSynchronize());
-    failed = *failed_dev;
-    gpuErrchk(cudaFree(failed_dev));
-    return failed;
-}
-
-// Finds or puts the first n elements of batch
-//
-// Assumes a 1d thread layout, and that bucket_size divides blockDim.x.
-template <auto C, typename R, auto W, auto bucket_size>
-__global__ void insertBatch(CuckooGeneric<C, R, W, bucket_size> *table, const uint64_cu *batch, const size_t n, result *results) {
-    const auto index = blockIdx.x * blockDim.x + threadIdx.x;
-    const auto stride = gridDim.x * blockDim.x;
-    // round to whole warps (note: integer division)
-    const auto max = ((n + bucket_size - 1) / bucket_size) * bucket_size;
-
-    for (size_t i = index; i < max; i += stride) {
-        if (i < n) { // we need to act
-            results[i] = table->findOrPut(batch[i], true);
-        } else { // we need to help
-            table->findOrPut(0, false);
-        }
-    }
-}
-
-// Read everything (for warmup)
-template <auto C, typename R, auto W, auto B>
-__global__ void readEverything(const CuckooGeneric<C, R, W, B> *table) {
-    const auto index = blockIdx.x *blockDim.x + threadIdx.x;
-    const auto stride = blockDim.x * gridDim.x;
-
-    int val = 0;
-    for (size_t i = index; i < table->config.n_rows; i += stride) {
-        val += table->table[i];
-    }
-}
